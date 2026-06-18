@@ -1,0 +1,27 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.palos.jsrevise.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "EntityTypeSpawnEggMixin",
+    "JSAnimalBaseSystemsMixin",
+    "JSAquaticBaseSystemsMixin",
+    "JSAvianBaseSystemsMixin",
+    "JSCommonMixin",
+    "JSEntityDataHolderSystemsMixin",
+    "LivingEntityTravelMixin",
+    "MultiNoiseBiomeSourceMixin",
+    "TravelersSmartAnimalBaseMixin"
+  ],
+  "client": [
+    "client.CustomHeadLayerMixin",
+    "client.TylosaurusAnimatorMixin",
+    "client.TravelersClientAnimatorMixin",
+    "client.TravelersAzureModelRendererMixin"
+  ],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
