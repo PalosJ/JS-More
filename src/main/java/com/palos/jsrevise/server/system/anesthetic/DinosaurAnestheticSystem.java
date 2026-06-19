@@ -3,10 +3,12 @@ package com.palos.jsrevise.server.system.anesthetic;
 import com.palos.jsrevise.server.registry.JSReviseAttachments;
 import com.palos.jsrevise.server.system.size.DinosaurSizeProfile;
 import com.palos.jsrevise.server.system.size.DinosaurSizeSystem;
+import jp.jurassicsaga.server.animal.animations.obj.JSAnimations;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAquaticBase;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAvianBase;
 import net.minecraft.world.phys.Vec3;
+import travelers.server.animal.entity.other.TravelersAnimalAnimationModule;
 
 public final class DinosaurAnestheticSystem {
     private DinosaurAnestheticSystem() {
@@ -53,7 +55,7 @@ public final class DinosaurAnestheticSystem {
     }
 
     public static boolean shouldBridgeSleepState(JSAnimalBase animal) {
-        return isAnesthetized(animal);
+        return isUsable(animal) && AnestheticStateService.isActiveOrReady(animal);
     }
 
     public static void prepareAnimationSleepState(JSAnimalBase animal) {
@@ -73,6 +75,21 @@ public final class DinosaurAnestheticSystem {
             avian.setGliding(false);
             avian.setFlapping(false);
         }
+    }
+
+    public static boolean playAnestheticSleepAnimation(JSAnimalBase animal, TravelersAnimalAnimationModule animationModule) {
+        if (!shouldBridgeSleepState(animal)) {
+            return false;
+        }
+        prepareAnimationSleepState(animal);
+        animationModule.playTransition(
+                true,
+                true,
+                JSAnimations.SLEEP_IN.wrap(63),
+                JSAnimations.SLEEP_LOOP.wrap(),
+                JSAnimations.SLEEP_OUT.wrap(39)
+        );
+        return true;
     }
 
     public static boolean shouldSuppressMovement(JSAnimalBase animal) {

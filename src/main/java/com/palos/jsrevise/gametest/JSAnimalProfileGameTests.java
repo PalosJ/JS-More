@@ -7,8 +7,11 @@ import com.palos.jsrevise.server.system.anesthetic.AnestheticFloatData;
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
 import com.palos.jsrevise.server.system.profile.DinosaurProfileResolver;
 import com.palos.jsrevise.server.system.size.DinosaurSizeProfile;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import jp.jurassicsaga.server.animal.JSAnimals;
 import jp.jurassicsaga.server.animal.animals.obj.JSAnimal;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
@@ -22,6 +25,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import travelers.server.animal.entity.other.TravelersAnimalAnimationModule;
 import travelers.server.animal.entity.SmartAnimalBase;
 import travelers.server.animal.entity.task.TaskGoal;
 import travelers.server.animal.entity.task.TaskPriority;
@@ -274,6 +278,61 @@ public final class JSAnimalProfileGameTests {
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void anesthetizedAnimalsKeepServerSleepAnimationWhileControllersAreSuspended(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        int discovered = 0;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            discovered++;
+            Entity entity = null;
+            try {
+                entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+                if (!(entity instanceof JSAnimalBase animal)) {
+                    failures.add(registeredAnimal + ": entity is not a JSAnimalBase");
+                    continue;
+                }
+
+                CountingTask task = new CountingTask(animal);
+                animal.getTaskController().registerTask(task);
+                animal.getTaskController().setGoalOccupied(
+                        TaskPriority.DIRECT,
+                        TaskGoal.ATTACK,
+                        task
+                );
+                task.run();
+
+                DinosaurAnestheticSystem.applyAnesthetic(animal);
+                DinosaurAnestheticSystem.prepareAnimationSleepState(animal);
+                invokeTravelersServerAiStep(animal);
+
+                if (task.ticks() != 0) {
+                    failures.add(registeredAnimal + ": anesthetized task controller still ticked");
+                }
+                if (!hasRunningAnimationTransition(animal.getAnimationModule())) {
+                    failures.add(registeredAnimal + ": anesthetic sleep animation transition was not advanced");
+                }
+            } catch (ReflectiveOperationException exception) {
+                failures.add(registeredAnimal + ": reflection " + exception.getClass().getSimpleName());
+            } catch (RuntimeException exception) {
+                failures.add(registeredAnimal + ": " + exception.getClass().getSimpleName());
+            } finally {
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+
+        if (discovered == 0) {
+            helper.fail("Jurassic Saga registered no animals");
+            return;
+        }
+        if (!failures.isEmpty()) {
+            helper.fail("Invalid anesthetic server animation/controller split: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
     public static void staleWaterSurfaceCannotFloatAnAnimalOnSolidGround(GameTestHelper helper) {
         Entity entity = null;
         try {
@@ -360,6 +419,20 @@ public final class JSAnimalProfileGameTests {
         return null;
     }
 
+    private static void invokeTravelersServerAiStep(JSAnimalBase animal) throws ReflectiveOperationException {
+        Method customServerAiStep = SmartAnimalBase.class.getDeclaredMethod("customServerAiStep");
+        customServerAiStep.setAccessible(true);
+        customServerAiStep.invoke(animal);
+    }
+
+    private static boolean hasRunningAnimationTransition(TravelersAnimalAnimationModule module)
+            throws ReflectiveOperationException {
+        Field animationMap = TravelersAnimalAnimationModule.class.getDeclaredField("animationMap");
+        animationMap.setAccessible(true);
+        Object value = animationMap.get(module);
+        return value instanceof Map<?, ?> map && !map.isEmpty();
+    }
+
     private static final class TrackingTask extends TravelerTaskBase {
         private boolean stopped;
 
@@ -384,6 +457,32 @@ public final class JSAnimalProfileGameTests {
 
         private boolean wasStopped() {
             return this.stopped;
+        }
+    }
+
+    private static final class CountingTask extends TravelerTaskBase {
+        private int ticks;
+
+        private CountingTask(SmartAnimalBase animal) {
+            super(animal);
+            this.getGoals().add(TaskGoal.ATTACK);
+        }
+
+        @Override
+        public void onStart() {
+        }
+
+        @Override
+        public void tick() {
+            this.ticks++;
+        }
+
+        @Override
+        public void onStop() {
+        }
+
+        private int ticks() {
+            return this.ticks;
         }
     }
 }

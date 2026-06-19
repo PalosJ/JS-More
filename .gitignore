@@ -7,6 +7,22 @@ build/
 ### Local debug sessions ###
 .dbg/
 
+### Local secrets ###
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+auth.json
+credentials.json
+secrets.*
+local.properties
+keystore.properties
+.codex/
+
 ### IntelliJ IDEA ###
 .idea/
 *.iws

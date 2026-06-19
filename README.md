@@ -4,7 +4,7 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 
 项目目前主要为 Jurassic Saga 生物提供麻醉、落水漂浮、年龄推算、信息观察、刷怪蛋成长阶段控制和世界生成调整等功能。设计重点是让通用功能依赖 Jurassic Saga 的稳定生物基类和运行时能力，而不是依赖固定物种白名单，使主模组未来新增的常规生物能够自动获得基础支持。
 
-本文档以 `1.0.57` 源码为准，面向后续维护、问题排查和功能扩展。
+本文档以 `1.0.58` 源码为准，面向后续维护、问题排查和功能扩展。
 
 ## 基本信息
 
@@ -13,7 +13,7 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 | 模组 ID | `jsrevise` |
 | 显示名称 | `JS-revise` |
 | 作者 | `Palos` |
-| 当前版本 | `1.0.57` |
+| 当前版本 | `1.0.58` |
 | Minecraft | `1.21.1` |
 | NeoForge | `21.1.232` |
 | Java | `21` |
@@ -258,10 +258,11 @@ Minecraft 原版 16×16 像素物品的尺寸、硬边与有限调色板风格�
 - 清除攻击、进食、恐慌、潜行和跳跃等运行状态。
 - 在主模组服务端动画器执行前保持 Jurassic Saga 的睡眠状态。
 - 到点的待生效剂量会在服务端动画器执行前先推进为 active，避免等待 `EntityTickEvent.Post` 时产生一帧普通动画。
-- `isSleeping()` 在麻醉期间会桥接为 true，避免动画同步间隙短暂回到站立、行走或飞行姿势。
+- `isSleeping()` 在麻醉期间会桥接为 true；客户端若已收到“到点但尚未 promote 同步”的待生效剂量，也会只读桥接为睡眠，避免附件同步和动画包到达顺序不同造成一次性站立闪回。
+- 麻醉期间通用 `JSAnimal` 动画入口会优先推进睡眠 transition，并阻止本 tick 的物种动画器继续发送站立、行走、游泳或飞行动画。因此固定飞行态或没有标准睡眠判断的现有/未来动物，也会按麻醉睡眠姿势收口。
 
 这些操作统一从 `JSAnimalBase` 和 Travelers 的稳定生物基类生效，因此不需要逐个物种接入。麻醉期间
-`TravelersSmartAnimalBaseMixin` 会暂停任务控制器、移动控制器和导航控制器的服务端更新；解除麻醉后不保留永久禁用标记，主模组会继续按原流程运行。
+`TravelersSmartAnimalBaseMixin` 会暂停任务控制器、移动控制器和导航控制器的服务端更新，但不会跳过主模组的服务端动画器。解除麻醉后不保留永久禁用标记，主模组会继续按原流程运行。
 
 ## 漂浮系统
 
@@ -653,6 +654,7 @@ Data Attachment 的年龄、麻醉和漂浮状态使用 NeoForge 附件同步机
 | Mixin | 目标 | 用途 |
 | --- | --- | --- |
 | `JSCommonMixin` | Jurassic Saga `JSCommon` | 补充附属模组初始化入口 |
+| `JSAnimalAnimationSystemsMixin` | Jurassic Saga `JSAnimal` | 麻醉期间通用接管服务端睡眠动画，避免物种动画覆盖 |
 | `JSAnimalBaseSystemsMixin` | `JSAnimalBase` | 在服务端 AI 步开始前准备麻醉睡眠状态并抑制移动 |
 | `JSAvianBaseSystemsMixin` | `JSAvianBase` | 阻止麻醉翼龙重新起飞和生成主动飞行速度 |
 | `JSEntityDataHolderSystemsMixin` | Jurassic Saga `JSEntityDataHolder` | 桥接麻醉期间的 `isSleeping()` 读取 |
@@ -738,7 +740,7 @@ build/libs/jsrevise-<version>.jar
 当前已验证产物：
 
 ```text
-build/libs/jsrevise-1.0.57.jar
+build/libs/jsrevise-1.0.58.jar
 ```
 
 修改模组代码或资源并重新发布构建时，需要同步更新
@@ -746,7 +748,7 @@ build/libs/jsrevise-1.0.57.jar
 
 ## 自动化测试
 
-当前共有 15 个测试类、62 项 JUnit 测试，以及 4 项 GameTest。
+当前共有 15 个测试类、63 项 JUnit 测试，以及 5 项 GameTest。
 
 覆盖内容：
 
@@ -758,7 +760,8 @@ build/libs/jsrevise-1.0.57.jar
 - 非正数存档剂量丢弃、64 条网络剂量边界和越界数据拒绝。
 - 飞行动物水体捕获状态保持。
 - 麻醉周期只执行一次行为任务清理。
-- 待生效剂量到点后，所有已注册 `JSAnimalBase` 在主模组服务端动画器执行前都会先完成 active 推进并读取到睡眠状态。
+- 待生效剂量到点后，所有已注册 `JSAnimalBase` 在主模组服务端动画器执行前都会先完成 active 推进并读取到睡眠状态；客户端只读桥接也会把到点 pending 视为睡眠窗口。
+- 麻醉期间所有已注册 `JSAnimalBase` 会跳过 Travelers 任务/移动/导航控制器，但仍推进服务端睡眠动画 transition，避免物种动画器回发站立或飞行动画。
 - 流体接触必须与碰撞箱真实重叠，水面支撑不能超过允许间隙。
 - 只有 `RISING` 和 `BOBBING` 阶段抑制宿主水中移动。
 - 漂浮附件非法坐标修复。
@@ -806,32 +809,6 @@ GameTest 验证命令：
 ```
 
 自动化测试不能替代游戏内视觉验证。模型姿态、水面露出比例、粒子可见性、HUD 布局和独立服务器同步仍需要整合包实际测试。
-
-## Subagents 协作体系
-
-当前 Codex 对话固定作为主 agent / 架构收口 agent。主 agent 负责需求理解、任务拆分、最终技术决策、审查子 agent 结果、合并实现、测试构建、更新 README、更新版本和产出可测试 JAR。子 agent 只负责边界清晰的调查、实现或验证任务，不能替代主 agent 做麻醉数值、漂浮策略、网络协议、配置项或公开接口等关键取舍。
-
-后续维护时可以直接使用以下触发短语：
-
-- `按Subagents体系处理`：中等复杂任务。主 agent 先只读梳理需求和相关代码，再判断是否派生子 agent。
-- `启动完整Subagents流程`：大修、重构、全项目审查或发布前检查。主 agent 默认按独立边界并行派生多个子 agent。
-- `只由主agent处理`：小修、小解释、贴图微调或强连续调参任务。主 agent 不派生子 agent，除非用户后续明确改口。
-
-子 agent 分工如下：
-
-- Explorer：只读调查，不修改文件。用于定位漂浮、AI、HUD、Mixin、反射、网络、Data Attachment、资源引用或主模组兼容问题。输出必须包含结论、证据路径、关键类或方法、风险点和建议修改范围。
-- Worker：实现修改。只处理写入范围明确且不与其他 worker 重叠的任务。派发时必须指定负责模块，并要求它不得回滚他人改动，最终列出实际修改文件。
-- Verifier：验证交付。专门检查测试、构建、JAR 内容、Mixin 清单、资源引用、README 和版本一致性；发现问题后交回主 agent 或对应 worker。
-
-推荐拆分边界：
-
-- 麻醉、漂浮和真实实体运动：`server.system.anesthetic`、相关 Mixin 和对应测试。
-- 主模组兼容、profile、年龄和体型：`server.system.profile`、`age`、`size` 和 GameTest。
-- HUD、观察系统和客户端粒子：`client`、`system.observation` 和客户端测试。
-- 物品、资源和模型：`server.item`、`assets/jsrevise` 和资源完整性测试。
-- 世界生成、配置和集成：`worldgen`、`config`、语言文件和 README。
-
-每次涉及代码或资源修改并准备发布构建时，主 agent 必须统一执行或安排 Verifier 检查：`.\gradlew.bat test runGameTestServer assemble`、版本号、JAR 元数据、Mixin 清单、资源模型引用和 README 当前状态。仅修改维护文档时不要求提升模组版本。
 
 ## 维护检查清单
 
@@ -894,7 +871,7 @@ GameTest 验证命令：
 
 ## 当前状态
 
-截至 `1.0.57`：
+截至 `1.0.58`：
 
 - 项目已完成模块化拆分。
 - 麻醉和年龄数据已迁移到 NeoForge Data Attachment。
@@ -903,7 +880,8 @@ GameTest 验证命令：
 - 大型生物按碰撞箱高度、宽度和尺寸等级获得更深水线，`TITANIC` 级生物进一步降低露出比例。
 - 海王龙使用约 `165..195` tick 的水生周期，速度接近其他恐龙；该周期由普通周期按 `75%` 自动推导，并保留防止实体静止的水生位置修正能力与专用姿态修正。
 - 飞行动物具有持续水体捕获；麻醉生效时先清除旧飞行动量，随后持续阻止起飞、飞行朝向推进和主动旅行输入。非水生漂浮阶段仍以真实实体碰撞移动保留麻醉后产生的玩家碰撞、水流和其他被动水平移动。
-- 麻醉睡眠状态会在 `JSAnimalBase.customServerAiStep()` 开始时提前写入；到点的待生效剂量会先推进为 active，并在 `isSleeping()` 读取处桥接。因此霸王龙、卢多翼龙及其他使用相同动画器流程的生物不会在入睡后短暂切回站立、行走或飞行姿势。
+- 麻醉睡眠状态会在 `JSAnimalBase.customServerAiStep()` 开始时提前写入；到点的待生效剂量会先推进为 active，并在 `isSleeping()` 读取处桥接。客户端只读桥接会覆盖“pending 已到点但 active 同步未到”的短窗口。
+- `JSAnimal` 服务端动画入口会在麻醉期间统一推进睡眠 transition，并取消当前 tick 的普通物种动画发送。Travelers 的任务、移动和导航控制器仍会被暂停，但服务端动画器不再被整体取消，因此霸王龙、卢多翼龙以及固定飞行态/简化动画动物不会在入睡后短暂切回站立、行走或飞行姿势。
 - 麻醉首次生效时会完整停止所有当前运行的 Travelers 任务并解除乘客关系；麻醉期间任务、移动和导航控制器暂停，因此抓取、俯冲、战斗跳跃及未来同类任务不能继续缓存目标或直接写入追踪速度。
 - 漂浮状态必须由真实流体接触或实体正下方无方块阻挡的水面支撑；旧水面缓存不能再让已被推上沙砾等陆地方块的恐龙继续沉浮。
 - 水面效果通过 S2C 事件和客户端实体 tick 补偿生成，粒子数量随当前体型缩放，并采用“破水/换向明显、周期过程适量”的阶段化节奏。
@@ -919,7 +897,7 @@ GameTest 验证命令：
 - Jurassic Saga 群系回退 Holder 按服务器缓存并在停服时释放。
 - 客户端 Mixin 和 Shift tooltip 已与通用服务端代码隔离。
 - `test`、`runGameTestServer` 和 `assemble` 已成功执行。
-- 62 项 JUnit 测试和 4 项 GameTest 全部通过。
+- 63 项 JUnit 测试和 5 项 GameTest 全部通过。
 
 仍需在实际整合包中重点验证：
 

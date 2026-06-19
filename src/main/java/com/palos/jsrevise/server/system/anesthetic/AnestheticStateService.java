@@ -49,6 +49,11 @@ final class AnestheticStateService {
         return data != null && data.isActive(animal.level().getGameTime());
     }
 
+    static boolean isActiveOrReady(JSAnimalBase animal) {
+        AnestheticData data = animal.getExistingDataOrNull(JSReviseAttachments.ANESTHETIC);
+        return data != null && data.isActiveOrReady(animal.level().getGameTime());
+    }
+
     static long pendingTicks(JSAnimalBase animal) {
         AnestheticData data = animal.getExistingDataOrNull(JSReviseAttachments.ANESTHETIC);
         return data == null ? 0L : data.pendingDelayTicks(animal.level().getGameTime());

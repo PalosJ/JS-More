@@ -35,6 +35,17 @@ class AnestheticDataTest {
     }
 
     @Test
+    void treatsReadyPendingDoseAsSleepBridgeWithoutPromotingIt() {
+        AnestheticData data = new AnestheticData();
+        data.queueDose(1_000L, 20, 200);
+
+        assertFalse(data.isActiveOrReady(1_019L));
+        assertTrue(data.isActiveOrReady(1_020L));
+        assertEquals(1, data.pendingDoseCount());
+        assertFalse(data.isActive(1_020L));
+    }
+
+    @Test
     void discardsInvalidSerializedDosesAndPreservesValidOnes() {
         CompoundTag root = new CompoundTag();
         root.putLong("ActiveUntil", -10L);

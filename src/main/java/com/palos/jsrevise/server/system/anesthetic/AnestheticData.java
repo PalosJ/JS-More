@@ -54,6 +54,18 @@ public final class AnestheticData implements INBTSerializable<CompoundTag> {
         return this.activeUntil > currentGameTime;
     }
 
+    public boolean isActiveOrReady(long currentGameTime) {
+        if (isActive(currentGameTime)) {
+            return true;
+        }
+        for (PendingDose dose : this.pendingDoses) {
+            if (dose.activationTick() <= currentGameTime) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public long remainingTicks(long currentGameTime) {
         return Math.max(0L, this.activeUntil - currentGameTime);
     }
