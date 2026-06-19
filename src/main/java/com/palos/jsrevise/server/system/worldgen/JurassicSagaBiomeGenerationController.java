@@ -31,7 +31,7 @@ public final class JurassicSagaBiomeGenerationController {
     }
 
     public static Holder<Biome> replaceIfDisabled(Holder<Biome> biomeHolder) {
-        if (!JSReviseConfig.DISABLE_JURASSIC_SAGA_BIOME_GENERATION.get()) {
+        if (!isBiomeGenerationDisabled()) {
             return biomeHolder;
         }
 
@@ -57,8 +57,20 @@ public final class JurassicSagaBiomeGenerationController {
         return fallbackHolder != null ? fallbackHolder : biomeHolder;
     }
 
+    public static boolean isBiomeGenerationDisabled() {
+        return JSReviseConfig.DISABLE_JURASSIC_SAGA_BIOME_GENERATION.get();
+    }
+
     public static void clearCache(MinecraftServer server) {
         REPLACEMENT_CACHE.clear(server);
+    }
+
+    static boolean hasReplacementForJurassicSagaBiome(String biomePath) {
+        return BIOME_REPLACEMENTS.containsKey(biomePath);
+    }
+
+    static ResourceLocation replacementForJurassicSagaBiome(String biomePath) {
+        return BIOME_REPLACEMENTS.get(biomePath);
     }
 
     private static Map<String, Holder<Biome>> createReplacementCache(MinecraftServer server) {

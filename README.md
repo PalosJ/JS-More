@@ -4,7 +4,7 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 
 项目目前主要为 Jurassic Saga 生物提供麻醉、落水漂浮、年龄推算、信息观察、刷怪蛋成长阶段控制和世界生成调整等功能。设计重点是让通用功能依赖 Jurassic Saga 的稳定生物基类和运行时能力，而不是依赖固定物种白名单，使主模组未来新增的常规生物能够自动获得基础支持。
 
-本文档以 `1.0.58` 源码为准，面向后续维护、问题排查和功能扩展。
+本文档以 `1.0.59` 源码为准，面向后续维护、问题排查和功能扩展。
 
 ## 基本信息
 
@@ -13,7 +13,7 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 | 模组 ID | `jsrevise` |
 | 显示名称 | `JS-revise` |
 | 作者 | `Palos` |
-| 当前版本 | `1.0.58` |
+| 当前版本 | `1.0.59` |
 | Minecraft | `1.21.1` |
 | NeoForge | `21.1.232` |
 | Java | `21` |
@@ -573,7 +573,9 @@ Jade 未安装时不影响核心模组运行。
 
 配置 `disable_jurassicsaga_biome_generation` 默认为 `true`。
 
-启用后，`MultiNoiseBiomeSourceMixin` 会在噪声群系选择完成后，将部分
+启用后，`JSTerrablenderMixin` 会在 Jurassic Saga 注册 TerraBlender 主世界
+区域和对应地表规则前取消这两条入口，从源头阻止它的自定义群系进入主世界气候
+分布。`MultiNoiseBiomeSourceMixin` 仍作为兜底，在噪声群系选择完成后将已知
 Jurassic Saga 群系替换为原版群系：
 
 | Jurassic Saga 群系 | 原版回退群系 |
@@ -586,8 +588,10 @@ Jurassic Saga 群系替换为原版群系：
 | `sulphur_springs` | `windswept_hills` |
 | `trench` | `deep_lukewarm_ocean` |
 
-未列出的 Jurassic Saga 群系保持原结果。关闭配置后完全不执行替换。原版回退
-群系 Holder 按当前服务器实例缓存，停服时清理，世界生成热路径只执行映射查询。
+未列出的 Jurassic Saga 群系在兜底替换层保持原结果；正常情况下 TerraBlender
+源头拦截会先阻止当前 Jurassic Saga 自定义群系进入主世界分布。关闭配置后不取消
+TerraBlender 注册，也不执行返回值替换。原版回退群系 Holder 按当前服务器实例缓存，
+停服时清理，世界生成热路径只执行映射查询。
 
 ## Data Attachment
 
@@ -661,6 +665,7 @@ Data Attachment 的年龄、麻醉和漂浮状态使用 NeoForge 附件同步机
 | `LivingEntityTravelMixin` | Minecraft `LivingEntity` | 过滤麻醉生物主动旅行输入并保留被动碰撞移动 |
 | `TravelersSmartAnimalBaseMixin` | Travelers `SmartAnimalBase` | 麻醉期间暂停任务、移动和导航控制器 |
 | `EntityTypeSpawnEggMixin` | Minecraft `EntityType` | 控制刷怪蛋成年/幼年阶段 |
+| `JSTerrablenderMixin` | Jurassic Saga `JSTerrablender` | 按配置取消 Jurassic Saga TerraBlender 群系区域和地表规则注册 |
 | `MultiNoiseBiomeSourceMixin` | Minecraft `MultiNoiseBiomeSource` | 替换 Jurassic Saga 群系 |
 | `CustomHeadLayerMixin` | Minecraft `CustomHeadLayer` | 隐藏头部栏中的眼镜物品模型 |
 | `TylosaurusAnimatorMixin` | 海王龙动画器，可选字符串目标 | 稳定麻醉漂浮姿态和尾部动画 |
@@ -740,7 +745,7 @@ build/libs/jsrevise-<version>.jar
 当前已验证产物：
 
 ```text
-build/libs/jsrevise-1.0.58.jar
+build/libs/jsrevise-1.0.59.jar
 ```
 
 修改模组代码或资源并重新发布构建时，需要同步更新
@@ -748,7 +753,7 @@ build/libs/jsrevise-1.0.58.jar
 
 ## 自动化测试
 
-当前共有 15 个测试类、63 项 JUnit 测试，以及 5 项 GameTest。
+当前共有 16 个测试类、65 项 JUnit 测试，以及 5 项 GameTest。
 
 覆盖内容：
 
@@ -871,7 +876,7 @@ GameTest 验证命令：
 
 ## 当前状态
 
-截至 `1.0.58`：
+截至 `1.0.59`：
 
 - 项目已完成模块化拆分。
 - 麻醉和年龄数据已迁移到 NeoForge Data Attachment。
@@ -894,10 +899,11 @@ GameTest 验证命令：
 - 新增 `JSAnimalBase` 生物可以使用自动画像回退。
 - profile override、基因反射和麻醉网络数据具有集中非法值降级。
 - 恐龙博士眼镜的直接命中与缓存目标严格遵守 8 格观察距离。
-- Jurassic Saga 群系回退 Holder 按服务器缓存并在停服时释放。
+- Jurassic Saga TerraBlender 主世界群系区域和地表规则注册会按配置被源头取消；
+  `MultiNoiseBiomeSource` 层保留已知群系到原版群系的兜底替换，并按服务器缓存回退 Holder。
 - 客户端 Mixin 和 Shift tooltip 已与通用服务端代码隔离。
 - `test`、`runGameTestServer` 和 `assemble` 已成功执行。
-- 63 项 JUnit 测试和 5 项 GameTest 全部通过。
+- 65 项 JUnit 测试和 5 项 GameTest 全部通过。
 
 仍需在实际整合包中重点验证：
 
