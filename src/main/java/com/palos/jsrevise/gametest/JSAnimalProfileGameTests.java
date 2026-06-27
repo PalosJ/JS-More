@@ -17,9 +17,13 @@ import jp.jurassicsaga.server.animal.animals.obj.JSAnimal;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAquaticBase;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAvianBase;
+import jp.jurassicsaga.server.animal.entity.obj.bases.JSEntityDataHolder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
@@ -278,6 +282,509 @@ public final class JSAnimalProfileGameTests {
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void sleepAnimationGuardBlocksOrdinaryAnimationDefinitions(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        List<String> blockedAnimations = List.of(
+                "idle",
+                "walk",
+                "run",
+                "fly",
+                "glide",
+                "swim",
+                "rest_loop",
+                "sleep_out",
+                "rest_out",
+                "sleep_to_rest"
+        );
+        List<String> allowedAnimations = List.of("sleep_in", "sleep_loop", "death", "death_loop");
+        int discovered = 0;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            discovered++;
+            Entity entity = null;
+            try {
+                entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+                if (!(entity instanceof JSAnimalBase animal)) {
+                    failures.add(registeredAnimal + ": entity is not a JSAnimalBase");
+                    continue;
+                }
+
+                if (DinosaurAnestheticSystem.shouldBlockNonSleepAnimation(animal, "idle")) {
+                    failures.add(registeredAnimal + ": awake animal blocked ordinary animation");
+                }
+                if (DinosaurAnestheticSystem.shouldBlockNonSleepAnimation(animal, "sleep_out")) {
+                    failures.add(registeredAnimal + ": awake animal blocked sleep_out animation");
+                }
+
+                AnestheticData readyData = animal.getData(JSReviseAttachments.ANESTHETIC);
+                readyData.queueDose(animal.level().getGameTime(), 0, 200);
+                assertAnimationBlockSet(registeredAnimal + " ready", animal, blockedAnimations, allowedAnimations, failures);
+
+                DinosaurAnestheticSystem.applyAnesthetic(animal);
+                assertAnimationBlockSet(registeredAnimal, animal, blockedAnimations, allowedAnimations, failures);
+
+                animal.removeData(JSReviseAttachments.ANESTHETIC);
+                animal.removeData(JSReviseAttachments.ANESTHETIC_FLOAT);
+                animal.setSleeping(true);
+                assertAnimationBlockSet(registeredAnimal + " raw sleep", animal, blockedAnimations, allowedAnimations, failures);
+            } catch (RuntimeException exception) {
+                failures.add(registeredAnimal + ": " + exception.getClass().getSimpleName());
+            } finally {
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+
+        if (discovered == 0) {
+            helper.fail("Jurassic Saga registered no animals");
+            return;
+        }
+        if (!failures.isEmpty()) {
+            helper.fail("Invalid sleep animation definition guard: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void ludodactylusSleepInRedirectStaysSpeciesScoped(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        int discovered = 0;
+        int ludodactylusAnimals = 0;
+        int nonLudodactylusAnimals = 0;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            discovered++;
+            Entity entity = null;
+            try {
+                entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+                if (!(entity instanceof JSAnimalBase animal)) {
+                    failures.add(registeredAnimal + ": entity is not a JSAnimalBase");
+                    continue;
+                }
+
+                ResourceLocation speciesId = BuiltInRegistries.ENTITY_TYPE.getKey(animal.getType());
+                if (isLudodactylus(speciesId)) {
+                    ludodactylusAnimals++;
+                    if (DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(animal, "sleep_in")) {
+                        failures.add(registeredAnimal + ": awake ludodactylus redirected sleep_in");
+                    }
+                    animal.setSleeping(true);
+                    if (!DinosaurAnestheticSystem.shouldUseSleepAnimationGuard(animal)) {
+                        failures.add(registeredAnimal + ": raw sleeping ludodactylus did not enable guard");
+                    }
+                    if (!DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(animal, "sleep_in")) {
+                        failures.add(registeredAnimal + ": guarded ludodactylus did not redirect sleep_in");
+                    }
+                    if (DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(animal, "sleep_loop")) {
+                        failures.add(registeredAnimal + ": sleep_loop would recursively redirect");
+                    }
+                    if (DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(animal, "idle")) {
+                        failures.add(registeredAnimal + ": ordinary animation redirected as sleep_in");
+                    }
+                } else {
+                    nonLudodactylusAnimals++;
+                    animal.setSleeping(true);
+                    if (DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(animal, "sleep_in")) {
+                        failures.add(registeredAnimal + ": non-ludodactylus redirected sleep_in");
+                    }
+                }
+            } catch (RuntimeException exception) {
+                failures.add(registeredAnimal + ": " + exception.getClass().getSimpleName());
+            } finally {
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+
+        if (discovered == 0) {
+            helper.fail("Jurassic Saga registered no animals");
+            return;
+        }
+        if (nonLudodactylusAnimals == 0) {
+            helper.fail("Jurassic Saga registered no non-ludodactylus animals");
+            return;
+        }
+        if (ludodactylusAnimals == 0) {
+            helper.fail("Jurassic Saga registered no ludodactylus animals");
+            return;
+        }
+        if (!failures.isEmpty()) {
+            helper.fail("Invalid ludodactylus sleep_in redirect scope: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void anestheticSleepCannotBeClearedByRawFalseWrites(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        int discovered = 0;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            discovered++;
+            Entity entity = null;
+            try {
+                entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+                if (!(entity instanceof JSAnimalBase animal)) {
+                    failures.add(registeredAnimal + ": entity is not a JSAnimalBase");
+                    continue;
+                }
+
+                DinosaurAnestheticSystem.applyAnesthetic(animal);
+                DinosaurAnestheticSystem.prepareAnimationSleepState(animal);
+                animal.setSleeping(false);
+                if (!rawSleeping(animal)) {
+                    failures.add(registeredAnimal + ": active anesthesia allowed raw sleeping=false");
+                }
+
+                animal.removeData(JSReviseAttachments.ANESTHETIC);
+                animal.removeData(JSReviseAttachments.ANESTHETIC_FLOAT);
+                animal.getEntityData().set(JSEntityDataHolder.sleeping, false);
+
+                AnestheticData readyData = animal.getData(JSReviseAttachments.ANESTHETIC);
+                readyData.queueDose(animal.level().getGameTime(), 0, 200);
+                animal.setSleeping(true);
+                animal.setSleeping(false);
+                if (!rawSleeping(animal)) {
+                    failures.add(registeredAnimal + ": ready anesthesia allowed raw sleeping=false");
+                }
+
+                animal.removeData(JSReviseAttachments.ANESTHETIC);
+                animal.removeData(JSReviseAttachments.ANESTHETIC_FLOAT);
+                animal.getEntityData().set(JSEntityDataHolder.sleeping, false);
+                animal.setSleeping(true);
+                animal.setSleeping(false);
+                if (!rawSleeping(animal)) {
+                    failures.add(registeredAnimal + ": natural raw sleeping was cleared during stabilization window");
+                }
+            } catch (RuntimeException exception) {
+                failures.add(registeredAnimal + ": " + exception.getClass().getSimpleName());
+            } finally {
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+
+        if (discovered == 0) {
+            helper.fail("Jurassic Saga registered no animals");
+            return;
+        }
+        if (!failures.isEmpty()) {
+            helper.fail("Invalid anesthetic raw sleep false guard: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    @SuppressWarnings("deprecation")
+    public static void rawSleepingAnimalsUseSleepAnimationGuard(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        int discovered = 0;
+        int nonAvianAnimals = 0;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            discovered++;
+            Entity entity = null;
+            try {
+                entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+                if (!(entity instanceof JSAnimalBase animal)) {
+                    failures.add(registeredAnimal + ": entity is not a JSAnimalBase");
+                    continue;
+                }
+                if (!(animal instanceof JSAvianBase)) {
+                    nonAvianAnimals++;
+                }
+
+                animal.removeData(JSReviseAttachments.ANESTHETIC);
+                animal.removeData(JSReviseAttachments.ANESTHETIC_FLOAT);
+                animal.setSleeping(true);
+                clearAnimationTransitions(animal.getAnimationModule());
+
+                if (!DinosaurAnestheticSystem.shouldUseSleepAnimationGuard(animal)) {
+                    failures.add(registeredAnimal + ": raw sleeping animal did not enable sleep animation guard");
+                }
+                if (!DinosaurAnestheticSystem.shouldSkipClientProceduralAnimation(animal)) {
+                    failures.add(registeredAnimal + ": raw sleeping animal did not disable client procedural animator");
+                }
+                if (!DinosaurAnestheticSystem.playGuardedSleepAnimation(animal, animal.getAnimationModule())) {
+                    failures.add(registeredAnimal + ": deprecated guarded doorway did not prepare raw sleeping guard");
+                }
+                if (hasRunningAnimationTransition(animal.getAnimationModule())) {
+                    failures.add(registeredAnimal + ": guarded prepare directly wrote a sleep transition");
+                }
+                animal.getAnimal().animate(animal, animal.getMoveAnalysis(), animal.getAnimationModule());
+                if (hasRunningAnimationTransition(animal.getAnimationModule())) {
+                    failures.add(registeredAnimal + ": guarded client animate wrote a transition instead of cancelling");
+                }
+            } catch (ReflectiveOperationException exception) {
+                failures.add(registeredAnimal + ": reflection " + exception.getClass().getSimpleName());
+            } catch (RuntimeException exception) {
+                failures.add(registeredAnimal + ": " + exception.getClass().getSimpleName());
+            } finally {
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+
+        if (discovered == 0) {
+            helper.fail("Jurassic Saga registered no animals");
+            return;
+        }
+        if (nonAvianAnimals == 0) {
+            helper.fail("Jurassic Saga registered no non-avian animals");
+            return;
+        }
+        if (!failures.isEmpty()) {
+            helper.fail("Invalid raw sleeping sleep animation guard: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void anestheticSleepSaveMarkerRestoresRawSleeping(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        int discovered = 0;
+        int rawOnlyAnimals = 0;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            discovered++;
+            Entity entity = null;
+            try {
+                entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+                if (!(entity instanceof JSAnimalBase animal)) {
+                    failures.add(registeredAnimal + ": entity is not a JSAnimalBase");
+                    continue;
+                }
+
+                DinosaurAnestheticSystem.applyAnesthetic(animal);
+                DinosaurAnestheticSystem.prepareAnimationSleepState(animal);
+                CompoundTag savedData = new CompoundTag();
+                animal.addAdditionalSaveData(savedData);
+                if (animal instanceof JSAvianBase avian) {
+                    savedData.putBoolean("js.isFlying", true);
+                    savedData.putBoolean("js.isLanding", false);
+                    forceAvianFlightFlags(avian, false);
+                }
+
+                animal.getEntityData().set(JSEntityDataHolder.sleeping, false);
+                if (rawSleeping(animal)) {
+                    failures.add(registeredAnimal + ": test could not clear raw sleeping before read");
+                    continue;
+                }
+                animal.readAdditionalSaveData(savedData);
+                if (!rawSleeping(animal)) {
+                    failures.add(registeredAnimal + ": anesthetic sleep marker did not restore raw sleeping");
+                }
+                if (animal instanceof JSAvianBase avian
+                        && ((!avian.disableFlyTransitions() && avian.isFlying())
+                        || avian.isDiving()
+                        || avian.isGliding()
+                        || avian.isFlapping())) {
+                    failures.add(registeredAnimal + ": anesthetic sleep marker retained saved avian flight flags");
+                }
+
+                animal.removeData(JSReviseAttachments.ANESTHETIC);
+                animal.removeData(JSReviseAttachments.ANESTHETIC_FLOAT);
+                animal.setSleeping(true);
+                CompoundTag rawSleepData = new CompoundTag();
+                animal.addAdditionalSaveData(rawSleepData);
+                if (animal instanceof JSAvianBase avian) {
+                    rawSleepData.putBoolean("js.isFlying", true);
+                    rawSleepData.putBoolean("js.isLanding", false);
+                    forceAvianFlightFlags(avian, false);
+                }
+                animal.getEntityData().set(JSEntityDataHolder.sleeping, false);
+                animal.readAdditionalSaveData(rawSleepData);
+                if (!rawSleeping(animal)) {
+                    failures.add(registeredAnimal + ": raw sleep marker did not restore natural sleeping");
+                } else {
+                    rawOnlyAnimals++;
+                }
+                if (animal instanceof JSAvianBase avian
+                        && ((!avian.disableFlyTransitions() && avian.isFlying())
+                        || avian.isDiving()
+                        || avian.isGliding()
+                        || avian.isFlapping())) {
+                    failures.add(registeredAnimal + ": raw sleep marker retained saved avian flight flags");
+                }
+            } catch (RuntimeException exception) {
+                failures.add(registeredAnimal + ": " + exception.getClass().getSimpleName());
+            } finally {
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+
+        if (discovered == 0) {
+            helper.fail("Jurassic Saga registered no animals");
+            return;
+        }
+        if (rawOnlyAnimals == 0) {
+            helper.fail("No raw sleeping marker restore was exercised");
+            return;
+        }
+        if (!failures.isEmpty()) {
+            helper.fail("Invalid anesthetic sleep save marker: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void trackingSyncRestoresAnestheticSleepBeforeClientAnimation(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        int discovered = 0;
+        int avianAnimals = 0;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            discovered++;
+            Entity entity = null;
+            try {
+                entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+                if (!(entity instanceof JSAnimalBase animal)) {
+                    failures.add(registeredAnimal + ": entity is not a JSAnimalBase");
+                    continue;
+                }
+
+                DinosaurAnestheticSystem.applyAnesthetic(animal);
+                animal.setSleeping(false);
+                if (animal instanceof JSAvianBase avian) {
+                    avianAnimals++;
+                    forceAvianFlightFlags(avian, true);
+                }
+                putAnimationTransitionKey(
+                        animal.getAnimationModule(),
+                        "animation.idle.animation.idle.animation.idle"
+                );
+
+                DinosaurAnestheticSystem.syncSleepStateForTracking(animal);
+
+                if (!DinosaurAnestheticSystem.isAnesthetized(animal)) {
+                    failures.add(registeredAnimal + ": tracking sync lost active anesthesia");
+                }
+                if (!rawSleeping(animal)) {
+                    failures.add(registeredAnimal + ": tracking sync did not restore raw sleeping");
+                }
+                if (!DinosaurAnestheticSystem.shouldBlockNonSleepAnimation(animal, "idle")) {
+                    failures.add(registeredAnimal + ": tracking sync did not block ordinary animation");
+                }
+                if (hasRunningAnimationTransition(animal.getAnimationModule())) {
+                    failures.add(registeredAnimal + ": tracking sync retained or wrote an animation transition");
+                }
+                if (animal instanceof JSAvianBase avian
+                        && ((!avian.disableFlyTransitions() && avian.isFlying())
+                        || avian.isDiving()
+                        || avian.isGliding()
+                        || avian.isFlapping())) {
+                    failures.add(registeredAnimal + ": tracking sync retained stale avian flight flags");
+                }
+            } catch (ReflectiveOperationException exception) {
+                failures.add(registeredAnimal + ": reflection " + exception.getClass().getSimpleName());
+            } catch (RuntimeException exception) {
+                failures.add(registeredAnimal + ": " + exception.getClass().getSimpleName());
+            } finally {
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+
+        if (discovered == 0) {
+            helper.fail("Jurassic Saga registered no animals");
+            return;
+        }
+        if (avianAnimals == 0) {
+            helper.fail("Jurassic Saga registered no avian animals");
+            return;
+        }
+        if (!failures.isEmpty()) {
+            helper.fail("Invalid tracking sleep sync: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void avianRawSleepingOverridesFlyingStateAndClientAnimation(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        int avianAnimals = 0;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            Entity entity = null;
+            try {
+                entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+                if (!(entity instanceof JSAvianBase avian)) {
+                    continue;
+                }
+                avianAnimals++;
+
+                avian.setOnGround(false);
+                avian.setSleeping(true);
+                forceAvianFlightFlags(avian, true);
+
+                if (!avian.isFlying() || !avian.isDiving() || !avian.isGliding() || !avian.isFlapping()) {
+                    failures.add(registeredAnimal + ": test could not create stale avian flight flags");
+                    continue;
+                }
+
+                if (!avian.isSleeping()) {
+                    failures.add(registeredAnimal + ": raw sleeping avian read as awake while flying");
+                }
+                if (!avian.disableFlyTransitions() && avian.isFlying()) {
+                    failures.add(registeredAnimal + ": raw sleeping avian retained switchable flight");
+                }
+                if (avian.isDiving() || avian.isGliding() || avian.isFlapping()) {
+                    failures.add(registeredAnimal + ": raw sleeping avian retained flight animation flags");
+                }
+
+                avian.setOnGround(false);
+                forceAvianFlightFlags(avian, true);
+                clearAnimationTransitions(avian.getAnimationModule());
+                avian.getAnimal().animate(avian, avian.getMoveAnalysis(), avian.getAnimationModule());
+                if (hasRunningAnimationTransition(avian.getAnimationModule())) {
+                    failures.add(registeredAnimal + ": raw sleeping avian client guard directly wrote transition");
+                }
+                if ((!avian.disableFlyTransitions() && avian.isFlying())
+                        || avian.isDiving()
+                        || avian.isGliding()
+                        || avian.isFlapping()) {
+                    failures.add(registeredAnimal + ": animation guard did not clear stale avian flight flags");
+                }
+
+                avian.setOnGround(false);
+                avian.setSleeping(true);
+                forceAvianFlightFlags(avian, true);
+                avian.aiStep();
+                if ((!avian.disableFlyTransitions() && avian.isFlying())
+                        || avian.isDiving()
+                        || avian.isGliding()
+                        || avian.isFlapping()) {
+                    failures.add(registeredAnimal + ": guarded avian aiStep restored stale flight flags");
+                }
+            } catch (ReflectiveOperationException exception) {
+                failures.add(registeredAnimal + ": reflection " + exception.getClass().getSimpleName());
+            } catch (RuntimeException exception) {
+                failures.add(registeredAnimal + ": " + exception.getClass().getSimpleName());
+            } finally {
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+
+        if (avianAnimals == 0) {
+            helper.fail("Jurassic Saga registered no avian animals");
+            return;
+        }
+        if (!failures.isEmpty()) {
+            helper.fail("Invalid raw avian sleep bridge: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
     public static void anesthetizedAnimalsKeepServerSleepAnimationWhileControllersAreSuspended(GameTestHelper helper) {
         List<String> failures = new ArrayList<>();
         int discovered = 0;
@@ -307,8 +814,11 @@ public final class JSAnimalProfileGameTests {
                 if (task.ticks() != 0) {
                     failures.add(registeredAnimal + ": anesthetized task controller still ticked");
                 }
-                if (!hasRunningAnimationTransition(animal.getAnimationModule())) {
-                    failures.add(registeredAnimal + ": anesthetic sleep animation transition was not advanced");
+                if (!rawSleeping(animal)) {
+                    failures.add(registeredAnimal + ": anesthetized server path did not keep raw sleeping");
+                }
+                if (!DinosaurAnestheticSystem.shouldBlockNonSleepAnimation(animal, "idle")) {
+                    failures.add(registeredAnimal + ": anesthetized server path did not keep ordinary animation guard");
                 }
             } catch (ReflectiveOperationException exception) {
                 failures.add(registeredAnimal + ": reflection " + exception.getClass().getSimpleName());
@@ -327,6 +837,150 @@ public final class JSAnimalProfileGameTests {
         }
         if (!failures.isEmpty()) {
             helper.fail("Invalid anesthetic server animation/controller split: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void readyAnestheticDosesSuspendControllersBeforePromotion(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        int discovered = 0;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            discovered++;
+            Entity entity = null;
+            try {
+                entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+                if (!(entity instanceof JSAnimalBase animal)) {
+                    failures.add(registeredAnimal + ": entity is not a JSAnimalBase");
+                    continue;
+                }
+
+                MovementWritingTask task = new MovementWritingTask(animal);
+                animal.getTaskController().registerTask(task);
+                animal.getTaskController().setGoalOccupied(
+                        TaskPriority.DIRECT,
+                        TaskGoal.ATTACK,
+                        task
+                );
+                task.run();
+
+                AnestheticData anestheticData = animal.getData(JSReviseAttachments.ANESTHETIC);
+                anestheticData.queueDose(animal.level().getGameTime(), 0, 200);
+                animal.setSleeping(true);
+                animal.setDeltaMovement(Vec3.ZERO);
+                invokeTravelersServerAiStep(animal);
+
+                if (task.ticks() != 0) {
+                    failures.add(registeredAnimal + ": ready-dose task controller ticked before promotion");
+                }
+                if (animal.getDeltaMovement().horizontalDistanceSqr() > 1.0E-9D) {
+                    failures.add(registeredAnimal + ": ready-dose controller wrote movement before promotion");
+                }
+                if (!rawSleeping(animal)) {
+                    failures.add(registeredAnimal + ": ready-dose controller cleared raw sleeping");
+                }
+                if (!DinosaurAnestheticSystem.isAnesthetized(animal)) {
+                    failures.add(registeredAnimal + ": ready dose was not promoted before native server animation");
+                }
+                if (!DinosaurAnestheticSystem.shouldBlockNonSleepAnimation(animal, "idle")) {
+                    failures.add(registeredAnimal + ": ready dose did not keep ordinary animation guard");
+                }
+            } catch (ReflectiveOperationException exception) {
+                failures.add(registeredAnimal + ": reflection " + exception.getClass().getSimpleName());
+            } catch (RuntimeException exception) {
+                failures.add(registeredAnimal + ": " + exception.getClass().getSimpleName());
+            } finally {
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+
+        if (discovered == 0) {
+            helper.fail("Jurassic Saga registered no animals");
+            return;
+        }
+        if (!failures.isEmpty()) {
+            helper.fail("Invalid ready-dose controller suppression: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void readyAnestheticDosesHoldSleepAcrossAnimationPasses(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        int discovered = 0;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            discovered++;
+            Entity entity = null;
+            try {
+                entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+                if (!(entity instanceof JSAnimalBase animal)) {
+                    failures.add(registeredAnimal + ": entity is not a JSAnimalBase");
+                    continue;
+                }
+
+                AnestheticData anestheticData = animal.getData(JSReviseAttachments.ANESTHETIC);
+                anestheticData.queueDose(animal.level().getGameTime(), 0, 200);
+                animal.setSleeping(false);
+                clearAnimationTransitions(animal.getAnimationModule());
+                animal.getAnimal().animate(animal, animal.getMoveAnalysis(), animal.getAnimationModule());
+
+                if (!DinosaurAnestheticSystem.isAnesthetized(animal)) {
+                    failures.add(registeredAnimal + ": ready dose was not promoted by animation bridge");
+                }
+                if (!rawSleeping(animal)) {
+                    failures.add(registeredAnimal + ": raw sleeping data was not kept during normal animation pass");
+                }
+                if (hasRunningAnimationTransition(animal.getAnimationModule())) {
+                    failures.add(registeredAnimal + ": guarded normal animation pass directly wrote transition");
+                }
+
+                for (int repeat = 0; repeat < 3; repeat++) {
+                    anestheticData.queueDose(animal.level().getGameTime(), 0, 200);
+                    long activeBefore = anestheticData.activeUntil();
+                    animal.setSleeping(false);
+                    invokeJSAnimalServerAiStep(animal);
+                    if (anestheticData.pendingDoseCount() != 0) {
+                        failures.add(registeredAnimal + ": ready dose remained pending after pass " + repeat);
+                        break;
+                    }
+                    if (anestheticData.activeUntil() <= activeBefore) {
+                        failures.add(registeredAnimal + ": ready dose did not extend active duration after pass " + repeat);
+                        break;
+                    }
+                    if (!rawSleeping(animal)) {
+                        failures.add(registeredAnimal + ": raw sleeping data was lost after ready dose " + repeat);
+                        break;
+                    }
+                    if (!DinosaurAnestheticSystem.isAnesthetized(animal)) {
+                        failures.add(registeredAnimal + ": anesthesia was not active after ready dose " + repeat);
+                        break;
+                    }
+                    if (!DinosaurAnestheticSystem.shouldBlockNonSleepAnimation(animal, "idle")) {
+                        failures.add(registeredAnimal + ": ordinary animation guard was missing after ready dose " + repeat);
+                        break;
+                    }
+                }
+            } catch (ReflectiveOperationException exception) {
+                failures.add(registeredAnimal + ": reflection " + exception.getClass().getSimpleName());
+            } catch (RuntimeException exception) {
+                failures.add(registeredAnimal + ": " + exception.getClass().getSimpleName());
+            } finally {
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+
+        if (discovered == 0) {
+            helper.fail("Jurassic Saga registered no animals");
+            return;
+        }
+        if (!failures.isEmpty()) {
+            helper.fail("Invalid anesthetic ready-dose animation bridge: " + String.join(", ", failures));
             return;
         }
         helper.succeed();
@@ -406,6 +1060,12 @@ public final class JSAnimalProfileGameTests {
         return Double.isFinite(value) && value > 0.0D;
     }
 
+    private static boolean isLudodactylus(ResourceLocation speciesId) {
+        return speciesId != null
+                && "jurassicsaga".equals(speciesId.getNamespace())
+                && "ludodactylus".equals(speciesId.getPath());
+    }
+
     private static JSAnimalBase createNonAquaticAnimal(GameTestHelper helper) {
         for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
             Entity entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
@@ -425,12 +1085,67 @@ public final class JSAnimalProfileGameTests {
         customServerAiStep.invoke(animal);
     }
 
+    private static void invokeJSAnimalServerAiStep(JSAnimalBase animal) throws ReflectiveOperationException {
+        Method customServerAiStep = JSAnimalBase.class.getDeclaredMethod("customServerAiStep");
+        customServerAiStep.setAccessible(true);
+        customServerAiStep.invoke(animal);
+    }
+
     private static boolean hasRunningAnimationTransition(TravelersAnimalAnimationModule module)
+            throws ReflectiveOperationException {
+        return !animationTransitions(module).isEmpty();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> animationTransitions(TravelersAnimalAnimationModule module)
             throws ReflectiveOperationException {
         Field animationMap = TravelersAnimalAnimationModule.class.getDeclaredField("animationMap");
         animationMap.setAccessible(true);
         Object value = animationMap.get(module);
-        return value instanceof Map<?, ?> map && !map.isEmpty();
+        if (value instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        throw new ReflectiveOperationException("animationMap is not a Map");
+    }
+
+    private static void clearAnimationTransitions(TravelersAnimalAnimationModule module)
+            throws ReflectiveOperationException {
+        animationTransitions(module).clear();
+    }
+
+    private static void putAnimationTransitionKey(TravelersAnimalAnimationModule module, String key)
+            throws ReflectiveOperationException {
+        animationTransitions(module).put(key, new Object());
+    }
+
+    private static boolean rawSleeping(JSAnimalBase animal) {
+        return animal.getEntityData().get(JSEntityDataHolder.sleeping);
+    }
+
+    private static void forceAvianFlightFlags(JSAvianBase avian, boolean value) {
+        avian.getEntityData().set(JSAvianBase.FLYING, value);
+        avian.getEntityData().set(JSAvianBase.DIVING, value);
+        avian.getEntityData().set(JSAvianBase.GLIDING, value);
+        avian.getEntityData().set(JSAvianBase.FLAPPING, value);
+    }
+
+    private static void assertAnimationBlockSet(
+            Object label,
+            JSAnimalBase animal,
+            List<String> blockedAnimations,
+            List<String> allowedAnimations,
+            List<String> failures
+    ) {
+        for (String animationName : blockedAnimations) {
+            if (!DinosaurAnestheticSystem.shouldBlockNonSleepAnimation(animal, animationName)) {
+                failures.add(label + ": did not block " + animationName);
+            }
+        }
+        for (String animationName : allowedAnimations) {
+            if (DinosaurAnestheticSystem.shouldBlockNonSleepAnimation(animal, animationName)) {
+                failures.add(label + ": blocked allowed animation " + animationName);
+            }
+        }
     }
 
     private static final class TrackingTask extends TravelerTaskBase {
@@ -475,6 +1190,36 @@ public final class JSAnimalProfileGameTests {
         @Override
         public void tick() {
             this.ticks++;
+        }
+
+        @Override
+        public void onStop() {
+        }
+
+        private int ticks() {
+            return this.ticks;
+        }
+    }
+
+    private static final class MovementWritingTask extends TravelerTaskBase {
+        private int ticks;
+
+        private MovementWritingTask(SmartAnimalBase animal) {
+            super(animal);
+            this.getGoals().add(TaskGoal.ATTACK);
+        }
+
+        @Override
+        public void onStart() {
+        }
+
+        @Override
+        public void tick() {
+            this.ticks++;
+            this.animal.setDeltaMovement(1.0D, 0.0D, 0.0D);
+            if (this.animal instanceof JSAnimalBase animal) {
+                animal.setSleeping(false);
+            }
         }
 
         @Override

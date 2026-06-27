@@ -19,6 +19,8 @@ public final class JurassicSagaBiomeGenerationController {
             entry("burnt_forest", ResourceLocation.withDefaultNamespace("forest")),
             entry("grassy_plains", ResourceLocation.withDefaultNamespace("plains")),
             entry("magma_cave", ResourceLocation.withDefaultNamespace("dripstone_caves")),
+            entry("mediterranean_scrub_forest", ResourceLocation.withDefaultNamespace("forest")),
+            entry("mediterranean_scrub_plains", ResourceLocation.withDefaultNamespace("plains")),
             entry("redwood", ResourceLocation.withDefaultNamespace("old_growth_pine_taiga")),
             entry("redwood_plains", ResourceLocation.withDefaultNamespace("meadow")),
             entry("sulphur_springs", ResourceLocation.withDefaultNamespace("windswept_hills")),

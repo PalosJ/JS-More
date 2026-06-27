@@ -4,7 +4,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class JSReviseNetworking {
-    private static final String NETWORK_VERSION = "3";
+    private static final String NETWORK_VERSION = "4";
 
     private JSReviseNetworking() {
     }
@@ -20,6 +20,11 @@ public final class JSReviseNetworking {
                 SurfaceEffectPayload.TYPE,
                 SurfaceEffectPayload.STREAM_CODEC,
                 SurfaceEffectPayload::handleOnClient
+        );
+        registrar.playToClient(
+                SleepAnimationGuardPayload.TYPE,
+                SleepAnimationGuardPayload.STREAM_CODEC,
+                SleepAnimationGuardPayload::handleOnClient
         );
     }
 }

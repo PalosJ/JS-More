@@ -3,6 +3,7 @@ package com.palos.jsrevise.mixin;
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.gen.Invoker;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -10,9 +11,32 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(value = JSAnimalBase.class, remap = false)
 public abstract class JSAnimalBaseSystemsMixin {
+    @Invoker("canSleep")
+    protected abstract boolean jsrevise$invokeCanSleep();
+
     @Inject(method = "customServerAiStep", at = @At("HEAD"))
     private void jsrevise$prepareAnestheticSleepBeforeServerAnimation(CallbackInfo callbackInfo) {
-        DinosaurAnestheticSystem.prepareAnimationSleepState((JSAnimalBase) (Object) this);
+        JSAnimalBase animal = (JSAnimalBase) (Object) this;
+        DinosaurAnestheticSystem.prepareAnimationSleepState(animal);
+    }
+
+    @Inject(
+            method = "customServerAiStep",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Ljp/jurassicsaga/server/animal/entity/obj/bases/JSEntityDataHolder;customServerAiStep()V",
+                    shift = At.Shift.BEFORE
+            ),
+            require = 0
+    )
+    private void jsrevise$prepareNaturalSleepImmediatelyBeforeServerAnimation(CallbackInfo callbackInfo) {
+        JSAnimalBase animal = (JSAnimalBase) (Object) this;
+        DinosaurAnestheticSystem.prepareNaturalSleepState(animal, this::jsrevise$invokeCanSleep);
+    }
+
+    @Inject(method = "customServerAiStep", at = @At("RETURN"))
+    private void jsrevise$keepAnestheticSleepAfterServerAi(CallbackInfo callbackInfo) {
+        DinosaurAnestheticSystem.keepAnimationSleepState((JSAnimalBase) (Object) this);
     }
 
     @Inject(method = "canSleep", at = @At("HEAD"), cancellable = true)

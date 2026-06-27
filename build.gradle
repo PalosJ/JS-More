@@ -36,10 +36,6 @@ repositories {
         url = "https://maven.minecraftforge.net/"
     }
     maven {
-        name = "AzureDoom Mods"
-        url = "https://maven.azuredoom.com/mods"
-    }
-    maven {
         name = "Collinvht Releases"
         url = "https://maven.collinvht.nl/releases"
     }
@@ -147,16 +143,25 @@ neoForge {
 // "optional", meaning it will not be pulled by dependents of this mod.
 configurations {
     runtimeClasspath.extendsFrom localRuntime
+    testRuntimeClasspath.extendsFrom localRuntime
+
+    configureEach {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == "travelers"
+                    && details.requested.name == "travelerslib-neoforge-${minecraft_version}") {
+                details.useVersion travelerslib_version
+                details.because "JS-revise is validated against the configured TravelersLib target version"
+            }
+        }
+    }
 }
 
 dependencies {
     compileOnly "travelers:travelerslib-neoforge-${minecraft_version}:${travelerslib_version}"
     localRuntime "travelers:travelerslib-neoforge-${minecraft_version}:${travelerslib_version}"
 
-    compileOnly "mod.azure.azurelib:azurelib-neo-${minecraft_version}:${azurelib_version}"
-    localRuntime "mod.azure.azurelib:azurelib-neo-${minecraft_version}:${azurelib_version}"
-
-    implementation "jp.jurassicsaga:jurassicsaga-neo:${jurassicsaga_version}"
+    implementation "maven.modrinth:jurassic-saga:${jurassicsaga_version}"
+    localRuntime "com.github.glitchfiend:TerraBlender-neoforge:1.21.1-4.1.0.8"
 
     compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}+${minecraft_version}:api"
     localRuntime "top.theillusivec4.curios:curios-neoforge:${curios_version}+${minecraft_version}"

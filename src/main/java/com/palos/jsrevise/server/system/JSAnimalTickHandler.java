@@ -3,6 +3,7 @@ package com.palos.jsrevise.server.system;
 import com.palos.jsrevise.server.system.age.DinosaurAgeSystem;
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 public final class JSAnimalTickHandler {
@@ -15,5 +16,11 @@ public final class JSAnimalTickHandler {
         }
         DinosaurAgeSystem.tick(animal);
         DinosaurAnestheticSystem.tickServer(animal);
+    }
+
+    public static void onPlayerStartTracking(PlayerEvent.StartTracking event) {
+        if (event.getTarget() instanceof JSAnimalBase animal) {
+            DinosaurAnestheticSystem.syncSleepStateForTracking(animal);
+        }
     }
 }

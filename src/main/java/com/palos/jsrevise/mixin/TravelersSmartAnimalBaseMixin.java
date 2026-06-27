@@ -21,7 +21,7 @@ public abstract class TravelersSmartAnimalBaseMixin {
             )
     )
     private void jsrevise$suspendAnesthetizedTaskController(TravelerTaskController controller) {
-        if (!jsrevise$isAnesthetizedAnimal()) {
+        if (!jsrevise$shouldSuspendAnimalControllers()) {
             controller.tickController();
         }
     }
@@ -35,7 +35,7 @@ public abstract class TravelersSmartAnimalBaseMixin {
             )
     )
     private void jsrevise$suspendAnesthetizedCombatController(TravelerTaskController controller) {
-        if (!jsrevise$isAnesthetizedAnimal()) {
+        if (!jsrevise$shouldSuspendAnimalControllers()) {
             controller.tickController();
         }
     }
@@ -48,7 +48,7 @@ public abstract class TravelersSmartAnimalBaseMixin {
             )
     )
     private void jsrevise$suspendAnesthetizedMoveController(TravelersMoveControl controller) {
-        if (!jsrevise$isAnesthetizedAnimal()) {
+        if (!jsrevise$shouldSuspendAnimalControllers()) {
             controller.tick();
         }
     }
@@ -61,13 +61,13 @@ public abstract class TravelersSmartAnimalBaseMixin {
             )
     )
     private void jsrevise$suspendAnesthetizedNavigationController(TravelersPathNavigation navigation) {
-        if (!jsrevise$isAnesthetizedAnimal()) {
+        if (!jsrevise$shouldSuspendAnimalControllers()) {
             navigation.tick();
         }
     }
 
-    private boolean jsrevise$isAnesthetizedAnimal() {
+    private boolean jsrevise$shouldSuspendAnimalControllers() {
         return (Object) this instanceof JSAnimalBase animal
-                && DinosaurAnestheticSystem.isAnesthetized(animal);
+                && DinosaurAnestheticSystem.shouldSuppressTravelersControllers(animal);
     }
 }

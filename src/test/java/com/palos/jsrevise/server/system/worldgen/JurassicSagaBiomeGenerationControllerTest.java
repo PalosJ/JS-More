@@ -36,4 +36,24 @@ class JurassicSagaBiomeGenerationControllerTest {
                 JurassicSagaBiomeGenerationController.replacementForJurassicSagaBiome("sulphur_springs")
         );
     }
+
+    @Test
+    void magmaCaveFallsBackToDripstoneCaves() {
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("dripstone_caves"),
+                JurassicSagaBiomeGenerationController.replacementForJurassicSagaBiome("magma_cave")
+        );
+    }
+
+    @Test
+    void mediterraneanScrubFallsBackToOverworldBiomes() {
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("forest"),
+                JurassicSagaBiomeGenerationController.replacementForJurassicSagaBiome("mediterranean_scrub_forest")
+        );
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("plains"),
+                JurassicSagaBiomeGenerationController.replacementForJurassicSagaBiome("mediterranean_scrub_plains")
+        );
+    }
 }

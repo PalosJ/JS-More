@@ -24,7 +24,7 @@ public final class JSRevise {
 
         // 对齐官方附属模组的接入顺序，让 Travelers/Jurassic Saga 正确识别当前附属。
         TravelersMain.registerMod(MOD_ID);
-        TravelersUtil.disableModForGecko(MOD_ID);
+        TravelersUtil.disableModForAzure(MOD_ID);
         LOGGER.info("Initialized Jurassic Saga addon bootstrap for {}", MOD_NAME);
     }
 

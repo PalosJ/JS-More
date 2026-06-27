@@ -7,7 +7,7 @@ public final class JSReviseConfig {
 
     public static final ModConfigSpec.BooleanValue DEBUG_LOGGING = BUILDER
             .translation("jsrevise.configuration.debug_logging")
-            .comment("Logs inferred dinosaur profiles and compatibility audit details.")
+            .comment("Logs inferred dinosaur profiles, compatibility audits, and rate-limited sleep animation traces.")
             .define("debug_logging", false);
     public static final ModConfigSpec.BooleanValue DISABLE_JURASSIC_SAGA_BIOME_GENERATION = BUILDER
             .translation("jsrevise.configuration.disable_jurassicsaga_biome_generation")

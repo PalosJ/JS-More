@@ -14,9 +14,12 @@
     "JSEntityDataHolderSystemsMixin",
     "LivingEntityTravelMixin",
     "MultiNoiseBiomeSourceMixin",
+    "TravelersAnimationDefinitionMixin",
+    "TravelersAnimalAnimationModuleAccessor",
     "TravelersSmartAnimalBaseMixin"
   ],
   "client": [
+    "client.AzEntityDispatchCommandPacketMixin",
     "client.CustomHeadLayerMixin",
     "client.TylosaurusAnimatorMixin",
     "client.TravelersClientAnimatorMixin",

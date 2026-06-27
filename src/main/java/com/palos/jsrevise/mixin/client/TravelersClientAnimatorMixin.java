@@ -11,7 +11,9 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import travelers.client.render.animation.entity.TravelersAnimationData;
+import travelers.client.render.animation.entity.obj.TravelersBoneState;
 import travelers.client.render.animation.entity.obj.TravelersClientAnimator;
 import travelers.server.animal.entity.SmartAnimalBase;
 
@@ -27,13 +29,24 @@ public abstract class TravelersClientAnimatorMixin {
     @Unique
     private static final ThreadLocal<AnimationFlags> JSREVISE$ANIMATION_FLAGS = new ThreadLocal<>();
 
-    @Inject(method = "update", at = @At("HEAD"), require = 0)
+    @Inject(method = "update", at = @At("HEAD"), cancellable = true, require = 0)
     private void jsrevise$stabilizeFloatingAnimation(
             SmartAnimalBase animatable,
             float partialTick,
             CallbackInfo callbackInfo
     ) {
         JSREVISE$ANIMATION_FLAGS.remove();
+        if (animatable instanceof JSAnimalBase sleepingAnimal
+                && DinosaurAnestheticSystem.shouldSkipClientProceduralAnimation(sleepingAnimal)) {
+            this.boneOffsetCache.remove(sleepingAnimal.getStringUUID());
+            DinosaurAnestheticSystem.logSleepAnimationTrace(
+                    sleepingAnimal,
+                    "client_procedural_update_skipped",
+                    "method=update"
+            );
+            callbackInfo.cancel();
+            return;
+        }
         if (!(animatable instanceof JSAnimalBase animal)
                 || animal instanceof JSAquaticBase
                 || !DinosaurAnestheticSystem.isFloating(animal)) {
@@ -66,6 +79,38 @@ public abstract class TravelersClientAnimatorMixin {
         flags.animationData().physicsEnabled = flags.physicsEnabled();
         flags.animationData().canFace = flags.canFace();
         JSREVISE$ANIMATION_FLAGS.remove();
+    }
+
+    @Inject(method = "clientTick", at = @At("HEAD"), cancellable = true, require = 0)
+    private void jsrevise$skipSleepingClientTick(SmartAnimalBase animatable, CallbackInfo callbackInfo) {
+        if (animatable instanceof JSAnimalBase animal
+                && DinosaurAnestheticSystem.shouldSkipClientProceduralAnimation(animal)) {
+            this.boneOffsetCache.remove(animal.getStringUUID());
+            DinosaurAnestheticSystem.logSleepAnimationTrace(
+                    animal,
+                    "client_procedural_tick_skipped",
+                    "method=clientTick"
+            );
+            callbackInfo.cancel();
+        }
+    }
+
+    @Inject(method = "updateAnimationOnBone", at = @At("HEAD"), cancellable = true, require = 0)
+    private void jsrevise$skipSleepingBoneUpdate(
+            SmartAnimalBase animatable,
+            String boneName,
+            CallbackInfoReturnable<TravelersBoneState> callbackInfo
+    ) {
+        if (animatable instanceof JSAnimalBase animal
+                && DinosaurAnestheticSystem.shouldSkipClientProceduralAnimation(animal)) {
+            this.boneOffsetCache.remove(animal.getStringUUID());
+            DinosaurAnestheticSystem.logSleepAnimationTrace(
+                    animal,
+                    "client_procedural_bone_skipped",
+                    "method=updateAnimationOnBone bone=" + boneName
+            );
+            callbackInfo.setReturnValue(null);
+        }
     }
 
     @Unique

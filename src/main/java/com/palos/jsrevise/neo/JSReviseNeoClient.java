@@ -8,6 +8,7 @@ import com.palos.jsrevise.client.JSReviseItemTooltipHandler;
 import com.palos.jsrevise.client.overlay.DinoDoctorOverlayRenderer;
 import com.palos.jsrevise.client.render.FloatingModelGeometryResolver;
 import com.palos.jsrevise.server.registry.JSReviseEntityTypes;
+import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
 import com.palos.jsrevise.system.observation.DinosaurObservationSystem;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -67,6 +68,7 @@ public final class JSReviseNeoClient {
     private static void onEntityLeaveLevel(EntityLeaveLevelEvent event) {
         if (event.getLevel().isClientSide() && event.getEntity() instanceof JSAnimalBase animal) {
             ClientFloatingEffects.invalidate(animal.getUUID());
+            DinosaurAnestheticSystem.forgetClientSleepAnimationGuard(animal);
             DinosaurObservationSystem.invalidate(animal.getUUID());
         }
     }
@@ -74,6 +76,7 @@ public final class JSReviseNeoClient {
     private static void clearClientCaches() {
         DinoDoctorOverlayRenderer.clearCache();
         ClientFloatingEffects.clearCache();
+        DinosaurAnestheticSystem.clearClientSleepAnimationGuards();
         FloatingModelGeometryResolver.clearCache();
         DinosaurObservationSystem.clearCache();
     }

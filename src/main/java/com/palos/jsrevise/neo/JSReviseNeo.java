@@ -29,6 +29,7 @@ public final class JSReviseNeo {
         modEventBus.addListener(JSReviseNetworking::register);
         modContainer.registerConfig(ModConfig.Type.COMMON, JSReviseConfig.SPEC);
         NeoForge.EVENT_BUS.addListener(JSAnimalTickHandler::onEntityTickPost);
+        NeoForge.EVENT_BUS.addListener(JSAnimalTickHandler::onPlayerStartTracking);
         NeoForge.EVENT_BUS.addListener(JSReviseNeo::onServerStarted);
         NeoForge.EVENT_BUS.addListener(JSReviseNeo::onServerStopping);
     }

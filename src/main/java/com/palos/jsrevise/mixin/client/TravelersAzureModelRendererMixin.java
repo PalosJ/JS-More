@@ -7,13 +7,13 @@ import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAquaticBase;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAvianBase;
-import mod.azure.azurelib.common.model.AzBone;
-import mod.azure.azurelib.common.render.AzRendererPipelineContext;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import travelers.azurelib.common.model.AzBone;
+import travelers.azurelib.common.render.AzRendererPipelineContext;
 import travelers.client.render.animation.entity.obj.TravelersBoneState;
 import travelers.client.render.animation.entity.obj.TravelersClientAnimator;
 import travelers.client.render.animal.azure.TravelersAzureModelRenderer;
@@ -29,11 +29,31 @@ public abstract class TravelersAzureModelRendererMixin {
     @Shadow
     private boolean hasAnimator;
 
+    @Inject(method = "render", at = @At("HEAD"), require = 0)
+    private void jsrevise$clearSleepingProceduralFrame(
+            AzRendererPipelineContext<UUID, SmartAnimalBase> context,
+            boolean isReRender,
+            CallbackInfo callbackInfo
+    ) {
+        if (this.hasAnimator
+                && this.animalAnimator != null
+                && context.animatable() instanceof JSAnimalBase animal
+                && DinosaurAnestheticSystem.shouldSkipClientProceduralAnimation(animal)) {
+            this.animalAnimator.remove(animal);
+            this.animalAnimator.beginFrame();
+            DinosaurAnestheticSystem.logSleepAnimationTrace(
+                    animal,
+                    "client_renderer_cache_cleared",
+                    "method=render"
+            );
+        }
+    }
+
     @Inject(
             method = "renderRecursively",
             at = @At(
                     value = "INVOKE",
-                    target = "Lmod/azure/azurelib/common/util/client/RenderUtils;translateToPivotPoint(Lcom/mojang/blaze3d/vertex/PoseStack;Lmod/azure/azurelib/common/model/AzBone;)V",
+                    target = "Ltravelers/azurelib/common/util/client/RenderUtils;translateToPivotPoint(Lcom/mojang/blaze3d/vertex/PoseStack;Ltravelers/azurelib/common/model/AzBone;)V",
                     shift = At.Shift.BEFORE
             ),
             require = 0
