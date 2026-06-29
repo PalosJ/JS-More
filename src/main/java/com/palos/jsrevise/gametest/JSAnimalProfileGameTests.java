@@ -7,11 +7,14 @@ import com.palos.jsrevise.server.system.anesthetic.AnestheticFloatData;
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
 import com.palos.jsrevise.server.system.profile.DinosaurProfileResolver;
 import com.palos.jsrevise.server.system.size.DinosaurSizeProfile;
+import com.palos.jsrevise.system.observation.EggLayingProgressResolver;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import jp.jurassicsaga.server.animal.JSAnimals;
 import jp.jurassicsaga.server.animal.animals.obj.JSAnimal;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
@@ -73,6 +76,63 @@ public final class JSAnimalProfileGameTests {
         }
         if (!failures.isEmpty()) {
             helper.fail("Invalid Jurassic Saga profiles: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void registeredNaturalEggLayersExposeEggTimer(GameTestHelper helper) {
+        List<String> failures = new ArrayList<>();
+        Set<String> eggTimerClasses = new HashSet<>();
+        int discovered = 0;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            discovered++;
+            Entity entity = null;
+            try {
+                entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+                if (!(entity instanceof JSAnimalBase animal)) {
+                    continue;
+                }
+                if (EggLayingProgressResolver.hasEggTimer(animal)) {
+                    eggTimerClasses.add(animal.getClass().getName());
+                    EggLayingProgressResolver.resolve(animal);
+                }
+            } catch (RuntimeException exception) {
+                failures.add(registeredAnimal + ": " + exception.getClass().getSimpleName());
+            } finally {
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+
+        if (discovered == 0) {
+            helper.fail("Jurassic Saga registered no animals");
+            return;
+        }
+        requireEggTimerClass(
+                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.BasiliskEntity",
+                eggTimerClasses,
+                failures
+        );
+        requireEggTimerClass(
+                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.ReedFrogEntity",
+                eggTimerClasses,
+                failures
+        );
+        requireEggTimerClass(
+                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.AlligatorEntity",
+                eggTimerClasses,
+                failures
+        );
+        requireEggTimerClass(
+                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.OstrichEntity",
+                eggTimerClasses,
+                failures
+        );
+        if (!failures.isEmpty()) {
+            helper.fail("Invalid natural egg-layer timer coverage: " + String.join(", ", failures));
             return;
         }
         helper.succeed();
@@ -347,11 +407,12 @@ public final class JSAnimalProfileGameTests {
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 200)
-    public static void ludodactylusSleepInRedirectStaysSpeciesScoped(GameTestHelper helper) {
+    public static void knownSleepInFlashbackRedirectStaysCaseScoped(GameTestHelper helper) {
         List<String> failures = new ArrayList<>();
+        List<String> missingKnownCasePaths = new ArrayList<>(List.of("ludodactylus", "dilophosaurus"));
         int discovered = 0;
-        int ludodactylusAnimals = 0;
-        int nonLudodactylusAnimals = 0;
+        int knownCaseAnimals = 0;
+        int nonKnownCaseAnimals = 0;
         for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
             discovered++;
             Entity entity = null;
@@ -363,29 +424,30 @@ public final class JSAnimalProfileGameTests {
                 }
 
                 ResourceLocation speciesId = BuiltInRegistries.ENTITY_TYPE.getKey(animal.getType());
-                if (isLudodactylus(speciesId)) {
-                    ludodactylusAnimals++;
-                    if (DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(animal, "sleep_in")) {
-                        failures.add(registeredAnimal + ": awake ludodactylus redirected sleep_in");
+                if (isKnownSleepInFlashbackCase(speciesId)) {
+                    knownCaseAnimals++;
+                    missingKnownCasePaths.remove(speciesId.getPath());
+                    if (DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(animal, "sleep_in")) {
+                        failures.add(registeredAnimal + ": awake known sleep_in flashback case redirected sleep_in");
                     }
                     animal.setSleeping(true);
                     if (!DinosaurAnestheticSystem.shouldUseSleepAnimationGuard(animal)) {
-                        failures.add(registeredAnimal + ": raw sleeping ludodactylus did not enable guard");
+                        failures.add(registeredAnimal + ": raw sleeping known sleep_in flashback case did not enable guard");
                     }
-                    if (!DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(animal, "sleep_in")) {
-                        failures.add(registeredAnimal + ": guarded ludodactylus did not redirect sleep_in");
+                    if (!DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(animal, "sleep_in")) {
+                        failures.add(registeredAnimal + ": guarded known sleep_in flashback case did not redirect sleep_in");
                     }
-                    if (DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(animal, "sleep_loop")) {
+                    if (DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(animal, "sleep_loop")) {
                         failures.add(registeredAnimal + ": sleep_loop would recursively redirect");
                     }
-                    if (DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(animal, "idle")) {
+                    if (DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(animal, "idle")) {
                         failures.add(registeredAnimal + ": ordinary animation redirected as sleep_in");
                     }
                 } else {
-                    nonLudodactylusAnimals++;
+                    nonKnownCaseAnimals++;
                     animal.setSleeping(true);
-                    if (DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(animal, "sleep_in")) {
-                        failures.add(registeredAnimal + ": non-ludodactylus redirected sleep_in");
+                    if (DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(animal, "sleep_in")) {
+                        failures.add(registeredAnimal + ": non-case animal redirected sleep_in");
                     }
                 }
             } catch (RuntimeException exception) {
@@ -401,16 +463,21 @@ public final class JSAnimalProfileGameTests {
             helper.fail("Jurassic Saga registered no animals");
             return;
         }
-        if (nonLudodactylusAnimals == 0) {
-            helper.fail("Jurassic Saga registered no non-ludodactylus animals");
+        if (nonKnownCaseAnimals == 0) {
+            helper.fail("Jurassic Saga registered no non-case animals");
             return;
         }
-        if (ludodactylusAnimals == 0) {
-            helper.fail("Jurassic Saga registered no ludodactylus animals");
+        if (knownCaseAnimals == 0) {
+            helper.fail("Jurassic Saga registered no known sleep_in flashback case animals");
+            return;
+        }
+        if (!missingKnownCasePaths.isEmpty()) {
+            helper.fail("Jurassic Saga registered no known sleep_in flashback case paths: "
+                    + String.join(", ", missingKnownCasePaths));
             return;
         }
         if (!failures.isEmpty()) {
-            helper.fail("Invalid ludodactylus sleep_in redirect scope: " + String.join(", ", failures));
+            helper.fail("Invalid known sleep_in flashback redirect scope: " + String.join(", ", failures));
             return;
         }
         helper.succeed();
@@ -1060,10 +1127,10 @@ public final class JSAnimalProfileGameTests {
         return Double.isFinite(value) && value > 0.0D;
     }
 
-    private static boolean isLudodactylus(ResourceLocation speciesId) {
+    private static boolean isKnownSleepInFlashbackCase(ResourceLocation speciesId) {
         return speciesId != null
                 && "jurassicsaga".equals(speciesId.getNamespace())
-                && "ludodactylus".equals(speciesId.getPath());
+                && ("ludodactylus".equals(speciesId.getPath()) || "dilophosaurus".equals(speciesId.getPath()));
     }
 
     private static JSAnimalBase createNonAquaticAnimal(GameTestHelper helper) {
@@ -1145,6 +1212,12 @@ public final class JSAnimalProfileGameTests {
             if (DinosaurAnestheticSystem.shouldBlockNonSleepAnimation(animal, animationName)) {
                 failures.add(label + ": blocked allowed animation " + animationName);
             }
+        }
+    }
+
+    private static void requireEggTimerClass(String className, Set<String> eggTimerClasses, List<String> failures) {
+        if (!eggTimerClasses.contains(className)) {
+            failures.add("missing eggTime class " + className);
         }
     }
 

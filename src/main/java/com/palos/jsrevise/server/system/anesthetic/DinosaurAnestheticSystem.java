@@ -41,6 +41,7 @@ public final class DinosaurAnestheticSystem {
     private static final String RAW_SLEEP_SAVE_MARKER = "jsrevise.raw_sleeping";
     private static final String JURASSIC_SAGA_NAMESPACE = "jurassicsaga";
     private static final String LUDODACTYLUS_PATH = "ludodactylus";
+    private static final String DILOPHOSAURUS_PATH = "dilophosaurus";
     private static final String SLEEP_IN_LEAF = "sleep_in";
     private static final String SLEEP_LOOP_LEAF = "sleep_loop";
     private static final int SLEEP_STABILIZATION_TICKS = 3;
@@ -435,12 +436,12 @@ public final class DinosaurAnestheticSystem {
         return shouldUseSleepAnimationGuard(animal);
     }
 
-    public static boolean shouldRedirectLudodactylusSleepInToLoop(JSAnimalBase animal, String animationName) {
+    public static boolean shouldRedirectKnownUpstreamSleepInFlashbackToLoop(JSAnimalBase animal, String animationName) {
         if (!shouldUseSleepAnimationGuard(animal)) {
             return false;
         }
         ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(animal.getType());
-        boolean redirect = shouldRedirectLudodactylusSleepInToLoop(
+        boolean redirect = shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
                 true,
                 entityId == null ? null : entityId.getNamespace(),
                 entityId == null ? null : entityId.getPath(),
@@ -449,11 +450,26 @@ public final class DinosaurAnestheticSystem {
         if (redirect) {
             logSleepAnimationTrace(
                     animal,
-                    "ludodactylus_sleep_in_redirect",
+                    "upstream_sleep_in_flashback_redirect",
                     () -> sleepTraceState(animal) + " animation=" + animationName + " replacement=" + SLEEP_LOOP_LEAF
             );
         }
         return redirect;
+    }
+
+    public static boolean shouldRedirectLudodactylusSleepInToLoop(JSAnimalBase animal, String animationName) {
+        return shouldRedirectKnownUpstreamSleepInFlashbackToLoop(animal, animationName);
+    }
+
+    static boolean shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
+            boolean guardActive,
+            String speciesNamespace,
+            String speciesPath,
+            String animationName
+    ) {
+        return guardActive
+                && isKnownUpstreamSleepInFlashbackCase(speciesNamespace, speciesPath)
+                && SLEEP_IN_LEAF.equals(animationLeafName(animationName));
     }
 
     static boolean shouldRedirectLudodactylusSleepInToLoop(
@@ -462,10 +478,17 @@ public final class DinosaurAnestheticSystem {
             String speciesPath,
             String animationName
     ) {
-        return guardActive
-                && JURASSIC_SAGA_NAMESPACE.equals(speciesNamespace)
-                && LUDODACTYLUS_PATH.equals(speciesPath)
-                && SLEEP_IN_LEAF.equals(animationLeafName(animationName));
+        return shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
+                guardActive,
+                speciesNamespace,
+                speciesPath,
+                animationName
+        );
+    }
+
+    private static boolean isKnownUpstreamSleepInFlashbackCase(String speciesNamespace, String speciesPath) {
+        return JURASSIC_SAGA_NAMESPACE.equals(speciesNamespace)
+                && (LUDODACTYLUS_PATH.equals(speciesPath) || DILOPHOSAURUS_PATH.equals(speciesPath));
     }
 
     public static boolean shouldBlockNonSleepAnimation(JSAnimalBase animal, String animationName) {

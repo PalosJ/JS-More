@@ -41,63 +41,105 @@ class DinosaurAnestheticSystemTest {
     }
 
     @Test
-    void ludodactylusSleepInRedirectRequiresGuardSpeciesAndLeaf() {
-        assertTrue(DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(
+    void knownUpstreamSleepInFlashbackRedirectRequiresGuardSpeciesAndLeaf() {
+        assertTrue(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
                 true,
                 "jurassicsaga",
                 "ludodactylus",
                 "sleep_in"
         ));
-        assertTrue(DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(
+        assertTrue(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
+                true,
+                "jurassicsaga",
+                "dilophosaurus",
+                "sleep_in"
+        ));
+        assertTrue(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
                 true,
                 "jurassicsaga",
                 "ludodactylus",
                 "animation.sleep_in"
         ));
-        assertTrue(DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(
+        assertTrue(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
                 true,
                 "jurassicsaga",
-                "ludodactylus",
+                "dilophosaurus",
                 "jurassicsaga:sleep_in"
         ));
 
-        assertFalse(DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
                 false,
                 "jurassicsaga",
                 "ludodactylus",
                 "sleep_in"
         ));
-        assertFalse(DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
+                false,
+                "jurassicsaga",
+                "dilophosaurus",
+                "sleep_in"
+        ));
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
                 true,
                 "minecraft",
                 "ludodactylus",
                 "sleep_in"
         ));
-        assertFalse(DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
+                true,
+                "minecraft",
+                "dilophosaurus",
+                "sleep_in"
+        ));
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
                 true,
                 "jurassicsaga",
                 "cearadactylus",
                 "sleep_in"
         ));
-        assertFalse(DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
                 true,
                 "jurassicsaga",
                 "ludodactylus",
                 "sleep_loop"
         ));
-        assertFalse(DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
+                true,
+                "jurassicsaga",
+                "dilophosaurus",
+                "sleep_loop"
+        ));
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
+                true,
+                "jurassicsaga",
+                "ludodactylus",
+                "idle"
+        ));
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
+                true,
+                "jurassicsaga",
+                "dilophosaurus",
+                "idle"
+        ));
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
                 true,
                 "jurassicsaga",
                 "ludodactylus",
                 "animation.sleep_in_rest"
         ));
-        assertFalse(DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
+                true,
+                "jurassicsaga",
+                "dilophosaurus",
+                "animation.sleep_in_rest"
+        ));
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
                 true,
                 null,
                 "ludodactylus",
                 "sleep_in"
         ));
-        assertFalse(DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(
+        assertFalse(DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(
                 true,
                 "jurassicsaga",
                 null,

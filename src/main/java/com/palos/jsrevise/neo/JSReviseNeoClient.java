@@ -5,6 +5,7 @@ import com.palos.jsrevise.client.AnestheticCrossbowInputHandler;
 import com.palos.jsrevise.client.AnestheticCrossbowItemProperties;
 import com.palos.jsrevise.client.ClientFloatingEffects;
 import com.palos.jsrevise.client.JSReviseItemTooltipHandler;
+import com.palos.jsrevise.client.overlay.ClientEggLayingProgressCache;
 import com.palos.jsrevise.client.overlay.DinoDoctorOverlayRenderer;
 import com.palos.jsrevise.client.render.FloatingModelGeometryResolver;
 import com.palos.jsrevise.server.registry.JSReviseEntityTypes;
@@ -70,6 +71,7 @@ public final class JSReviseNeoClient {
             ClientFloatingEffects.invalidate(animal.getUUID());
             DinosaurAnestheticSystem.forgetClientSleepAnimationGuard(animal);
             DinosaurObservationSystem.invalidate(animal.getUUID());
+            ClientEggLayingProgressCache.invalidate(animal);
         }
     }
 
@@ -79,5 +81,6 @@ public final class JSReviseNeoClient {
         DinosaurAnestheticSystem.clearClientSleepAnimationGuards();
         FloatingModelGeometryResolver.clearCache();
         DinosaurObservationSystem.clearCache();
+        ClientEggLayingProgressCache.clearCache();
     }
 }

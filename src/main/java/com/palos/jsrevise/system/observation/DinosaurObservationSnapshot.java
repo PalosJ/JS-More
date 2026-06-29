@@ -19,6 +19,24 @@ public record DinosaurObservationSnapshot(
         OptionalLong pendingAnestheticTicks,
         OptionalLong remainingAnestheticTicks,
         OptionalLong queuedAnestheticTicks,
+        Optional<EggLayingProgress> eggLayingProgress,
         List<ObservedGene> genes
 ) {
+    public DinosaurObservationSnapshot withEggLayingProgress(Optional<EggLayingProgress> progress) {
+        return new DinosaurObservationSnapshot(
+                displayName,
+                ageEstimate,
+                currentHealth,
+                maxHealth,
+                male,
+                hungerPercent,
+                thirstPercent,
+                moodPercent,
+                pendingAnestheticTicks,
+                remainingAnestheticTicks,
+                queuedAnestheticTicks,
+                progress,
+                genes
+        );
+    }
 }

@@ -27,7 +27,7 @@ public abstract class TravelersAnimationDefinitionMixin {
     private void jsrevise$blockOrdinaryAnimationDuringSleep(SmartAnimalBase animal, CallbackInfo callbackInfo) {
         if (animal instanceof JSAnimalBase jsAnimal) {
             String animationName = this.getName();
-            if (DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(jsAnimal, animationName)) {
+            if (DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(jsAnimal, animationName)) {
                 JSAnimations.SLEEP_LOOP.sendForEntity(animal);
                 callbackInfo.cancel();
                 return;
@@ -51,7 +51,7 @@ public abstract class TravelersAnimationDefinitionMixin {
     ) {
         if (entity instanceof JSAnimalBase animal) {
             String animationName = this.getName();
-            if (DinosaurAnestheticSystem.shouldRedirectLudodactylusSleepInToLoop(animal, animationName)) {
+            if (DinosaurAnestheticSystem.shouldRedirectKnownUpstreamSleepInFlashbackToLoop(animal, animationName)) {
                 JSAnimations.SLEEP_LOOP.sendForEntity(modelType, entity);
                 callbackInfo.cancel();
                 return;

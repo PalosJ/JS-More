@@ -3,8 +3,8 @@ package com.palos.jsrevise.client.overlay;
 import com.palos.jsrevise.compat.curios.DinoDoctorGogglesWearResolver;
 import com.palos.jsrevise.server.registry.JSReviseItems;
 import com.palos.jsrevise.system.observation.DinosaurObservationSnapshot;
-import com.palos.jsrevise.system.observation.ObservedGene;
 import com.palos.jsrevise.system.observation.DinosaurObservationSystem;
+import com.palos.jsrevise.system.observation.ObservedGene;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -12,12 +12,14 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -34,13 +36,33 @@ public final class DinoDoctorOverlayRenderer {
     private static final double OBSERVE_RANGE = 8.0D;
     public static final LayeredDraw.Layer OVERLAY = DinoDoctorOverlayRenderer::renderOverlay;
     private static final int PANEL_PADDING = 4;
+    private static final int PANEL_HORIZONTAL_PADDING = 6;
+    static final int PANEL_TOP_PADDING = 8;
+    static final int PANEL_BOTTOM_PADDING = PANEL_TOP_PADDING;
+    static final int PANEL_BORDER_TOP_COLOR = 0x7AFFFFFF;
+    static final int PANEL_BORDER_BOTTOM_COLOR = 0x60FFFFFF;
     private static final int CONTENT_X_OFFSET = 20;
-    private static final int LINE_HEIGHT = 11;
+    static final int LINE_HEIGHT = 12;
+    static final int TITLE_LINE_HEIGHT = 14;
+    static final int PROGRESS_BAR_Y_OFFSET = LINE_HEIGHT;
+    static final int PROGRESS_BAR_WIDTH = 65;
+    static final int PROGRESS_BAR_HEIGHT = 13;
+    static final int PROGRESS_LINE_HEIGHT = PROGRESS_BAR_Y_OFFSET + PROGRESS_BAR_HEIGHT;
+    static final int JADE_NESTED_BOX_BORDER_WIDTH = 1;
+    static final int JADE_NESTED_BOX_BORDER_COLOR = 0xFF808080;
+    static final int JADE_PROGRESS_DARK_COLOR = 0xFFB2B2B2;
+    static final int JADE_PROGRESS_LIGHT_COLOR = 0xFFFFFFFF;
     private static final int GENE_ICON_SIZE = 18;
     private static final int GENE_COLUMN_GAP = 2;
     private static final int GENE_ROW_GAP = 6;
     private static final float OVERLAY_SCALE = 0.85F;
-    private static final float FONT_SCALE = 0.90F / OVERLAY_SCALE;
+    static final float FONT_SCALE = 0.90F / OVERLAY_SCALE;
+    static final float LABEL_FONT_SCALE = 0.98F / OVERLAY_SCALE;
+    static final float TITLE_FONT_SCALE = 1.05F / OVERLAY_SCALE;
+    private static final float PANEL_BACKGROUND_TOP_SHADE = 0.24F;
+    private static final float PANEL_BACKGROUND_BOTTOM_SHADE = 0.17F;
+    private static final int PANEL_BACKGROUND_TOP_ALPHA = 0x68;
+    private static final int PANEL_BACKGROUND_BOTTOM_ALPHA = 0x72;
     private static final float GENE_LABEL_SCALE = 0.65F * FONT_SCALE;
     private static final long TARGET_REFRESH_TICKS = 3L;
     private static JSAnimalBase cachedAnimal;
@@ -66,42 +88,20 @@ public final class DinoDoctorOverlayRenderer {
             return;
         }
 
-        DinosaurObservationSnapshot snapshot = DinosaurObservationSystem.capture(animal);
         DinosaurDnaVisualResolver.DnaVisual dnaVisual = DinosaurDnaVisualResolver.resolve(animal);
-        List<OverlayLine> lines = new ArrayList<>();
-        lines.add(OverlayLine.basic(snapshot.displayName(), 0xDDEEFF));
-        lines.add(OverlayLine.basic(formatAge(snapshot), 0xBFD1E6));
-        lines.add(OverlayLine.basic(formatHealth(snapshot), 0xBFD1E6));
-        lines.add(OverlayLine.basic(formatGender(snapshot), 0xBFD1E6));
-        lines.add(OverlayLine.basic(formatPercent("overlay.jsrevise.hunger", snapshot.hungerPercent()), 0xBFD1E6));
-        lines.add(OverlayLine.basic(formatPercent("overlay.jsrevise.thirst", snapshot.thirstPercent()), 0xBFD1E6));
-        lines.add(OverlayLine.basic(formatPercent("overlay.jsrevise.mood", snapshot.moodPercent()), 0xBFD1E6));
-        if (snapshot.pendingAnestheticTicks().isPresent()) {
-            lines.add(OverlayLine.basic(formatAnestheticLine("overlay.jsrevise.anesthetic.pending", snapshot.pendingAnestheticTicks().getAsLong()), 0xBFD1E6));
-        }
-        if (snapshot.remainingAnestheticTicks().isPresent() || snapshot.queuedAnestheticTicks().isPresent()) {
-            Component suffix = snapshot.queuedAnestheticTicks().isPresent()
-                    ? Component.translatable("overlay.jsrevise.anesthetic.addition", formatDecimal(snapshot.queuedAnestheticTicks().getAsLong() / 20.0D) + "s")
-                    : Component.empty();
-            Component mainText = snapshot.remainingAnestheticTicks().isPresent()
-                    ? formatAnestheticLine("overlay.jsrevise.anesthetic.remaining", snapshot.remainingAnestheticTicks().getAsLong())
-                    : Component.translatable("overlay.jsrevise.anesthetic.remaining_label");
-            lines.add(OverlayLine.withSuffix(
-                    mainText,
-                    0xBFD1E6,
-                    suffix,
-                    0x7D8794,
-                    0.75F
-            ));
-        }
+        DinosaurObservationSnapshot snapshot = DinosaurObservationSystem.capture(animal)
+                .withEggLayingProgress(ClientEggLayingProgressCache.getOrRequest(animal));
+        int themeColor = dnaVisual.themeColor();
+        List<OverlayLine> lines = createObservationLines(snapshot);
+        Optional<OverlayLine> eggProgressLine = createEggProgressLine(snapshot);
         boolean hasGenes = !snapshot.genes().isEmpty();
-        if (hasGenes) {
-            lines.add(OverlayLine.basic(Component.translatable("overlay.jsrevise.genes"), 0x9FB1C4));
-        }
 
         int maxWidth = 0;
         for (OverlayLine line : lines) {
             maxWidth = Math.max(maxWidth, measureLineWidth(minecraft, line));
+        }
+        if (eggProgressLine.isPresent()) {
+            maxWidth = Math.max(maxWidth, measureLineWidth(minecraft, eggProgressLine.get()));
         }
         GeneLayout geneLayout = GeneLayout.empty();
         if (hasGenes) {
@@ -114,23 +114,45 @@ public final class DinoDoctorOverlayRenderer {
         int x = Math.max(12, (virtualWidth / 2) - maxWidth - 88);
         int y = Math.max(12, (virtualHeight / 2) - 82);
         int width = maxWidth + 28;
-        int contentHeight = 12 + (lines.size() * LINE_HEIGHT);
-        int height = contentHeight + (hasGenes ? geneLayout.totalHeight() + 8 : 0);
+        int linesHeight = 0;
+        for (OverlayLine line : lines) {
+            linesHeight += line.height();
+        }
+        int contentBottom = y + linesHeight;
+        if (hasGenes) {
+            contentBottom += 2 + geneLayout.totalHeight();
+        }
+        if (eggProgressLine.isPresent()) {
+            contentBottom += (hasGenes ? LINE_HEIGHT : 0) + eggProgressLine.get().height();
+        }
 
-        int panelLeft = x - 6;
-        int panelTop = y - 8;
-        int panelRight = x + width + 6;
-        int panelBottom = y + height + 6;
-        int themeColor = dnaVisual.themeColor();
-        int borderTop = withAlpha(mixRgb(themeColor, 0xFFFFFF, 0.34F), 0x7A);
-        int borderBottom = withAlpha(shadeRgb(themeColor, 0.48F), 0x60);
-        int backgroundTop = withAlpha(shadeRgb(themeColor, 0.24F), 0x3E);
-        int backgroundBottom = withAlpha(shadeRgb(themeColor, 0.17F), 0x42);
+        int panelLeft = x - PANEL_HORIZONTAL_PADDING;
+        int panelTop = y - PANEL_TOP_PADDING;
+        int panelRight = x + width + PANEL_HORIZONTAL_PADDING;
+        int panelBottom = contentBottom + PANEL_BOTTOM_PADDING;
+        int borderTop = PANEL_BORDER_TOP_COLOR;
+        int borderBottom = PANEL_BORDER_BOTTOM_COLOR;
+        int backgroundTop = panelBackgroundTopColor(themeColor);
+        int backgroundBottom = panelBackgroundBottomColor(themeColor);
 
         guiGraphics.pose().pushPose();
         guiGraphics.pose().scale(OVERLAY_SCALE, OVERLAY_SCALE, 1.0F);
-        fillRoundedGradient(guiGraphics, panelLeft - 1, panelTop - 1, panelRight + 1, panelBottom + 1, 6, borderTop, borderBottom);
         fillRoundedGradient(guiGraphics, panelLeft, panelTop, panelRight, panelBottom, 5, backgroundTop, backgroundBottom);
+        strokeRoundedGradient(
+                guiGraphics,
+                panelLeft - 1,
+                panelTop - 1,
+                panelRight + 1,
+                panelBottom + 1,
+                6,
+                panelLeft,
+                panelTop,
+                panelRight,
+                panelBottom,
+                5,
+                borderTop,
+                borderBottom
+        );
 
         ItemStack titleIcon = dnaVisual.icon().isEmpty()
                 ? new ItemStack(JSReviseItems.DINO_DOCTOR_GOGGLES.get())
@@ -140,29 +162,96 @@ public final class DinoDoctorOverlayRenderer {
         int lineY = y;
         for (OverlayLine line : lines) {
             drawLine(guiGraphics, minecraft, x + CONTENT_X_OFFSET, lineY, line);
-            lineY += LINE_HEIGHT;
+            lineY += line.height();
         }
         if (hasGenes) {
-            drawGenes(guiGraphics, minecraft, snapshot.genes(), x + CONTENT_X_OFFSET, lineY + 2, geneLayout);
+            int genesY = lineY + 2;
+            drawGenes(guiGraphics, minecraft, snapshot.genes(), x + CONTENT_X_OFFSET, genesY, geneLayout);
+            lineY = genesY + geneLayout.totalHeight();
+        }
+        if (eggProgressLine.isPresent()) {
+            if (hasGenes) {
+                lineY += LINE_HEIGHT;
+            }
+            drawLine(guiGraphics, minecraft, x + CONTENT_X_OFFSET, lineY, eggProgressLine.get());
         }
         guiGraphics.pose().popPose();
+    }
+
+    static List<OverlayLine> createObservationLines(DinosaurObservationSnapshot snapshot) {
+        List<OverlayLine> lines = new ArrayList<>();
+        lines.add(OverlayLine.title(snapshot.displayName(), 0xDDEEFF));
+        lines.add(OverlayLine.labeled(Component.translatable("overlay.jsrevise.age.label"), formatAge(snapshot), 0xBFD1E6));
+        lines.add(OverlayLine.labeled(Component.translatable("overlay.jsrevise.health"), formatHealth(snapshot), 0xBFD1E6));
+        lines.add(OverlayLine.labeled(Component.translatable("overlay.jsrevise.gender"), formatGender(snapshot), 0xBFD1E6));
+        lines.add(OverlayLine.labeled(Component.translatable("overlay.jsrevise.hunger"), formatPercent(snapshot.hungerPercent()), 0xBFD1E6));
+        lines.add(OverlayLine.labeled(Component.translatable("overlay.jsrevise.thirst"), formatPercent(snapshot.thirstPercent()), 0xBFD1E6));
+        lines.add(OverlayLine.labeled(Component.translatable("overlay.jsrevise.mood"), formatPercent(snapshot.moodPercent()), 0xBFD1E6));
+        if (snapshot.pendingAnestheticTicks().isPresent()) {
+            lines.add(OverlayLine.labeled(
+                    Component.translatable("overlay.jsrevise.anesthetic.pending"),
+                    formatAnestheticDuration(snapshot.pendingAnestheticTicks().getAsLong()),
+                    0xBFD1E6
+            ));
+        }
+        if (snapshot.remainingAnestheticTicks().isPresent() || snapshot.queuedAnestheticTicks().isPresent()) {
+            Component suffix = snapshot.queuedAnestheticTicks().isPresent()
+                    ? Component.translatable(
+                            "overlay.jsrevise.anesthetic.addition",
+                            plainValue(formatDecimal(snapshot.queuedAnestheticTicks().getAsLong() / 20.0D) + "s")
+                    )
+                    : Component.empty();
+            Component label = Component.translatable("overlay.jsrevise.anesthetic.remaining");
+            if (snapshot.remainingAnestheticTicks().isPresent()) {
+                lines.add(OverlayLine.labeledWithSuffix(
+                        label,
+                        formatAnestheticDuration(snapshot.remainingAnestheticTicks().getAsLong()),
+                        0xBFD1E6,
+                        suffix,
+                        0x7D8794,
+                        0.75F
+                ));
+            } else {
+                lines.add(OverlayLine.withSuffix(
+                        List.of(OverlayTextSegment.label(label)),
+                        0xBFD1E6,
+                        suffix,
+                        0x7D8794,
+                        0.75F
+                ));
+            }
+        }
+        boolean hasGenes = !snapshot.genes().isEmpty();
+        if (hasGenes) {
+            lines.add(OverlayLine.singleLabel(Component.translatable("overlay.jsrevise.genes"), 0x9FB1C4));
+        }
+        return List.copyOf(lines);
+    }
+
+    static Optional<OverlayLine> createEggProgressLine(DinosaurObservationSnapshot snapshot) {
+        return snapshot.eggLayingProgress().map(progress -> OverlayLine.progress(
+                formatEggLayingProgress(),
+                0xBFD1E6,
+                progress.progress()
+        ));
     }
 
     private static int withAlpha(int rgb, int alpha) {
         return alpha << 24 | rgb & 0xFFFFFF;
     }
 
+    static int panelBackgroundTopColor(int themeColor) {
+        return withAlpha(shadeRgb(themeColor, PANEL_BACKGROUND_TOP_SHADE), PANEL_BACKGROUND_TOP_ALPHA);
+    }
+
+    static int panelBackgroundBottomColor(int themeColor) {
+        return withAlpha(shadeRgb(themeColor, PANEL_BACKGROUND_BOTTOM_SHADE), PANEL_BACKGROUND_BOTTOM_ALPHA);
+    }
+
     private static int shadeRgb(int color, float factor) {
         int red = Mth.floor((color >> 16 & 0xFF) * factor);
         int green = Mth.floor((color >> 8 & 0xFF) * factor);
         int blue = Mth.floor((color & 0xFF) * factor);
-        return red << 16 | green << 8 | blue;
-    }
-
-    private static int mixRgb(int from, int to, float progress) {
-        int red = Mth.floor(Mth.lerp(progress, from >> 16 & 0xFF, to >> 16 & 0xFF));
-        int green = Mth.floor(Mth.lerp(progress, from >> 8 & 0xFF, to >> 8 & 0xFF));
-        int blue = Mth.floor(Mth.lerp(progress, from & 0xFF, to & 0xFF));
         return red << 16 | green << 8 | blue;
     }
 
@@ -181,6 +270,48 @@ public final class DinoDoctorOverlayRenderer {
             int inset = roundedInset(row, height, radius);
             float progress = height <= 1 ? 0.0F : (float) row / (height - 1);
             guiGraphics.fill(left + inset, top + row, right - inset, top + row + 1, lerpArgb(topColor, bottomColor, progress));
+        }
+    }
+
+    private static void strokeRoundedGradient(
+            GuiGraphics guiGraphics,
+            int outerLeft,
+            int outerTop,
+            int outerRight,
+            int outerBottom,
+            int outerRadius,
+            int innerLeft,
+            int innerTop,
+            int innerRight,
+            int innerBottom,
+            int innerRadius,
+            int topColor,
+            int bottomColor
+    ) {
+        int outerHeight = outerBottom - outerTop;
+        int innerHeight = innerBottom - innerTop;
+        for (int row = 0; row < outerHeight; row++) {
+            int y = outerTop + row;
+            int outerInset = roundedInset(row, outerHeight, outerRadius);
+            int outerStart = outerLeft + outerInset;
+            int outerEnd = outerRight - outerInset;
+            float progress = outerHeight <= 1 ? 0.0F : (float) row / (outerHeight - 1);
+            int color = lerpArgb(topColor, bottomColor, progress);
+            if (y < innerTop || y >= innerBottom) {
+                guiGraphics.fill(outerStart, y, outerEnd, y + 1, color);
+                continue;
+            }
+
+            int innerRow = y - innerTop;
+            int innerInset = roundedInset(innerRow, innerHeight, innerRadius);
+            int innerStart = innerLeft + innerInset;
+            int innerEnd = innerRight - innerInset;
+            if (outerStart < innerStart) {
+                guiGraphics.fill(outerStart, y, Math.min(innerStart, outerEnd), y + 1, color);
+            }
+            if (innerEnd < outerEnd) {
+                guiGraphics.fill(Math.max(innerEnd, outerStart), y, outerEnd, y + 1, color);
+            }
         }
     }
 
@@ -223,6 +354,7 @@ public final class DinoDoctorOverlayRenderer {
         cachedAnimal = null;
         nextTargetRefreshTick = 0L;
         DinosaurDnaVisualResolver.clearCache();
+        ClientEggLayingProgressCache.clearCache();
     }
 
     private static JSAnimalBase resolveObservedAnimal(Minecraft minecraft) {
@@ -263,10 +395,7 @@ public final class DinoDoctorOverlayRenderer {
     }
 
     static boolean isWithinObservationRange(Vec3 observer, AABB bounds) {
-        double closestX = Mth.clamp(observer.x, bounds.minX, bounds.maxX);
-        double closestY = Mth.clamp(observer.y, bounds.minY, bounds.maxY);
-        double closestZ = Mth.clamp(observer.z, bounds.minZ, bounds.maxZ);
-        return observer.distanceToSqr(closestX, closestY, closestZ) <= OBSERVE_RANGE * OBSERVE_RANGE;
+        return DinosaurObservationSystem.isWithinObservationRange(observer, bounds);
     }
 
     private static double resolveHitDistanceLimitSqr(Vec3 start, HitResult hitResult) {
@@ -285,10 +414,10 @@ public final class DinoDoctorOverlayRenderer {
         OptionalLong currentGameAgeTicks = snapshot.ageEstimate().estimatedCurrentGameAgeTicks();
         if (currentGameAgeTicks.isPresent()) {
             double gameDays = currentGameAgeTicks.getAsLong() / 24000.0D;
-            return Component.translatable("overlay.jsrevise.age.game", formatDecimal(gameDays));
+            return formatValue("overlay.jsrevise.age.game", formatDecimal(gameDays));
         }
 
-        return Component.translatable("overlay.jsrevise.age.unknown");
+        return plainValue(Component.translatable("overlay.jsrevise.age.unknown"));
     }
 
     private static Component formatDetailedRealAge(double years) {
@@ -299,63 +428,115 @@ public final class DinoDoctorOverlayRenderer {
         int days = (int) Math.floor(remainingDays - (months * REAL_AGE_DAYS_PER_MONTH) + 1.0E-6D);
         if (wholeYears > 0) {
             if (months > 0) {
-                return Component.translatable("overlay.jsrevise.age.real.year_month", Integer.toString(wholeYears), Integer.toString(months));
+                return formatValue(
+                        "overlay.jsrevise.age.real.year_month",
+                        Integer.toString(wholeYears),
+                        Integer.toString(months)
+                );
             }
-            return Component.translatable("overlay.jsrevise.age.real.year_only", Integer.toString(wholeYears));
+            return formatValue("overlay.jsrevise.age.real.year_only", Integer.toString(wholeYears));
         }
         if (months > 0) {
             if (days > 0) {
-                return Component.translatable("overlay.jsrevise.age.real.month_day", Integer.toString(months), Integer.toString(days));
+                return formatValue(
+                        "overlay.jsrevise.age.real.month_day",
+                        Integer.toString(months),
+                        Integer.toString(days)
+                );
             }
-            return Component.translatable("overlay.jsrevise.age.real.month_only", Integer.toString(months));
+            return formatValue("overlay.jsrevise.age.real.month_only", Integer.toString(months));
         }
-        return Component.translatable("overlay.jsrevise.age.real.day_only", Integer.toString(Math.max(0, days)));
+        return formatValue("overlay.jsrevise.age.real.day_only", Integer.toString(Math.max(0, days)));
     }
 
     private static Component formatHealth(DinosaurObservationSnapshot snapshot) {
         OptionalDouble currentHealth = snapshot.currentHealth();
         OptionalDouble maxHealth = snapshot.maxHealth();
-        String value = currentHealth.isPresent()
-                ? formatHealthValue(currentHealth.getAsDouble()) + (maxHealth.isPresent() ? " / " + formatHealthValue(maxHealth.getAsDouble()) : "")
-                : Component.translatable("overlay.jsrevise.unknown").getString();
-        return Component.translatable("overlay.jsrevise.health", value);
+        Component value = currentHealth.isPresent()
+                ? Component.literal(
+                        formatHealthValue(currentHealth.getAsDouble())
+                                + (maxHealth.isPresent() ? " / " + formatHealthValue(maxHealth.getAsDouble()) : "")
+                )
+                : Component.translatable("overlay.jsrevise.unknown");
+        return plainValue(value);
     }
 
     private static Component formatGender(DinosaurObservationSnapshot snapshot) {
         Component gender = snapshot.male()
                 .map(male -> Component.translatable(male ? "overlay.jsrevise.gender.male" : "overlay.jsrevise.gender.female"))
                 .orElseGet(() -> Component.translatable("overlay.jsrevise.unknown"));
-        return Component.translatable("overlay.jsrevise.gender", gender);
+        return plainValue(gender);
     }
 
-    private static Component formatPercent(String translationKey, OptionalDouble percent) {
+    private static Component formatPercent(OptionalDouble percent) {
         if (percent.isPresent()) {
-            return Component.translatable(translationKey, formatDecimal(percent.getAsDouble()) + "%");
+            return plainValue(formatDecimal(percent.getAsDouble()) + "%");
         }
-        return Component.translatable(translationKey, Component.translatable("overlay.jsrevise.unknown"));
+        return plainValue(Component.translatable("overlay.jsrevise.unknown"));
     }
 
-    private static Component formatAnestheticLine(String translationKey, long ticks) {
-        return Component.translatable(translationKey, formatDecimal(ticks / 20.0D) + "s");
+    private static Component formatAnestheticDuration(long ticks) {
+        return plainValue(formatDecimal(ticks / 20.0D) + "s");
+    }
+
+    private static Component formatEggLayingProgress() {
+        return plainValue(Component.translatable("overlay.jsrevise.egg_laying"));
+    }
+
+    private static Component formatValue(String translationKey, Object... values) {
+        Object[] styledValues = new Object[values.length];
+        for (int index = 0; index < values.length; index++) {
+            Object value = values[index];
+            styledValues[index] = value instanceof Component component
+                    ? plainValue(component)
+                    : plainValue(String.valueOf(value));
+        }
+        return plainValue(Component.translatable(translationKey, styledValues));
+    }
+
+    private static Component plainValue(String text) {
+        return plainValue(Component.literal(text));
+    }
+
+    private static Component plainValue(Component text) {
+        return text.copy().withStyle(style -> style.withBold(false));
     }
 
     private static int measureLineWidth(Minecraft minecraft, OverlayLine line) {
-        int width = (int) Math.ceil(minecraft.font.width(line.mainText()) * FONT_SCALE);
+        int width = measureMainSegmentsWidth(minecraft, line);
         if (line.hasSuffix()) {
             width += 4 + (int) Math.ceil(
                     minecraft.font.width(line.suffixText()) * line.suffixScale() * FONT_SCALE
             );
         }
+        if (line.hasProgress()) {
+            width = Math.max(width, PROGRESS_BAR_WIDTH);
+        }
+        return width;
+    }
+
+    private static int measureMainSegmentsWidth(Minecraft minecraft, OverlayLine line) {
+        int width = 0;
+        for (OverlayTextSegment segment : line.mainSegments()) {
+            width += (int) Math.ceil(minecraft.font.width(segment.text()) * segment.scale());
+        }
         return width;
     }
 
     private static void drawLine(GuiGraphics guiGraphics, Minecraft minecraft, int x, int y, OverlayLine line) {
-        drawScaledString(guiGraphics, minecraft, line.mainText(), x, y, line.color(), FONT_SCALE);
+        int drawX = x;
+        for (OverlayTextSegment segment : line.mainSegments()) {
+            drawScaledString(guiGraphics, minecraft, segment.text(), drawX, y, line.color(), segment.scale());
+            drawX += (int) Math.ceil(minecraft.font.width(segment.text()) * segment.scale());
+        }
+        if (line.hasProgress()) {
+            drawProgressBar(guiGraphics, x, y + PROGRESS_BAR_Y_OFFSET, line.progress());
+        }
         if (!line.hasSuffix()) {
             return;
         }
 
-        int mainWidth = (int) Math.ceil(minecraft.font.width(line.mainText()) * FONT_SCALE);
+        int mainWidth = measureMainSegmentsWidth(minecraft, line);
         float suffixScale = line.suffixScale() * FONT_SCALE;
         guiGraphics.pose().pushPose();
         guiGraphics.pose().scale(suffixScale, suffixScale, 1.0F);
@@ -368,6 +549,54 @@ public final class DinoDoctorOverlayRenderer {
                 false
         );
         guiGraphics.pose().popPose();
+    }
+
+    private static void drawProgressBar(GuiGraphics guiGraphics, int x, int y, double progress) {
+        double clamped = clampProgress(progress);
+        int left = x;
+        int top = y;
+        int right = x + PROGRESS_BAR_WIDTH;
+        int bottom = y + PROGRESS_BAR_HEIGHT;
+        guiGraphics.fill(left, top, right, top + JADE_NESTED_BOX_BORDER_WIDTH, JADE_NESTED_BOX_BORDER_COLOR);
+        guiGraphics.fill(left, bottom - JADE_NESTED_BOX_BORDER_WIDTH, right, bottom, JADE_NESTED_BOX_BORDER_COLOR);
+        guiGraphics.fill(left, top + JADE_NESTED_BOX_BORDER_WIDTH, left + JADE_NESTED_BOX_BORDER_WIDTH, bottom - JADE_NESTED_BOX_BORDER_WIDTH, JADE_NESTED_BOX_BORDER_COLOR);
+        guiGraphics.fill(right - JADE_NESTED_BOX_BORDER_WIDTH, top + JADE_NESTED_BOX_BORDER_WIDTH, right, bottom - JADE_NESTED_BOX_BORDER_WIDTH, JADE_NESTED_BOX_BORDER_COLOR);
+
+        int innerLeft = left + JADE_NESTED_BOX_BORDER_WIDTH;
+        int innerTop = top + JADE_NESTED_BOX_BORDER_WIDTH;
+        int innerRight = right - JADE_NESTED_BOX_BORDER_WIDTH;
+        int innerBottom = bottom - JADE_NESTED_BOX_BORDER_WIDTH;
+        int innerWidth = innerRight - innerLeft;
+        int fillWidth = Mth.floor(innerWidth * clamped);
+        if (fillWidth > 0) {
+            int fillRight = innerLeft + Math.min(innerWidth, fillWidth);
+            int splitY = innerTop + ((innerBottom - innerTop) / 2);
+            fillVerticalGradient(guiGraphics, innerLeft, innerTop, fillRight, splitY, JADE_PROGRESS_DARK_COLOR, JADE_PROGRESS_LIGHT_COLOR);
+            fillVerticalGradient(guiGraphics, innerLeft, splitY, fillRight, innerBottom, JADE_PROGRESS_LIGHT_COLOR, JADE_PROGRESS_DARK_COLOR);
+        }
+    }
+
+    private static void fillVerticalGradient(
+            GuiGraphics guiGraphics,
+            int left,
+            int top,
+            int right,
+            int bottom,
+            int topColor,
+            int bottomColor
+    ) {
+        int height = bottom - top;
+        for (int row = 0; row < height; row++) {
+            float progress = height <= 1 ? 0.0F : (float) row / (height - 1);
+            guiGraphics.fill(left, top + row, right, top + row + 1, lerpArgb(topColor, bottomColor, progress));
+        }
+    }
+
+    static double clampProgress(double progress) {
+        if (!Double.isFinite(progress)) {
+            return 0.0D;
+        }
+        return Math.max(0.0D, Math.min(1.0D, progress));
     }
 
     private static void drawScaledString(
@@ -476,17 +705,149 @@ public final class DinoDoctorOverlayRenderer {
         return String.format(Locale.ROOT, value >= 100.0D ? "%.0f" : "%.1f", value);
     }
 
-    private record OverlayLine(Component mainText, int color, Component suffixText, int suffixColor, float suffixScale) {
-        private static OverlayLine basic(Component mainText, int color) {
-            return new OverlayLine(mainText, color, Component.empty(), color, 1.0F);
+    record OverlayLine(
+            List<OverlayTextSegment> mainSegments,
+            int color,
+            Component suffixText,
+            int suffixColor,
+            float suffixScale,
+            double progress,
+            boolean progressLine,
+            float mainScale,
+            int lineHeight
+    ) {
+        OverlayLine {
+            mainSegments = List.copyOf(mainSegments);
         }
 
-        private static OverlayLine withSuffix(Component mainText, int color, Component suffixText, int suffixColor, float suffixScale) {
-            return new OverlayLine(mainText, color, suffixText, suffixColor, suffixScale);
+        private static OverlayLine labeled(Component label, Component value, int color) {
+            return new OverlayLine(
+                    List.of(OverlayTextSegment.label(label), OverlayTextSegment.value(value)),
+                    color,
+                    Component.empty(),
+                    color,
+                    1.0F,
+                    0.0D,
+                    false,
+                    LABEL_FONT_SCALE,
+                    LINE_HEIGHT
+            );
         }
 
-        private boolean hasSuffix() {
+        private static OverlayLine singleLabel(Component label, int color) {
+            return new OverlayLine(
+                    List.of(OverlayTextSegment.label(label)),
+                    color,
+                    Component.empty(),
+                    color,
+                    1.0F,
+                    0.0D,
+                    false,
+                    LABEL_FONT_SCALE,
+                    LINE_HEIGHT
+            );
+        }
+
+        private static OverlayLine title(Component mainText, int color) {
+            return new OverlayLine(
+                    List.of(OverlayTextSegment.title(mainText)),
+                    color,
+                    Component.empty(),
+                    color,
+                    1.0F,
+                    0.0D,
+                    false,
+                    TITLE_FONT_SCALE,
+                    TITLE_LINE_HEIGHT
+            );
+        }
+
+        private static OverlayLine labeledWithSuffix(
+                Component label,
+                Component value,
+                int color,
+                Component suffixText,
+                int suffixColor,
+                float suffixScale
+        ) {
+            return withSuffix(
+                    List.of(OverlayTextSegment.label(label), OverlayTextSegment.value(value)),
+                    color,
+                    suffixText,
+                    suffixColor,
+                    suffixScale
+            );
+        }
+
+        private static OverlayLine withSuffix(
+                List<OverlayTextSegment> mainSegments,
+                int color,
+                Component suffixText,
+                int suffixColor,
+                float suffixScale
+        ) {
+            return new OverlayLine(
+                    mainSegments,
+                    color,
+                    suffixText,
+                    suffixColor,
+                    suffixScale,
+                    0.0D,
+                    false,
+                    LABEL_FONT_SCALE,
+                    LINE_HEIGHT
+            );
+        }
+
+        private static OverlayLine progress(Component mainText, int color, double progress) {
+            return new OverlayLine(
+                    List.of(OverlayTextSegment.label(mainText)),
+                    color,
+                    Component.empty(),
+                    color,
+                    1.0F,
+                    clampProgress(progress),
+                    true,
+                    LABEL_FONT_SCALE,
+                    PROGRESS_LINE_HEIGHT
+            );
+        }
+
+        boolean hasSuffix() {
             return !this.suffixText.getString().isEmpty();
+        }
+
+        boolean hasProgress() {
+            return this.progressLine;
+        }
+
+        int height() {
+            return this.lineHeight;
+        }
+
+        Component mainText() {
+            if (this.mainSegments.size() == 1) {
+                return this.mainSegments.get(0).text();
+            }
+            MutableComponent text = Component.empty();
+            for (OverlayTextSegment segment : this.mainSegments) {
+                text.append(segment.text());
+            }
+            return text;
+        }
+    }
+
+    record OverlayTextSegment(Component text, float scale) {
+        private static OverlayTextSegment label(Component text) {
+            return new OverlayTextSegment(plainValue(text), LABEL_FONT_SCALE);
+        }
+
+        private static OverlayTextSegment value(Component text) {
+            return new OverlayTextSegment(plainValue(text), FONT_SCALE);
+        }
+
+        private static OverlayTextSegment title(Component text) {
+            return new OverlayTextSegment(text.copy().withStyle(ChatFormatting.BOLD), TITLE_FONT_SCALE);
         }
     }
 

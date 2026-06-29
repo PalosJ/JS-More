@@ -11,6 +11,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 public final class DinosaurObservationSystem {
     private static final long CACHE_TICKS = 5L;
@@ -66,8 +69,16 @@ public final class DinosaurObservationSystem {
                 pendingTicks > 0L ? OptionalLong.of(pendingTicks) : OptionalLong.empty(),
                 remainingTicks > 0L ? OptionalLong.of(remainingTicks) : OptionalLong.empty(),
                 queuedTicks > 0L ? OptionalLong.of(queuedTicks) : OptionalLong.empty(),
+                Optional.empty(),
                 GeneObservationResolver.resolve(geneticModule)
         );
+    }
+
+    public static boolean isWithinObservationRange(Vec3 observer, AABB bounds) {
+        double closestX = Mth.clamp(observer.x, bounds.minX, bounds.maxX);
+        double closestY = Mth.clamp(observer.y, bounds.minY, bounds.maxY);
+        double closestZ = Mth.clamp(observer.z, bounds.minZ, bounds.maxZ);
+        return observer.distanceToSqr(closestX, closestY, closestZ) <= 64.0D;
     }
 
     private static Object resolveMetabolismModule(JSAnimalBase animal) {
