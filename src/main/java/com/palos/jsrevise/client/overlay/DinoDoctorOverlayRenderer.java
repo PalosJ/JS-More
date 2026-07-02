@@ -1,7 +1,11 @@
 package com.palos.jsrevise.client.overlay;
 
 import com.palos.jsrevise.compat.curios.DinoDoctorGogglesWearResolver;
+import com.palos.jsrevise.server.block.DinosaurCaptureCageBlock;
+import com.palos.jsrevise.server.registry.JSReviseBlocks;
 import com.palos.jsrevise.server.registry.JSReviseItems;
+import com.palos.jsrevise.server.system.capture.CapturedDinosaurData;
+import com.palos.jsrevise.system.observation.CaptureCageObservationSnapshot;
 import com.palos.jsrevise.system.observation.DinosaurObservationSnapshot;
 import com.palos.jsrevise.system.observation.DinosaurObservationSystem;
 import com.palos.jsrevise.system.observation.ObservedGene;
@@ -17,6 +21,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.LayeredDraw;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -25,7 +30,9 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -65,7 +72,7 @@ public final class DinoDoctorOverlayRenderer {
     private static final int PANEL_BACKGROUND_BOTTOM_ALPHA = 0x72;
     private static final float GENE_LABEL_SCALE = 0.65F * FONT_SCALE;
     private static final long TARGET_REFRESH_TICKS = 3L;
-    private static JSAnimalBase cachedAnimal;
+    private static ObservedTarget cachedTarget;
     private static long nextTargetRefreshTick;
 
     private DinoDoctorOverlayRenderer() {
@@ -83,17 +90,33 @@ public final class DinoDoctorOverlayRenderer {
             return;
         }
 
-        JSAnimalBase animal = resolveObservedAnimalCached(minecraft);
-        if (animal == null) {
+        ObservedTarget target = resolveObservedTargetCached(minecraft);
+        if (target == null) {
             return;
         }
 
-        DinosaurDnaVisualResolver.DnaVisual dnaVisual = DinosaurDnaVisualResolver.resolve(animal);
-        DinosaurObservationSnapshot snapshot = DinosaurObservationSystem.capture(animal)
-                .withEggLayingProgress(ClientEggLayingProgressCache.getOrRequest(animal));
+        DinosaurDnaVisualResolver.DnaVisual dnaVisual;
+        DinosaurObservationSnapshot snapshot;
+        List<OverlayLine> lines;
+        Optional<OverlayLine> eggProgressLine = Optional.empty();
+        if (target.animal() != null) {
+            JSAnimalBase animal = target.animal();
+            dnaVisual = DinosaurDnaVisualResolver.resolve(animal);
+            snapshot = DinosaurObservationSystem.capture(animal)
+                    .withEggLayingProgress(ClientEggLayingProgressCache.getOrRequest(animal));
+            lines = createObservationLines(snapshot);
+            eggProgressLine = createEggProgressLine(snapshot);
+        } else {
+            Optional<CaptureCageObservationSnapshot> cageSnapshot =
+                    ClientCaptureCageObservationCache.getOrRequest(minecraft.level, target.cagePos());
+            if (cageSnapshot.isEmpty()) {
+                return;
+            }
+            snapshot = cageSnapshot.get().observation();
+            dnaVisual = DinosaurDnaVisualResolver.resolve(snapshot.ageEstimate().speciesId());
+            lines = createCaptureCageObservationLines(cageSnapshot.get());
+        }
         int themeColor = dnaVisual.themeColor();
-        List<OverlayLine> lines = createObservationLines(snapshot);
-        Optional<OverlayLine> eggProgressLine = createEggProgressLine(snapshot);
         boolean hasGenes = !snapshot.genes().isEmpty();
 
         int maxWidth = 0;
@@ -236,6 +259,28 @@ public final class DinoDoctorOverlayRenderer {
         ));
     }
 
+    static List<OverlayLine> createCaptureCageObservationLines(CaptureCageObservationSnapshot snapshot) {
+        List<OverlayLine> lines = new ArrayList<>(createObservationLines(snapshot.observation()));
+        OverlayLine durabilityLine = OverlayLine.labeled(
+                Component.translatable("overlay.jsrevise.capture_cage.durability"),
+                plainValue(snapshot.cageDurability() + "/" + CapturedDinosaurData.MAX_DURABILITY),
+                0xBFD1E6
+        );
+        OverlayLine durationLine = OverlayLine.labeled(
+                Component.translatable("overlay.jsrevise.capture_cage.duration"),
+                formatAnestheticDuration(snapshot.capturedDurationTicks()),
+                0xBFD1E6
+        );
+        if (!snapshot.observation().genes().isEmpty() && !lines.isEmpty()) {
+            lines.add(lines.size() - 1, durabilityLine);
+            lines.add(lines.size() - 1, durationLine);
+        } else {
+            lines.add(durabilityLine);
+            lines.add(durationLine);
+        }
+        return List.copyOf(lines);
+    }
+
     private static int withAlpha(int rgb, int alpha) {
         return alpha << 24 | rgb & 0xFFFFFF;
     }
@@ -332,29 +377,37 @@ public final class DinoDoctorOverlayRenderer {
         return alpha << 24 | red << 16 | green << 8 | blue;
     }
 
-    private static JSAnimalBase resolveObservedAnimalCached(Minecraft minecraft) {
+    private static ObservedTarget resolveObservedTargetCached(Minecraft minecraft) {
         if (minecraft.level == null) {
             clearCache();
             return null;
         }
         long gameTime = minecraft.level.getGameTime();
-        if (cachedAnimal != null
-                && cachedAnimal.isAlive()
-                && !cachedAnimal.isRemoved()
-                && isWithinObservationRange(minecraft.player.getEyePosition(), cachedAnimal.getBoundingBox())
+        if (cachedTarget != null
+                && cachedTarget.isStillValid(minecraft)
                 && gameTime < nextTargetRefreshTick) {
-            return cachedAnimal;
+            return cachedTarget;
         }
-        cachedAnimal = resolveObservedAnimal(minecraft);
+        cachedTarget = resolveObservedTarget(minecraft);
         nextTargetRefreshTick = gameTime + TARGET_REFRESH_TICKS;
-        return cachedAnimal;
+        return cachedTarget;
     }
 
     public static void clearCache() {
-        cachedAnimal = null;
+        cachedTarget = null;
         nextTargetRefreshTick = 0L;
         DinosaurDnaVisualResolver.clearCache();
         ClientEggLayingProgressCache.clearCache();
+        ClientCaptureCageObservationCache.clearCache();
+    }
+
+    private static ObservedTarget resolveObservedTarget(Minecraft minecraft) {
+        JSAnimalBase animal = resolveObservedAnimal(minecraft);
+        if (animal != null) {
+            return ObservedTarget.animal(animal);
+        }
+        BlockPos cagePos = resolveObservedCagePos(minecraft);
+        return cagePos == null ? null : ObservedTarget.cage(cagePos);
     }
 
     private static JSAnimalBase resolveObservedAnimal(Minecraft minecraft) {
@@ -396,6 +449,41 @@ public final class DinoDoctorOverlayRenderer {
 
     static boolean isWithinObservationRange(Vec3 observer, AABB bounds) {
         return DinosaurObservationSystem.isWithinObservationRange(observer, bounds);
+    }
+
+    private static BlockPos resolveObservedCagePos(Minecraft minecraft) {
+        if (minecraft.level == null || minecraft.player == null || !(minecraft.hitResult instanceof BlockHitResult blockHitResult)) {
+            return null;
+        }
+        BlockPos hitPos = blockHitResult.getBlockPos();
+        BlockState state = minecraft.level.getBlockState(hitPos);
+        if (!state.is(JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get())) {
+            return null;
+        }
+        BlockPos controllerPos = DinosaurCaptureCageBlock.controllerPos(hitPos, state);
+        if (!isWithinObservationRange(minecraft.player.getEyePosition(), cageBounds(controllerPos, state.getValue(DinosaurCaptureCageBlock.FACING)))) {
+            return null;
+        }
+        return controllerPos;
+    }
+
+    private static AABB cageBounds(BlockPos controllerPos, net.minecraft.core.Direction facing) {
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (DinosaurCaptureCageBlock.PartPlacement placement : DinosaurCaptureCageBlock.placements(controllerPos, facing)) {
+            BlockPos pos = placement.pos();
+            minX = Math.min(minX, pos.getX());
+            minY = Math.min(minY, pos.getY());
+            minZ = Math.min(minZ, pos.getZ());
+            maxX = Math.max(maxX, pos.getX());
+            maxY = Math.max(maxY, pos.getY());
+            maxZ = Math.max(maxZ, pos.getZ());
+        }
+        return new AABB(minX, minY, minZ, maxX + 1.0D, maxY + 1.0D, maxZ + 1.0D);
     }
 
     private static double resolveHitDistanceLimitSqr(Vec3 start, HitResult hitResult) {
@@ -854,6 +942,36 @@ public final class DinoDoctorOverlayRenderer {
     private record GeneLayout(int columns, int cellWidth, int cellHeight, int totalWidth, int totalHeight) {
         private static GeneLayout empty() {
             return new GeneLayout(1, 0, 0, 0, 0);
+        }
+    }
+
+    private record ObservedTarget(JSAnimalBase animal, BlockPos cagePos) {
+        static ObservedTarget animal(JSAnimalBase animal) {
+            return new ObservedTarget(animal, null);
+        }
+
+        static ObservedTarget cage(BlockPos cagePos) {
+            return new ObservedTarget(null, cagePos.immutable());
+        }
+
+        boolean isStillValid(Minecraft minecraft) {
+            if (minecraft.level == null || minecraft.player == null) {
+                return false;
+            }
+            if (this.animal != null) {
+                return this.animal.isAlive()
+                        && !this.animal.isRemoved()
+                        && isWithinObservationRange(minecraft.player.getEyePosition(), this.animal.getBoundingBox());
+            }
+            if (this.cagePos == null) {
+                return false;
+            }
+            BlockState state = minecraft.level.getBlockState(this.cagePos);
+            return state.is(JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get())
+                    && isWithinObservationRange(
+                    minecraft.player.getEyePosition(),
+                    cageBounds(this.cagePos, state.getValue(DinosaurCaptureCageBlock.FACING))
+            );
         }
     }
 }

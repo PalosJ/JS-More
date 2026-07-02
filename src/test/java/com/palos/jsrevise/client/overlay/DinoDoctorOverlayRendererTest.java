@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.palos.jsrevise.server.system.age.DinosaurAgeEstimate;
 import com.palos.jsrevise.server.system.size.DinosaurLifecycleStage;
+import com.palos.jsrevise.system.observation.CaptureCageObservationSnapshot;
 import com.palos.jsrevise.system.observation.DinosaurObservationSnapshot;
 import com.palos.jsrevise.system.observation.EggLayingProgress;
 import com.palos.jsrevise.system.observation.ObservedGene;
@@ -120,6 +121,24 @@ class DinoDoctorOverlayRendererTest {
         TranslatableContents eggLabel = assertInstanceOf(TranslatableContents.class, progress.mainText().getContents());
         assertEquals("overlay.jsrevise.egg_laying", eggLabel.getKey());
         assertEquals(0, eggLabel.getArgs().length);
+    }
+
+    @Test
+    void captureCageLinesShowDurabilityAndDurationBeforeGenes() {
+        CaptureCageObservationSnapshot snapshot = CaptureCageObservationSnapshot.from(
+                ResourceLocation.fromNamespaceAndPath("jurassicsaga", "test_dino"),
+                snapshotWithEggProgressAndGenes(),
+                400L,
+                750
+        );
+
+        List<DinoDoctorOverlayRenderer.OverlayLine> lines =
+                DinoDoctorOverlayRenderer.createCaptureCageObservationLines(snapshot);
+
+        assertLabelValueLine(lines.get(9), "overlay.jsrevise.capture_cage.durability");
+        assertEquals("750/1000", lines.get(9).mainSegments().get(1).text().getString());
+        assertLabelValueLine(lines.get(10), "overlay.jsrevise.capture_cage.duration");
+        assertSingleRegularLabel(lines.get(11), "overlay.jsrevise.genes");
     }
 
     @Test

@@ -17,11 +17,12 @@ public final class JSReviseCreativeTabs {
             "main",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.jsrevise.main"))
-                    .icon(() -> new ItemStack(JSReviseItems.DINO_DOCTOR_GOGGLES.get()))
+                    .icon(() -> new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get()))
                     .displayItems((parameters, output) -> {
                         output.accept(JSReviseItems.DINO_DOCTOR_GOGGLES.get());
                         output.accept(JSReviseItems.ANESTHETIC_CROSSBOW.get());
                         output.accept(JSReviseItems.ANESTHETIC_SYRINGE.get());
+                        output.accept(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
                     })
                     .build()
     );

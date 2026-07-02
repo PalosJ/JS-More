@@ -27,6 +27,10 @@ final class DinosaurDnaVisualResolver {
 
     static DnaVisual resolve(JSAnimalBase animal) {
         ResourceLocation speciesId = DinosaurProfileResolver.speciesId(animal);
+        return resolve(speciesId);
+    }
+
+    static DnaVisual resolve(ResourceLocation speciesId) {
         ResourceLocation coinId = ResourceLocation.fromNamespaceAndPath(
                 speciesId.getNamespace(),
                 speciesId.getPath() + "_coin"

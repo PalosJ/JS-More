@@ -4,7 +4,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class JSReviseNetworking {
-    private static final String NETWORK_VERSION = "5";
+    private static final String NETWORK_VERSION = "6";
 
     private JSReviseNetworking() {
     }
@@ -21,6 +21,11 @@ public final class JSReviseNetworking {
                 EggLayingProgressRequestPayload.STREAM_CODEC,
                 EggLayingProgressRequestPayload::handleOnMain
         );
+        registrar.playToServer(
+                CaptureCageObservationRequestPayload.TYPE,
+                CaptureCageObservationRequestPayload.STREAM_CODEC,
+                CaptureCageObservationRequestPayload::handleOnMain
+        );
         registrar.playToClient(
                 SurfaceEffectPayload.TYPE,
                 SurfaceEffectPayload.STREAM_CODEC,
@@ -35,6 +40,11 @@ public final class JSReviseNetworking {
                 EggLayingProgressPayload.TYPE,
                 EggLayingProgressPayload.STREAM_CODEC,
                 EggLayingProgressPayload::handleOnClient
+        );
+        registrar.playToClient(
+                CaptureCageObservationPayload.TYPE,
+                CaptureCageObservationPayload.STREAM_CODEC,
+                CaptureCageObservationPayload::handleOnClient
         );
     }
 }

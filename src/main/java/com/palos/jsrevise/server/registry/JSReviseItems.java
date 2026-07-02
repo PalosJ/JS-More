@@ -4,6 +4,7 @@ import com.palos.jsrevise.JSRevise;
 import com.palos.jsrevise.server.item.AnestheticCrossbowItem;
 import com.palos.jsrevise.server.item.AnestheticSyringeItem;
 import com.palos.jsrevise.server.item.DinoDoctorGogglesItem;
+import com.palos.jsrevise.server.item.DinosaurCaptureCageItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -18,6 +19,11 @@ public final class JSReviseItems {
             ITEMS.register("anesthetic_crossbow", AnestheticCrossbowItem::new);
     public static final DeferredItem<Item> DINO_DOCTOR_GOGGLES =
             ITEMS.register("dino_doctor_goggles", DinoDoctorGogglesItem::new);
+    public static final DeferredItem<Item> DINOSAUR_CAPTURE_CAGE =
+            ITEMS.register(
+                    "dinosaur_capture_cage",
+                    () -> new DinosaurCaptureCageItem(JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get())
+            );
 
     private JSReviseItems() {
     }

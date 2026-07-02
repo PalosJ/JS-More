@@ -216,6 +216,21 @@ public final class AnestheticData implements INBTSerializable<CompoundTag> {
         return tag;
     }
 
+    public CompoundTag serializeRelativeNBT(long currentGameTime) {
+        normalize();
+        CompoundTag tag = new CompoundTag();
+        tag.putLong("ActiveRemainingTicks", remainingTicks(currentGameTime));
+        ListTag pendingTag = new ListTag();
+        for (PendingDose dose : this.pendingDoses) {
+            CompoundTag doseTag = new CompoundTag();
+            doseTag.putLong("DelayTicks", Math.max(0L, dose.activationTick() - currentGameTime));
+            doseTag.putInt("DurationTicks", dose.durationTicks());
+            pendingTag.add(doseTag);
+        }
+        tag.put("PendingDoses", pendingTag);
+        return tag;
+    }
+
     @Override
     public void deserializeNBT(HolderLookup.Provider provider, CompoundTag tag) {
         this.activeUntil = Math.max(0L, tag.getLong("ActiveUntil"));
@@ -236,6 +251,50 @@ public final class AnestheticData implements INBTSerializable<CompoundTag> {
         normalize();
     }
 
+    public void deserializeRelativeNBT(
+            HolderLookup.Provider provider,
+            CompoundTag tag,
+            long baseGameTime,
+            long currentGameTime
+    ) {
+        this.activeUntil = 0L;
+        this.pendingDoses.clear();
+        if (tag == null) {
+            return;
+        }
+
+        long safeCurrentGameTime = Math.max(0L, currentGameTime);
+        long safeBaseGameTime = Math.min(Math.max(0L, baseGameTime), safeCurrentGameTime);
+        long activeRemainingTicks = sanitizeRelativeTicks(tag.getLong("ActiveRemainingTicks"));
+        if (activeRemainingTicks > 0L) {
+            this.activeUntil = safeAdd(safeBaseGameTime, activeRemainingTicks);
+        }
+
+        ListTag pendingTag = tag.getList("PendingDoses", Tag.TAG_COMPOUND);
+        int count = Math.min(MAX_PENDING_DOSES, pendingTag.size());
+        for (int index = 0; index < count; index++) {
+            CompoundTag doseTag = pendingTag.getCompound(index);
+            int durationTicks = doseTag.getInt("DurationTicks");
+            if (durationTicks <= 0) {
+                continue;
+            }
+            long activationTick = safeAdd(safeBaseGameTime, sanitizeRelativeTicks(doseTag.getLong("DelayTicks")));
+            int safeDuration = sanitizeDuration(durationTicks);
+            if (activationTick <= safeCurrentGameTime) {
+                long extensionBase = Math.max(activationTick, this.activeUntil);
+                this.activeUntil = safeAdd(extensionBase, safeDuration);
+            } else {
+                this.pendingDoses.add(new PendingDose(activationTick, safeDuration));
+            }
+        }
+
+        normalize();
+        sanitizeForGameTime(safeCurrentGameTime);
+        if (this.activeUntil <= safeCurrentGameTime) {
+            clearActive();
+        }
+    }
+
     List<PendingDose> pendingDosesForTest() {
         return List.copyOf(this.pendingDoses);
     }
@@ -251,6 +310,10 @@ public final class AnestheticData implements INBTSerializable<CompoundTag> {
 
     private static int sanitizeDuration(long durationTicks) {
         return (int) Math.min(Integer.MAX_VALUE, Math.max(20L, Math.min(MAX_TOTAL_TICKS, durationTicks)));
+    }
+
+    private static long sanitizeRelativeTicks(long ticks) {
+        return Math.max(0L, Math.min(MAX_TOTAL_TICKS, ticks));
     }
 
     private static long saturatingAdd(long left, long right) {

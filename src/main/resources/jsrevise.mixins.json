@@ -21,6 +21,7 @@
   "client": [
     "client.AzEntityDispatchCommandPacketMixin",
     "client.CustomHeadLayerMixin",
+    "client.LevelRendererDestroyProgressMixin",
     "client.TylosaurusAnimatorMixin",
     "client.TravelersClientAnimatorMixin",
     "client.TravelersAzureModelRendererMixin"

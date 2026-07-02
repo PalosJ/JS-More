@@ -75,8 +75,49 @@ public final class DinosaurAnestheticSystem {
         }
     }
 
+    public static boolean tryApplyAnestheticInjection(JSAnimalBase animal) {
+        if (!isUsable(animal)) {
+            return false;
+        }
+        applyAnestheticInjection(animal);
+        return true;
+    }
+
     public static boolean isAnesthetized(JSAnimalBase animal) {
         return isUsable(animal) && AnestheticStateService.isActive(animal);
+    }
+
+    public static CompoundTag saveRelativeAnestheticState(JSAnimalBase animal) {
+        if (!isUsable(animal)) {
+            return new CompoundTag();
+        }
+        AnestheticData data = animal.getExistingDataOrNull(JSReviseAttachments.ANESTHETIC);
+        return data == null ? new CompoundTag() : data.serializeRelativeNBT(animal.level().getGameTime());
+    }
+
+    public static void restoreRelativeAnestheticState(
+            JSAnimalBase animal,
+            CompoundTag relativeTag,
+            long capturedGameTime
+    ) {
+        if (!isUsable(animal) || animal.level().isClientSide) {
+            return;
+        }
+        if (relativeTag == null || relativeTag.isEmpty()) {
+            animal.removeData(JSReviseAttachments.ANESTHETIC);
+            animal.removeData(JSReviseAttachments.ANESTHETIC_FLOAT);
+            return;
+        }
+        long currentGameTime = animal.level().getGameTime();
+        long baseGameTime = Math.min(Math.max(0L, capturedGameTime), Math.max(0L, currentGameTime));
+        AnestheticData data = animal.getData(JSReviseAttachments.ANESTHETIC);
+        data.deserializeRelativeNBT(null, relativeTag, baseGameTime, currentGameTime);
+        if (data.isEmpty()) {
+            animal.removeData(JSReviseAttachments.ANESTHETIC);
+            animal.removeData(JSReviseAttachments.ANESTHETIC_FLOAT);
+        } else {
+            animal.syncData(JSReviseAttachments.ANESTHETIC);
+        }
     }
 
     public static boolean isFloating(JSAnimalBase animal) {

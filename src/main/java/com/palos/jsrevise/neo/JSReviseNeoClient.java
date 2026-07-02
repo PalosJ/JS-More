@@ -5,9 +5,12 @@ import com.palos.jsrevise.client.AnestheticCrossbowInputHandler;
 import com.palos.jsrevise.client.AnestheticCrossbowItemProperties;
 import com.palos.jsrevise.client.ClientFloatingEffects;
 import com.palos.jsrevise.client.JSReviseItemTooltipHandler;
+import com.palos.jsrevise.client.overlay.ClientCaptureCageObservationCache;
 import com.palos.jsrevise.client.overlay.ClientEggLayingProgressCache;
 import com.palos.jsrevise.client.overlay.DinoDoctorOverlayRenderer;
+import com.palos.jsrevise.client.render.DinosaurCaptureCageRenderer;
 import com.palos.jsrevise.client.render.FloatingModelGeometryResolver;
+import com.palos.jsrevise.server.registry.JSReviseBlockEntityTypes;
 import com.palos.jsrevise.server.registry.JSReviseEntityTypes;
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
 import com.palos.jsrevise.system.observation.DinosaurObservationSystem;
@@ -50,6 +53,10 @@ public final class JSReviseNeoClient {
 
     private static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(JSReviseEntityTypes.ANESTHETIC_SYRINGE_PROJECTILE.get(), ThrownItemRenderer::new);
+        event.registerBlockEntityRenderer(
+                JSReviseBlockEntityTypes.DINOSAUR_CAPTURE_CAGE.get(),
+                DinosaurCaptureCageRenderer::new
+        );
     }
 
     private static void registerGuiLayers(RegisterGuiLayersEvent event) {
@@ -82,5 +89,6 @@ public final class JSReviseNeoClient {
         FloatingModelGeometryResolver.clearCache();
         DinosaurObservationSystem.clearCache();
         ClientEggLayingProgressCache.clearCache();
+        ClientCaptureCageObservationCache.clearCache();
     }
 }
