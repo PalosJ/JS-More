@@ -77,6 +77,62 @@ class ClientCaptureCageObservationCacheTest {
         assertEquals(List.of(POS), requests);
     }
 
+    @Test
+    void gameTimeRollbackInvalidatesSnapshotAndRequestCooldown() {
+        CaptureCageObservationSnapshot snapshot = snapshot();
+        ClientCaptureCageObservationCache.remember(DIMENSION, POS, 100L, Optional.of(snapshot), true);
+        List<BlockPos> requests = new ArrayList<>();
+
+        Optional<CaptureCageObservationSnapshot> staleValue = ClientCaptureCageObservationCache.getOrRequest(
+                DIMENSION,
+                POS,
+                125L,
+                requests::add
+        );
+        Optional<CaptureCageObservationSnapshot> rollbackValue = ClientCaptureCageObservationCache.getOrRequest(
+                DIMENSION,
+                POS,
+                90L,
+                requests::add
+        );
+
+        assertTrue(staleValue.isPresent());
+        assertTrue(rollbackValue.isEmpty());
+        assertEquals(List.of(POS, POS), requests);
+    }
+
+    @Test
+    void periodicCleanupRemovesExpiredSnapshots() {
+        ClientCaptureCageObservationCache.remember(DIMENSION, POS, 100L, Optional.of(snapshot()), true);
+        List<BlockPos> requests = new ArrayList<>();
+
+        ClientCaptureCageObservationCache.getOrRequest(
+                DIMENSION,
+                new BlockPos(4, 5, 6),
+                301L,
+                requests::add
+        );
+
+        assertEquals(0, ClientCaptureCageObservationCache.cachedEntryCount());
+        assertEquals(List.of(new BlockPos(4, 5, 6)), requests);
+    }
+
+    @Test
+    void cacheCapacityCannotGrowUnbounded() {
+        CaptureCageObservationSnapshot snapshot = snapshot();
+        for (int index = 0; index < 513; index++) {
+            ClientCaptureCageObservationCache.remember(
+                    DIMENSION,
+                    new BlockPos(index, 2, 3),
+                    100L,
+                    Optional.of(snapshot),
+                    true
+            );
+        }
+
+        assertTrue(ClientCaptureCageObservationCache.cachedEntryCount() <= 512);
+    }
+
     private static CaptureCageObservationSnapshot snapshot() {
         DinosaurObservationSnapshot observation = new DinosaurObservationSnapshot(
                 Component.literal("Captured"),

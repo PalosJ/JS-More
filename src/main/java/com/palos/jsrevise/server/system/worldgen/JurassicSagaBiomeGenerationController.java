@@ -18,7 +18,6 @@ public final class JurassicSagaBiomeGenerationController {
     private static final Map<String, ResourceLocation> BIOME_REPLACEMENTS = Map.ofEntries(
             entry("burnt_forest", ResourceLocation.withDefaultNamespace("forest")),
             entry("grassy_plains", ResourceLocation.withDefaultNamespace("plains")),
-            entry("magma_cave", ResourceLocation.withDefaultNamespace("dripstone_caves")),
             entry("mediterranean_scrub_forest", ResourceLocation.withDefaultNamespace("forest")),
             entry("mediterranean_scrub_plains", ResourceLocation.withDefaultNamespace("plains")),
             entry("redwood", ResourceLocation.withDefaultNamespace("old_growth_pine_taiga")),

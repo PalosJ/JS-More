@@ -39,12 +39,10 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
-import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -112,14 +110,6 @@ public final class DinosaurCaptureCageBlock extends Block implements EntityBlock
                 .relative(right, -state.getValue(OFFSET_X))
                 .relative(facing, -state.getValue(OFFSET_Z))
                 .below(state.getValue(OFFSET_Y));
-    }
-
-    public static Vec3 releasePosition(BlockPos controllerPos, Direction facing) {
-        Direction right = facing.getClockWise();
-        return Vec3.atLowerCornerOf(controllerPos)
-                .add(0.5D, 0.0D, 0.5D)
-                .add(Vec3.atLowerCornerOf(facing.getNormal()).scale(LENGTH + 1.0D))
-                .add(Vec3.atLowerCornerOf(right.getNormal()).scale(0.5D));
     }
 
     public static Direction frontFacingForPlayerDirection(Direction playerDirection) {

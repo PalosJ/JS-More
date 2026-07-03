@@ -34,6 +34,9 @@ public record EggLayingProgressRequestPayload(int entityId) implements CustomPac
         if (!(context.player() instanceof ServerPlayer player)) {
             return;
         }
+        if (!ServerRequestRateLimiters.allowEggLayingProgress(player)) {
+            return;
+        }
 
         EggLayingProgressPayload response = resolveResponse(player, payload.entityId());
         PacketDistributor.sendToPlayer(player, response);

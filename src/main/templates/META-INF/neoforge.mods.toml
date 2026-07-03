@@ -29,14 +29,14 @@ side="BOTH"
 [[dependencies.${mod_id}]]
 modId="jurassicsaga"
 type="required"
-versionRange="[0.2,)"
+versionRange="[0.2.1,0.3.0)"
 ordering="AFTER"
 side="BOTH"
 
 [[dependencies.${mod_id}]]
-modId="travelerslib"
+modId="travelers"
 type="required"
-versionRange="[0.6.0,1.1.0)"
+versionRange="[0.7.1,0.8.0)"
 ordering="AFTER"
 side="BOTH"
 

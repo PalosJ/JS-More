@@ -24,7 +24,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -114,8 +113,8 @@ public final class DinosaurCaptureService {
         }
         ServerLevel level = (ServerLevel) player.level();
         CapturedDinosaurData settled = settleCapturedData(level, captured.get());
-        Vec3 releasePosition = findReleasePosition(level, settled, clickedPos, clickedFace, player.getYRot()).orElse(null);
-        if (releasePosition == null || !releaseDinosaur(level, settled, releasePosition, player.getYRot())) {
+        Vec3 releaseTarget = findReleasePosition(level, settled, clickedPos, clickedFace, player.getYRot()).orElse(null);
+        if (releaseTarget == null || !releaseDinosaur(level, settled, releaseTarget, player.getYRot())) {
             DinosaurCaptureItemData.set(stack, settled);
             return InteractionResult.FAIL;
         }
@@ -162,8 +161,8 @@ public final class DinosaurCaptureService {
         Direction facing = state.getBlock() instanceof DinosaurCaptureCageBlock && state.hasProperty(DinosaurCaptureCageBlock.FACING)
                 ? state.getValue(DinosaurCaptureCageBlock.FACING)
                 : Direction.NORTH;
-        Optional<Vec3> releasePosition = findReleasePositionNearCage(level, settled, cage.getBlockPos(), facing, facing.toYRot());
-        if (releasePosition.isEmpty() || !releaseDinosaur(level, settled, releasePosition.get(), facing.toYRot())) {
+        Optional<Vec3> releaseTarget = findReleasePositionNearCage(level, settled, cage.getBlockPos(), facing, facing.toYRot());
+        if (releaseTarget.isEmpty() || !releaseDinosaur(level, settled, releaseTarget.get(), facing.toYRot())) {
             return false;
         }
         cage.setCapturedDinosaur(null);
@@ -288,8 +287,8 @@ public final class DinosaurCaptureService {
         CapturedDinosaurData current = captured.get();
         CapturedDinosaurData settled = settleCapturedData(level, current);
         if (settled.durability() <= 0) {
-            Optional<Vec3> releasePosition = findReleasePositionNear(level, settled, releaseOrigin, yRot);
-            if (releasePosition.isPresent() && releaseDinosaur(level, settled, releasePosition.get(), yRot)) {
+            Optional<Vec3> releaseTarget = findReleasePositionNear(level, settled, releaseOrigin, yRot);
+            if (releaseTarget.isPresent() && releaseDinosaur(level, settled, releaseTarget.get(), yRot)) {
                 return releasedStackSettlement(stack);
             }
         }

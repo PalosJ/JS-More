@@ -8,6 +8,11 @@ import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
 import com.palos.jsrevise.server.system.profile.DinosaurProfileResolver;
 import com.palos.jsrevise.server.system.size.DinosaurSizeProfile;
 import com.palos.jsrevise.system.observation.EggLayingProgressResolver;
+import collinvht.travelers.server.animal.entity.SmartAnimalBase;
+import collinvht.travelers.server.animal.entity.other.TravelersAnimalAnimationModule;
+import collinvht.travelers.server.animal.entity.task.TaskGoal;
+import collinvht.travelers.server.animal.entity.task.TaskPriority;
+import collinvht.travelers.server.animal.entity.task.TravelerTaskBase;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -32,15 +37,27 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
-import travelers.server.animal.entity.other.TravelersAnimalAnimationModule;
-import travelers.server.animal.entity.SmartAnimalBase;
-import travelers.server.animal.entity.task.TaskGoal;
-import travelers.server.animal.entity.task.TaskPriority;
-import travelers.server.animal.entity.task.TravelerTaskBase;
 
 @GameTestHolder(JSRevise.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class JSAnimalProfileGameTests {
+    private static final List<String> BASILISK_EGG_TIMER_CLASSES = List.of(
+            "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.BasiliskEntity",
+            "jp.jurassicsaga.server.animal.entity.misc.misc_extant.BasiliskEntity"
+    );
+    private static final List<String> REED_FROG_EGG_TIMER_CLASSES = List.of(
+            "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.ReedFrogEntity",
+            "jp.jurassicsaga.server.animal.entity.misc.misc_extant.ReedFrogEntity"
+    );
+    private static final List<String> ALLIGATOR_EGG_TIMER_CLASSES = List.of(
+            "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.AlligatorEntity",
+            "jp.jurassicsaga.server.animal.entity.misc.misc_extant.AlligatorEntity"
+    );
+    private static final List<String> OSTRICH_EGG_TIMER_CLASSES = List.of(
+            "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.OstrichEntity",
+            "jp.jurassicsaga.server.animal.entity.misc.misc_extant.OstrichEntity"
+    );
+
     private JSAnimalProfileGameTests() {
     }
 
@@ -111,26 +128,10 @@ public final class JSAnimalProfileGameTests {
             helper.fail("Jurassic Saga registered no animals");
             return;
         }
-        requireEggTimerClass(
-                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.BasiliskEntity",
-                eggTimerClasses,
-                failures
-        );
-        requireEggTimerClass(
-                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.ReedFrogEntity",
-                eggTimerClasses,
-                failures
-        );
-        requireEggTimerClass(
-                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.AlligatorEntity",
-                eggTimerClasses,
-                failures
-        );
-        requireEggTimerClass(
-                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.OstrichEntity",
-                eggTimerClasses,
-                failures
-        );
+        requireEggTimerClass("BasiliskEntity", BASILISK_EGG_TIMER_CLASSES, eggTimerClasses, failures);
+        requireEggTimerClass("ReedFrogEntity", REED_FROG_EGG_TIMER_CLASSES, eggTimerClasses, failures);
+        requireEggTimerClass("AlligatorEntity", ALLIGATOR_EGG_TIMER_CLASSES, eggTimerClasses, failures);
+        requireEggTimerClass("OstrichEntity", OSTRICH_EGG_TIMER_CLASSES, eggTimerClasses, failures);
         if (!failures.isEmpty()) {
             helper.fail("Invalid natural egg-layer timer coverage: " + String.join(", ", failures));
             return;
@@ -1215,10 +1216,18 @@ public final class JSAnimalProfileGameTests {
         }
     }
 
-    private static void requireEggTimerClass(String className, Set<String> eggTimerClasses, List<String> failures) {
-        if (!eggTimerClasses.contains(className)) {
-            failures.add("missing eggTime class " + className);
+    private static void requireEggTimerClass(
+            String label,
+            List<String> expectedClassNames,
+            Set<String> eggTimerClasses,
+            List<String> failures
+    ) {
+        for (String className : expectedClassNames) {
+            if (eggTimerClasses.contains(className)) {
+                return;
+            }
         }
+        failures.add("missing eggTime class " + label + " expected one of " + String.join(", ", expectedClassNames));
     }
 
     private static final class TrackingTask extends TravelerTaskBase {

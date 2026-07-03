@@ -291,6 +291,12 @@ class DinosaurAnestheticSystemTest {
     }
 
     @Test
+    void serverSleepGuardClearRequiresRemovedSyncRecord() {
+        assertTrue(DinosaurAnestheticSystem.shouldSendClientSleepAnimationGuardClear(true));
+        assertFalse(DinosaurAnestheticSystem.shouldSendClientSleepAnimationGuardClear(false));
+    }
+
+    @Test
     void sleepAnimationTraceLoggingIsRateLimited() {
         assertTrue(DinosaurAnestheticSystem.shouldLogSleepAnimationTrace(100L, null));
         assertFalse(DinosaurAnestheticSystem.shouldLogSleepAnimationTrace(199L, 100L));

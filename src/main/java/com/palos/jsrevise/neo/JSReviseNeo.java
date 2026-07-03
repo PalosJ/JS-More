@@ -3,6 +3,7 @@ package com.palos.jsrevise.neo;
 import com.palos.jsrevise.JSRevise;
 import com.palos.jsrevise.config.JSReviseConfig;
 import com.palos.jsrevise.network.JSReviseNetworking;
+import com.palos.jsrevise.network.ServerRequestRateLimiters;
 import com.palos.jsrevise.server.registry.JSReviseAttachments;
 import com.palos.jsrevise.server.registry.JSReviseBlockEntityTypes;
 import com.palos.jsrevise.server.registry.JSReviseBlocks;
@@ -47,6 +48,7 @@ public final class JSReviseNeo {
     }
 
     private static void onServerStopping(ServerStoppingEvent event) {
+        ServerRequestRateLimiters.clearAll();
         JurassicSagaBiomeGenerationController.clearCache(event.getServer());
     }
 }

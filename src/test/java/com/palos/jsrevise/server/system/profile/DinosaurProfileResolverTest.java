@@ -1,12 +1,16 @@
 package com.palos.jsrevise.server.system.profile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.palos.jsrevise.server.system.size.DinosaurEggType;
 import com.palos.jsrevise.server.system.size.DinosaurLifecycleStage;
 import com.palos.jsrevise.server.system.size.DinosaurSizeBucket;
 import com.palos.jsrevise.server.system.size.DinosaurSizeProfile;
+import java.util.HashSet;
+import java.util.Set;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
@@ -62,6 +66,46 @@ class DinosaurProfileResolverTest {
         );
 
         assertSame(overridden, DinosaurProfileResolver.validOverrideOrFallback(fallback, overridden));
+    }
+
+    @Test
+    void inferredFallbackLogGateDoesNotConsumeWhenDebugIsDisabled() {
+        ResourceLocation futureSpecies = ResourceLocation.fromNamespaceAndPath("jurassicsaga", "future_species");
+        Set<ResourceLocation> loggedFallbacks = new HashSet<>();
+
+        assertFalse(DinosaurProfileResolver.shouldLogInferredFallback(
+                futureSpecies,
+                false,
+                false,
+                loggedFallbacks
+        ));
+        assertTrue(loggedFallbacks.isEmpty());
+        assertTrue(DinosaurProfileResolver.shouldLogInferredFallback(
+                futureSpecies,
+                false,
+                true,
+                loggedFallbacks
+        ));
+        assertFalse(DinosaurProfileResolver.shouldLogInferredFallback(
+                futureSpecies,
+                false,
+                true,
+                loggedFallbacks
+        ));
+    }
+
+    @Test
+    void knownEggTypesDoNotUseFallbackLogGate() {
+        ResourceLocation knownSpecies = ResourceLocation.fromNamespaceAndPath("jurassicsaga", "tyrannosaurus");
+        Set<ResourceLocation> loggedFallbacks = new HashSet<>();
+
+        assertFalse(DinosaurProfileResolver.shouldLogInferredFallback(
+                knownSpecies,
+                true,
+                true,
+                loggedFallbacks
+        ));
+        assertTrue(loggedFallbacks.isEmpty());
     }
 
     private static DinosaurSizeProfile validProfile() {

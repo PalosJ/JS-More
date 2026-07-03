@@ -38,14 +38,6 @@ class JurassicSagaBiomeGenerationControllerTest {
     }
 
     @Test
-    void magmaCaveFallsBackToDripstoneCaves() {
-        assertEquals(
-                ResourceLocation.withDefaultNamespace("dripstone_caves"),
-                JurassicSagaBiomeGenerationController.replacementForJurassicSagaBiome("magma_cave")
-        );
-    }
-
-    @Test
     void mediterraneanScrubFallsBackToOverworldBiomes() {
         assertEquals(
                 ResourceLocation.withDefaultNamespace("forest"),

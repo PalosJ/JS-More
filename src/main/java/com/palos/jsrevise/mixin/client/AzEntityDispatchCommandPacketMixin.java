@@ -1,6 +1,9 @@
 package com.palos.jsrevise.mixin.client;
 
-import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
+import com.palos.jsrevise.client.system.anesthetic.ClientSleepAnimationCommandGuard;
+import collinvht.travelers.client.azure.common.animation.dispatch.command.AzCommand;
+import collinvht.travelers.client.azure.common.network.packet.AzEntityDispatchCommandPacket;
+import collinvht.travelers.client.azure.common.util.client.ClientUtils;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
@@ -9,9 +12,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import travelers.azurelib.common.animation.dispatch.command.AzCommand;
-import travelers.azurelib.common.network.packet.AzEntityDispatchCommandPacket;
-import travelers.azurelib.common.util.client.ClientUtils;
 
 @Mixin(value = AzEntityDispatchCommandPacket.class, remap = false)
 public abstract class AzEntityDispatchCommandPacketMixin {
@@ -21,7 +21,7 @@ public abstract class AzEntityDispatchCommandPacketMixin {
     @Shadow
     public abstract AzCommand dispatchCommand();
 
-    @Inject(method = "handle", at = @At("HEAD"), cancellable = true, require = 0)
+    @Inject(method = "apply", at = @At("HEAD"), cancellable = true, require = 0)
     private void jsrevise$blockOrdinaryAzureAnimationDuringSleep(CallbackInfo callbackInfo) {
         Level level = ClientUtils.getLevel();
         if (level == null) {
@@ -30,8 +30,8 @@ public abstract class AzEntityDispatchCommandPacketMixin {
         Entity entity = level.getEntity(this.entityId());
         if (entity instanceof JSAnimalBase animal) {
             AzCommand command = this.dispatchCommand();
-            DinosaurAnestheticSystem.prepareClientSleepAnimationGuard(animal, command);
-            if (DinosaurAnestheticSystem.shouldBlockClientAnimationCommand(animal, command)) {
+            ClientSleepAnimationCommandGuard.prepare(animal, command);
+            if (ClientSleepAnimationCommandGuard.shouldBlock(animal, command)) {
                 callbackInfo.cancel();
             }
         }

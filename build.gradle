@@ -144,21 +144,11 @@ neoForge {
 configurations {
     runtimeClasspath.extendsFrom localRuntime
     testRuntimeClasspath.extendsFrom localRuntime
-
-    configureEach {
-        resolutionStrategy.eachDependency { details ->
-            if (details.requested.group == "travelers"
-                    && details.requested.name == "travelerslib-neoforge-${minecraft_version}") {
-                details.useVersion travelerslib_version
-                details.because "JS-revise is validated against the configured TravelersLib target version"
-            }
-        }
-    }
 }
 
 dependencies {
-    compileOnly "travelers:travelerslib-neoforge-${minecraft_version}:${travelerslib_version}"
-    localRuntime "travelers:travelerslib-neoforge-${minecraft_version}:${travelerslib_version}"
+    compileOnly "maven.modrinth:travelers-lib:${travelerslib_version}"
+    localRuntime "maven.modrinth:travelers-lib:${travelerslib_version}"
 
     implementation "maven.modrinth:jurassic-saga:${jurassicsaga_version}"
     localRuntime "com.github.glitchfiend:TerraBlender-neoforge:1.21.1-4.1.0.8"

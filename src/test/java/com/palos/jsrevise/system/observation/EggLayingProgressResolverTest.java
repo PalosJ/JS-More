@@ -1,6 +1,7 @@
 package com.palos.jsrevise.system.observation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Optional;
@@ -22,17 +23,23 @@ class EggLayingProgressResolverTest {
 
     @Test
     void mapsKnownJurassicSagaEggTimerUpperBounds() {
-        assertEquals(6000, EggLayingProgressResolver.maxTicksForClassName(
-                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.BasiliskEntity"
+        assertKnownUpperBounds("jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.");
+        assertKnownUpperBounds("jp.jurassicsaga.server.animal.entity.misc.misc_extant.");
+    }
+
+    @Test
+    void keepsKnownJurassicSagaEggEligibilityAcrossPathMigration() {
+        assertFalse(EggLayingProgressResolver.requiresDropGameRule(
+                "jp.jurassicsaga.server.animal.entity.misc.misc_extant.BasiliskEntity"
         ));
-        assertEquals(6000, EggLayingProgressResolver.maxTicksForClassName(
-                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.ReedFrogEntity"
+        assertTrue(EggLayingProgressResolver.requiresDropGameRule(
+                "jp.jurassicsaga.server.animal.entity.misc.misc_extant.ReedFrogEntity"
         ));
-        assertEquals(10000, EggLayingProgressResolver.maxTicksForClassName(
-                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.AlligatorEntity"
+        assertTrue(EggLayingProgressResolver.requiresDropGameRule(
+                "jp.jurassicsaga.server.animal.entity.misc.misc_extant.AlligatorEntity"
         ));
-        assertEquals(12000, EggLayingProgressResolver.maxTicksForClassName(
-                "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.OstrichEntity"
+        assertTrue(EggLayingProgressResolver.requiresDropGameRule(
+                "jp.jurassicsaga.server.animal.entity.misc.misc_extant.OstrichEntity"
         ));
     }
 
@@ -61,6 +68,13 @@ class EggLayingProgressResolverTest {
 
     private static final class PublicEggTimer {
         public final int eggTime = 1200;
+    }
+
+    private static void assertKnownUpperBounds(String packageName) {
+        assertEquals(6000, EggLayingProgressResolver.maxTicksForClassName(packageName + "BasiliskEntity"));
+        assertEquals(6000, EggLayingProgressResolver.maxTicksForClassName(packageName + "ReedFrogEntity"));
+        assertEquals(10000, EggLayingProgressResolver.maxTicksForClassName(packageName + "AlligatorEntity"));
+        assertEquals(12000, EggLayingProgressResolver.maxTicksForClassName(packageName + "OstrichEntity"));
     }
 
     private static final class PrivateEggTimer {

@@ -1,6 +1,10 @@
 package com.palos.jsrevise.mixin.client;
 
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
+import collinvht.travelers.client.render.animation.entity.TravelersAnimationData;
+import collinvht.travelers.client.render.animation.entity.obj.TravelersBoneState;
+import collinvht.travelers.client.render.animation.entity.obj.TravelersClientAnimator;
+import collinvht.travelers.server.animal.entity.SmartAnimalBase;
 import java.util.Map;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAquaticBase;
@@ -12,10 +16,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import travelers.client.render.animation.entity.TravelersAnimationData;
-import travelers.client.render.animation.entity.obj.TravelersBoneState;
-import travelers.client.render.animation.entity.obj.TravelersClientAnimator;
-import travelers.server.animal.entity.SmartAnimalBase;
 
 @Mixin(value = TravelersClientAnimator.class, remap = false)
 public abstract class TravelersClientAnimatorMixin {

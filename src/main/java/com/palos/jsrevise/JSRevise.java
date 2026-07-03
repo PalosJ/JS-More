@@ -1,11 +1,10 @@
 package com.palos.jsrevise;
 
 import com.mojang.logging.LogUtils;
+import collinvht.travelers.core.TravelersLib;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
-import travelers.TravelersMain;
-import travelers.util.TravelersUtil;
 
 public final class JSRevise {
     public static final String MOD_ID = "jsrevise";
@@ -23,8 +22,7 @@ public final class JSRevise {
         }
 
         // 对齐官方附属模组的接入顺序，让 Travelers/Jurassic Saga 正确识别当前附属。
-        TravelersMain.registerMod(MOD_ID);
-        TravelersUtil.disableModForAzure(MOD_ID);
+        TravelersLib.registerMod(MOD_ID);
         LOGGER.info("Initialized Jurassic Saga addon bootstrap for {}", MOD_NAME);
     }
 

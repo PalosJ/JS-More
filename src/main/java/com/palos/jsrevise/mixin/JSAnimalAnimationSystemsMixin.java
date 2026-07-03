@@ -1,15 +1,15 @@
 package com.palos.jsrevise.mixin;
 
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
+import collinvht.travelers.server.animal.TravelersAnimal;
+import collinvht.travelers.server.animal.entity.SmartAnimalBase;
+import collinvht.travelers.server.animal.entity.other.TravelersAnimalAnimationModule;
+import collinvht.travelers.server.animal.obj.TravelersMoveAnalysis;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import travelers.server.animal.TravelersAnimal;
-import travelers.server.animal.entity.SmartAnimalBase;
-import travelers.server.animal.entity.other.TravelersAnimalAnimationModule;
-import travelers.server.animal.obj.TravelersMoveAnalysis;
 
 @Mixin(value = TravelersAnimal.class, remap = false)
 public abstract class JSAnimalAnimationSystemsMixin {

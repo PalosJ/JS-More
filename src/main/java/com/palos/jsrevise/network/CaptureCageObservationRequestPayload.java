@@ -13,10 +13,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -26,9 +22,6 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 public record CaptureCageObservationRequestPayload(BlockPos pos) implements CustomPacketPayload {
     public static final Type<CaptureCageObservationRequestPayload> TYPE =
             new Type<>(JSRevise.id("capture_cage_observation_request"));
-    private static final long SERVER_REQUEST_COOLDOWN_TICKS = 5L;
-    private static final int MAX_REQUEST_TRACKERS = 2048;
-    private static final Map<UUID, Long> NEXT_ALLOWED_REQUEST_TICKS = new HashMap<>();
     public static final StreamCodec<RegistryFriendlyByteBuf, CaptureCageObservationRequestPayload> STREAM_CODEC =
             StreamCodec.of(
                     (buffer, payload) -> buffer.writeBlockPos(payload.pos),
@@ -44,16 +37,15 @@ public record CaptureCageObservationRequestPayload(BlockPos pos) implements Cust
         if (!(context.player() instanceof ServerPlayer player)) {
             return;
         }
+        if (!ServerRequestRateLimiters.allowCaptureCageObservation(player)) {
+            return;
+        }
         PacketDistributor.sendToPlayer(player, resolveResponse(player, payload.pos()));
     }
 
     static CaptureCageObservationPayload resolveResponse(ServerPlayer player, BlockPos requestedPos) {
         if (player == null || requestedPos == null || !DinoDoctorGogglesWearResolver.isWearing(player)) {
             return CaptureCageObservationPayload.unavailable(requestedPos == null ? BlockPos.ZERO : requestedPos);
-        }
-        long gameTime = player.level().getGameTime();
-        if (!allowRequest(player.getUUID(), gameTime)) {
-            return CaptureCageObservationPayload.unavailable(requestedPos);
         }
         if (!player.level().isLoaded(requestedPos)) {
             return CaptureCageObservationPayload.unavailable(requestedPos);
@@ -74,25 +66,6 @@ public record CaptureCageObservationRequestPayload(BlockPos pos) implements Cust
         return DinosaurCaptureService.observePlacedCage(player.serverLevel(), cage)
                 .map(snapshot -> CaptureCageObservationPayload.available(controllerPos, snapshot))
                 .orElseGet(() -> CaptureCageObservationPayload.unavailable(controllerPos));
-    }
-
-    private static boolean allowRequest(UUID playerId, long gameTime) {
-        synchronized (NEXT_ALLOWED_REQUEST_TICKS) {
-            Long nextAllowedTick = NEXT_ALLOWED_REQUEST_TICKS.get(playerId);
-            if (nextAllowedTick != null && gameTime < nextAllowedTick) {
-                return false;
-            }
-            if (NEXT_ALLOWED_REQUEST_TICKS.size() > MAX_REQUEST_TRACKERS) {
-                Iterator<Map.Entry<UUID, Long>> iterator = NEXT_ALLOWED_REQUEST_TICKS.entrySet().iterator();
-                while (iterator.hasNext()) {
-                    if (iterator.next().getValue() <= gameTime) {
-                        iterator.remove();
-                    }
-                }
-            }
-            NEXT_ALLOWED_REQUEST_TICKS.put(playerId, gameTime + SERVER_REQUEST_COOLDOWN_TICKS);
-            return true;
-        }
     }
 
     static AABB cageBounds(BlockPos controllerPos, Direction facing) {

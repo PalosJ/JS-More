@@ -62,13 +62,18 @@ public final class EggLayingProgressResolver {
         if (className == null) {
             return FALLBACK_RULE;
         }
-        return switch (className) {
-            case "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.BasiliskEntity" -> BASILISK_RULE;
-            case "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.ReedFrogEntity" -> DROP_RULE_6000;
-            case "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.AlligatorEntity" -> DROP_RULE_10000;
-            case "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.OstrichEntity" -> DROP_RULE_12000;
+        return switch (simpleClassName(className)) {
+            case "BasiliskEntity" -> BASILISK_RULE;
+            case "ReedFrogEntity" -> DROP_RULE_6000;
+            case "AlligatorEntity" -> DROP_RULE_10000;
+            case "OstrichEntity" -> DROP_RULE_12000;
             default -> FALLBACK_RULE;
         };
+    }
+
+    private static String simpleClassName(String className) {
+        int separator = className.lastIndexOf('.');
+        return separator >= 0 ? className.substring(separator + 1) : className;
     }
 
     private static boolean isEligible(JSAnimalBase animal, Eligibility eligibility) {

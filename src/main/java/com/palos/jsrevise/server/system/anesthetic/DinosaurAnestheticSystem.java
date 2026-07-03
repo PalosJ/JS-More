@@ -7,7 +7,7 @@ import com.palos.jsrevise.network.SleepAnimationGuardPayload;
 import com.palos.jsrevise.server.registry.JSReviseAttachments;
 import com.palos.jsrevise.server.system.size.DinosaurSizeProfile;
 import com.palos.jsrevise.server.system.size.DinosaurSizeSystem;
-import java.util.ArrayList;
+import collinvht.travelers.server.animal.entity.other.TravelersAnimalAnimationModule;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -28,13 +28,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
-import travelers.azurelib.common.animation.dispatch.command.AzCommand;
-import travelers.azurelib.common.animation.dispatch.command.action.AzAction;
-import travelers.azurelib.common.animation.dispatch.command.action.impl.controller.AzControllerPlayAnimationSequenceAction;
-import travelers.azurelib.common.animation.dispatch.command.action.impl.root.AzRootPlayAnimationSequenceAction;
-import travelers.azurelib.common.animation.dispatch.command.sequence.AzAnimationSequence;
-import travelers.azurelib.common.animation.dispatch.command.stage.AzAnimationStage;
-import travelers.server.animal.entity.other.TravelersAnimalAnimationModule;
 
 public final class DinosaurAnestheticSystem {
     private static final String ANESTHETIC_SLEEP_SAVE_MARKER = "jsrevise.anesthetic_sleeping";
@@ -569,14 +562,7 @@ public final class DinosaurAnestheticSystem {
         return separatorIndex >= 0 ? normalizedName.substring(separatorIndex + 1) : normalizedName;
     }
 
-    public static boolean prepareClientSleepAnimationGuard(JSAnimalBase animal, AzCommand command) {
-        if (!isUsable(animal) || command == null) {
-            return false;
-        }
-        return prepareClientSleepAnimationGuard(animal, clientAnimationStageNames(command));
-    }
-
-    private static boolean prepareClientSleepAnimationGuard(JSAnimalBase animal, List<String> stageNames) {
+    public static boolean prepareClientSleepAnimationGuard(JSAnimalBase animal, List<String> stageNames) {
         if (!isUsable(animal)
                 || !animal.level().isClientSide
                 || !shouldPrepareClientSleepStageGuard(stageNames)) {
@@ -595,11 +581,10 @@ public final class DinosaurAnestheticSystem {
         return true;
     }
 
-    public static boolean shouldBlockClientAnimationCommand(JSAnimalBase animal, AzCommand command) {
-        if (!shouldUseSleepAnimationGuard(animal) || command == null) {
+    public static boolean shouldBlockClientAnimationStages(JSAnimalBase animal, List<String> stageNames) {
+        if (!shouldUseSleepAnimationGuard(animal)) {
             return false;
         }
-        List<String> stageNames = clientAnimationStageNames(command);
         boolean blocked = shouldBlockClientAnimationStages(true, stageNames);
         if (blocked) {
             logSleepAnimationTrace(
@@ -617,7 +602,7 @@ public final class DinosaurAnestheticSystem {
         return blocked;
     }
 
-    static boolean shouldBlockClientAnimationStages(boolean guardActive, List<String> stageNames) {
+    public static boolean shouldBlockClientAnimationStages(boolean guardActive, List<String> stageNames) {
         if (!guardActive || stageNames == null || stageNames.isEmpty()) {
             return false;
         }
@@ -975,14 +960,22 @@ public final class DinosaurAnestheticSystem {
         if (!isUsable(animal) || animal.level().isClientSide) {
             return;
         }
+        boolean removedServerGuardRecord;
         synchronized (SERVER_SLEEP_ANIMATION_GUARD_SYNC_TICKS) {
-            SERVER_SLEEP_ANIMATION_GUARD_SYNC_TICKS.remove(animal);
+            removedServerGuardRecord = SERVER_SLEEP_ANIMATION_GUARD_SYNC_TICKS.remove(animal) != null;
+        }
+        if (!shouldSendClientSleepAnimationGuardClear(removedServerGuardRecord)) {
+            return;
         }
         PacketDistributor.sendToPlayersTrackingEntityAndSelf(
                 animal,
                 new SleepAnimationGuardPayload(animal.getId(), 0)
         );
         logSleepAnimationTrace(animal, "server_guard_clear_sent", () -> sleepTraceState(animal));
+    }
+
+    static boolean shouldSendClientSleepAnimationGuardClear(boolean removedServerGuardRecord) {
+        return removedServerGuardRecord;
     }
 
     private static boolean shouldSendServerSleepAnimationGuard(JSAnimalBase animal) {
@@ -1083,7 +1076,7 @@ public final class DinosaurAnestheticSystem {
             logSleepAnimationTrace(
                     animal,
                     "client_azure_private_clear_skipped",
-                    "reason=controller internals are not stable across TravelersLib versions"
+                    "reason=controller internals are not stable across Travelers Lib versions"
             );
         }
     }
@@ -1203,33 +1196,6 @@ public final class DinosaurAnestheticSystem {
         }
         synchronized (SLEEP_STABILIZATION_EXPIRE_TICKS) {
             SLEEP_STABILIZATION_EXPIRE_TICKS.remove(animal);
-        }
-    }
-
-    private static List<String> clientAnimationStageNames(AzCommand command) {
-        List<String> stageNames = new ArrayList<>();
-        List<AzAction> actions = command.actions();
-        if (actions == null || actions.isEmpty()) {
-            return stageNames;
-        }
-        for (AzAction action : actions) {
-            if (action instanceof AzControllerPlayAnimationSequenceAction controllerAction) {
-                addStageNames(controllerAction.sequence(), stageNames);
-            } else if (action instanceof AzRootPlayAnimationSequenceAction rootAction) {
-                addStageNames(rootAction.sequence(), stageNames);
-            }
-        }
-        return stageNames;
-    }
-
-    private static void addStageNames(AzAnimationSequence sequence, List<String> stageNames) {
-        if (sequence == null || sequence.stages() == null) {
-            return;
-        }
-        for (AzAnimationStage stage : sequence.stages()) {
-            if (stage != null && stage.name() != null) {
-                stageNames.add(stage.name());
-            }
         }
     }
 

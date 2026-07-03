@@ -1,12 +1,12 @@
 package com.palos.jsrevise.server.system.anesthetic;
 
 import com.palos.jsrevise.JSRevise;
+import collinvht.travelers.server.animal.entity.task.TravelerTaskBase;
+import collinvht.travelers.server.animal.entity.task.TravelerTaskController;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import travelers.server.animal.entity.task.TravelerTaskBase;
-import travelers.server.animal.entity.task.TravelerTaskController;
 
 final class AnestheticBehaviorController {
     private AnestheticBehaviorController() {

@@ -38,16 +38,10 @@
   "overlay.jsrevise.age.game": "%s game days",
   "overlay.jsrevise.age.unknown": "Unknown",
   "overlay.jsrevise.egg_laying": "Egg Progress",
-  "overlay.jsrevise.capture_cage": "Capture Cage",
-  "overlay.jsrevise.capture_cage.empty": "Empty",
-  "overlay.jsrevise.capture_cage.occupied": "Captured",
-  "overlay.jsrevise.capture_cage.status": "Capture Status: ",
   "overlay.jsrevise.capture_cage.duration": "Captured For: ",
   "overlay.jsrevise.capture_cage.durability": "Cage Durability: ",
   "overlay.jsrevise.anesthetic.pending": "Anesthetic Delay: ",
   "overlay.jsrevise.anesthetic.remaining": "Anesthetic: ",
-  "overlay.jsrevise.anesthetic.remaining_label": "Anesthetic:",
   "overlay.jsrevise.anesthetic.addition": "(+%s)",
-  "overlay.jsrevise.unknown": "Unknown",
-  "overlay.jsrevise.none": "None"
+  "overlay.jsrevise.unknown": "Unknown"
 }

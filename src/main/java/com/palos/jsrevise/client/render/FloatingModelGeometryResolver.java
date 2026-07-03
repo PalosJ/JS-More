@@ -1,5 +1,7 @@
 package com.palos.jsrevise.client.render;
 
+import collinvht.travelers.server.animal.entity.SmartAnimalBase;
+import collinvht.travelers.server.animal.obj.locator.ResourceLocator;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -12,8 +14,6 @@ import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
-import travelers.server.animal.entity.SmartAnimalBase;
-import travelers.server.animal.obj.locator.ResourceLocator;
 
 public final class FloatingModelGeometryResolver {
     private static final ConcurrentHashMap<ResourceLocation, ModelGeometry> CACHE = new ConcurrentHashMap<>();

@@ -4,7 +4,7 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 
 项目目前主要为 Jurassic Saga 生物提供麻醉、落水漂浮、年龄推算、信息观察、刷怪蛋成长阶段控制和世界生成调整等功能。设计重点是让通用功能依赖 Jurassic Saga 的稳定生物基类和运行时能力，而不是依赖固定物种白名单，使主模组未来新增的常规生物能够自动获得基础支持。
 
-本文档以 `1.0.96` 源码为准，面向后续维护、问题排查和功能扩展。
+本文档以 `1.0.98` 源码为准，面向后续维护、问题排查和功能扩展。
 
 ## 基本信息
 
@@ -13,7 +13,7 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 | 模组 ID | `jsrevise` |
 | 显示名称 | `JS-revise` |
 | 作者 | `Palos` |
-| 当前版本 | `1.0.96` |
+| 当前版本 | `1.0.98` |
 | Minecraft | `1.21.1` |
 | NeoForge | `21.1.232` |
 | Java | `21` |
@@ -26,8 +26,8 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 
 | 模组 | 开发版本 | 声明范围 |
 | --- | --- | --- |
-| Jurassic Saga | `0.2` | `[0.2,)` |
-| TravelersLib | `0.6` | `[0.6.0,1.1.0)` |
+| Jurassic Saga | `0.2.1` | `[0.2.1,0.3.0)` |
+| Travelers Lib | `0.7.1` | `[0.7.1,0.8.0)`，运行时 modId 为 `travelers` |
 
 可选兼容：
 
@@ -36,9 +36,15 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 | Curios | 允许将恐龙博士眼镜佩戴在 Curios 头部槽位 |
 | Jade | 过滤 Jurassic Saga 已由眼镜 HUD 展示的性别和基因信息 |
 
-Jurassic Saga `0.2` 不再要求外部 AzureLib；Travelers/Azure 相关类由
-TravelersLib 提供。项目不声明外部 AzureLib 依赖或专用 Maven 仓库。依赖声明位于
-`gradle.properties`、`build.gradle` 和 `src/main/templates/META-INF/neoforge.mods.toml`。
+Jurassic Saga `0.2.1` 不要求外部 AzureLib；动画渲染相关 Azure 层由
+Travelers Lib `0.7.1` 内置提供，代码命名空间为 `collinvht.travelers.client.azure.*`。
+项目不声明外部 AzureLib 依赖。依赖声明位于 `gradle.properties`、`build.gradle`
+和 `src/main/templates/META-INF/neoforge.mods.toml`。
+
+Travelers Lib `0.7.1` 的 NeoForge 服务端初始化会在自身 client dist 判断前安装渲染顶点 helper，
+从而在 dedicated server 加载 `VertexConsumer` 客户端类。JS-revise 通过 server-only Mixin
+仅在服务端覆盖该初始化步骤：保留 Travelers 网络、物品 NBT 和内置 Azure common services 初始化，
+跳过服务端无用的渲染 helper。若未来 Travelers Lib 修复该初始化顺序，应重新审查并删除或收窄该兼容 Mixin。
 
 ## 设计原则
 
@@ -84,6 +90,14 @@ TravelersLib 提供。项目不声明外部 AzureLib 依赖或专用 Maven 仓�
 `@Pseudo` 和字符串目标，目标类被删除或重命名时只停用该视觉修正。对
 `JSAnimalBase` 等核心功能基类的依赖则属于模组运行所必需的兼容边界。
 
+`TravelersSmartAnimalBaseMixin` 的 `@Redirect` 绑定 Travelers Lib
+`SmartAnimalBase.customServerAiStep` 内部任务控制器、移动控制器和导航控制器调用点，
+用于在麻醉 active/ready 窗口暂停这些控制器。这是 Travelers Lib 内部调用顺序的硬约束；
+若上游重排或重命名该方法内部调用，需要重新校验 Mixin 目标，而不能按可选视觉钩子处理。
+
+`DinosaurAnestheticSystem` 中标记为 deprecated 的麻醉 AI、飞行动物 AI 和 finalized movement
+兼容桥仍保留给外部集成调用；内部实现优先使用当前服务端 tick 和 guard 入口，但不要在没有替代接入窗口时删除这些桥。
+
 ## 工程结构
 
 ```text
@@ -120,7 +134,8 @@ JS-revise/
 
 #### `com.palos.jsrevise`
 
-`JSRevise` 保存模组常量、日志器和幂等初始化逻辑。初始化时向 TravelersLib 注册当前附属模组，并按 TravelersLib `0.6+` 的接入 API 调用 `disableModForAzure`。
+`JSRevise` 保存模组常量、日志器和幂等初始化逻辑。初始化时通过 Travelers Lib `0.7.1`
+的 `TravelersLib.registerMod(MOD_ID)` 注册当前附属模组。
 
 #### `neo`
 
@@ -153,14 +168,14 @@ JS-revise/
 ### 公共初始化
 
 1. NeoForge 创建 `JSReviseNeo`。
-2. `JSRevise.init()` 向 TravelersLib 注册附属模组。
+2. `JSRevise.init()` 向 Travelers Lib 注册附属模组。
 3. 注册 Data Attachment、物品、实体和创造模式页。
 4. 注册网络协议和 COMMON 配置。
 5. 在 NeoForge 事件总线挂接 `JSAnimalTickHandler`。
 6. 服务器启动完成后执行 Jurassic Saga 生物画像自检。
 
-`JSCommonMixin` 还会在 Jurassic Saga 的 `JSCommon` 初始化结束时调用
-`JSRevise.init()`。初始化方法由 `AtomicBoolean` 保护，因此两条入口不会重复执行。
+初始化方法由 `AtomicBoolean` 保护。Jurassic Saga `0.2.1` 的 `JSCommon`
+已改为静态化入口，JS-revise 不再依赖主模组 `JSCommon` 构造器 Mixin 作为初始化挂点。
 
 ### 客户端初始化
 
@@ -234,7 +249,7 @@ Minecraft 原版 16×16 像素物品的尺寸、硬边与有限调色板风格�
 
 手持空捕获笼右键 active 麻醉中的 `JSAnimalBase` 时，服务端会先保存实体类型、原 UUID、完整实体 NBT、麻醉相对剩余时间、捕获时间、结算时间、笼子耐久和 HUD 生命体征快照；确认保存数据合法且 2×4×2 空间可放置后，在目标位置生成一个逻辑单体的多方块捕获笼，并把原实体从世界中移除。捕获阶段会拒绝空实体 NBT 或超过上限的实体 NBT，避免生成无法释放的笼子或丢失原实体。释放时使用保存的实体 NBT 和原 UUID 重新创建同一只实体；如果世界中已存在相同 UUID，释放失败并保留笼内数据，避免复制。
 
-放置后的捕获笼由一个 controller block entity 保存数据，其余 part 方块委托交互、破坏和掉落。服务端仍是 16 个 part 组成的 2×4×2 多方块结构，用于真实占地、碰撞和方块实体数据保存；客户端只在 controller 方块实体上通过 BER 渲染一个整体 2×4×2 外壳，16 个 part 模型仅保留空的 BER 占位模型和粒子贴图，避免再次出现小方块拼接视觉。选中框按整个 2×4×2 外轮廓显示，破坏裂纹会镜像到全部 part。新放置或新捕获生成的捕获笼会把正门朝向玩家所在侧，而不是朝向玩家看向侧；实现上保持 `FACING` 表示正门方向，同时镜像 controller 锚点以维持原 2×4×2 占地范围，旧存档中已经放置的捕获笼不会自动旋转迁移。
+放置后的捕获笼由一个 controller block entity 保存数据，其余 part 方块委托交互、破坏和掉落。服务端仍是 16 个 part 组成的 2×4×2 多方块结构，用于真实占地、碰撞和方块实体数据保存；客户端只在 controller 方块实体上通过 BER 渲染一个整体 2×4×2 外壳，16 个 part 模型仅保留空的 BER 占位模型和粒子贴图，避免再次出现小方块拼接视觉。捕获数据写入或清空时，controller 方块实体会 `setChanged()` 并发送 `Block.UPDATE_CLIENTS`，客户端实时获得“是否有恐龙”的轻量更新，不等待区块重载。选中框按整个 2×4×2 外轮廓显示，破坏裂纹会镜像到全部 part。新放置或新捕获生成的捕获笼会把正门朝向玩家所在侧，而不是朝向玩家看向侧；实现上保持 `FACING` 表示正门方向，同时镜像 controller 锚点以维持原 2×4×2 占地范围，旧存档中已经放置的捕获笼不会自动旋转迁移。
 
 贴图资源当前是偏白灰集装箱风格：六张主面贴图统一外框；正门为双开门、中心门缝、横梁、左右窗和上方横向黄色锁扣；两张侧面贴图保持一致，带黄色圆章和深色恐龙剪影。物品模型由 `models/item/dinosaur_capture_cage.json` 复用方块贴图定义 baked 长方体；创造模式物品栏的 JS-revise 栏位图标同样使用该捕获笼物品模型。资源测试覆盖贴图尺寸、主面外框、正门结构、侧面一致性、物品模型和 16 个 part 的空 BER 占位模型。
 
@@ -288,13 +303,13 @@ Minecraft 原版 16×16 像素物品的尺寸、硬边与有限调色板风格�
 - `isSleeping()` 在麻醉期间会桥接为 true；客户端若已收到“到点但尚未 promote 同步”的待生效剂量，也会只读桥接为睡眠，避免附件同步和动画包到达顺序不同造成一次性站立闪回。
 - 麻醉 active/ready 期间若 Jurassic Saga 试图短暂写回 `setSleeping(false)`，写入会在 raw sleeping 数据入口被取消。
 - 自然 raw sleeping 的 `JSAnimalBase` 会走同一睡眠动画 guard；其中飞行动物还会优先读取为睡眠，并在翼龙 AI 步前后和读档恢复 `js.isFlying` 后兜底清理可切换飞行、俯冲、滑翔和振翅状态，避免 `isFlying()` 把自然睡眠压回 false。
-- 麻醉 active/ready 期间通用 `TravelersAnimal` 服务端动画入口只通过 `JSAnimalBase` guard 准备真实 raw sleeping、清理边沿遗留的普通 transition 状态并放行 Jurassic Saga 原生 `animateServer`，由主模组按物种自己的定义发送 sleep transition。除下文 Jurassic Saga `0.2` 已确认的上游 `sleep_in` 闪回兼容案例外，客户端普通 `animate` 入口在 guard 生效时只取消普通客户端动画覆盖，不主动推进 sleep transition。所有 raw sleeping 的 `JSAnimalBase` 也会走同一睡眠动画 guard，避免自然睡眠或读档窗口先发送普通动画。睡眠 guard 从未接管变为接管的边沿只清除 Travelers 动画模块中遗留的非睡眠 transition 状态，不再停止 TravelersLib 内置 base controller，避免 Azure controller cancel 清空当前睡眠动画、队列和 fade 状态后让受影响生物短暂闪回站立或飞行姿势；后续 tick 不重复重置睡眠 start。
+- 麻醉 active/ready 期间通用 `TravelersAnimal` 服务端动画入口只通过 `JSAnimalBase` guard 准备真实 raw sleeping、清理边沿遗留的普通 transition 状态并放行 Jurassic Saga 原生 `animateServer`，由主模组按物种自己的定义发送 sleep transition。除下文 Jurassic Saga `0.2/0.2.1` 线已确认的上游 `sleep_in` 闪回兼容案例外，客户端普通 `animate` 入口在 guard 生效时只取消普通客户端动画覆盖，不主动推进 sleep transition。所有 raw sleeping 的 `JSAnimalBase` 也会走同一睡眠动画 guard，避免自然睡眠或读档窗口先发送普通动画。睡眠 guard 从未接管变为接管的边沿只清除 Travelers 动画模块中遗留的非睡眠 transition 状态，不再停止 Travelers Lib 内置 base controller，避免 Azure controller cancel 清空当前睡眠动画、队列和 fade 状态后让受影响生物短暂闪回站立或飞行姿势；后续 tick 不重复重置睡眠 start。
 - 客户端通用 `TravelersClientAnimator` 在麻醉 active/ready 或 raw sleeping 时会清理该实体的 procedural bone cache 并跳过本帧物种客户端 animator，避免霸王龙 IK、翼龙头部追踪和飞行倾斜等客户端骨骼偏移在 Azure 睡眠动画之上短暂叠回站立或飞行动画。
 - Travelers 动画定义的最终 `sendForEntity` 发送层还会在麻醉 active/ready、raw sleeping 或短期 sleep stabilization window 内拦截普通动画和错误退出睡眠动画，防止物种动画器、客户端动画器或同步窗口继续发出 `IDLE`、`WALK`、`RUN`、`FLYING`、`GLIDE`、`SWIM`、`REST`、`SLEEP_OUT` 或 `REST_OUT` 等覆盖睡眠的动画；合法醒来并清除 guard 后仍允许正常 `sleep_out`。
-- Jurassic Saga `0.2` 已确认至少有两个可追溯的上游 `sleep_in` 闪回案例：卢多翼龙和双脊龙。两者在不安装 JS-revise、仅安装 Jurassic Saga 时也会出现睡眠姿势短暂切回站立或飞行姿势的问题；资源证据显示受影响的 `sleep_in` 起始段包含站立或中性姿态，而 `sleep_loop` 才是稳定睡眠姿态。卢多翼龙还叠加资源缺少 `fall_start`/`fall_loop` 以及上游空中路径可能先发送 `FLYING`/`GLIDE` 的问题；双脊龙则可由自然睡眠或麻醉睡眠触发，夜行性基因只改变睡眠触发时机，不是独立动画路径。JS-revise 只在已有 sleep guard 成立、实体注册名属于 `jurassicsaga:ludodactylus` 或 `jurassicsaga:dilophosaurus`、且上游最终发送层正要发送精确 `sleep_in` 时，把这一帧替换为 `JSAnimations.SLEEP_LOOP` 并取消原始 `sleep_in`。该兼容不改变 sleep guard duration、麻醉状态、NBT、网络协议、自然睡眠条件、夜行性基因行为、低血量睡眠行为或飞行动物飞行清理逻辑；若未来 Jurassic Saga 修复这些资源首段姿态或 transition 重放行为，或新版本可用更精确的上游版本/资源探测区分受影响包，应删除或收窄该兼容表。
+- Jurassic Saga `0.2/0.2.1` 线已确认至少有两个可追溯的上游 `sleep_in` 闪回案例：卢多翼龙和双脊龙。两者在不安装 JS-revise、仅安装 Jurassic Saga 时也会出现睡眠姿势短暂切回站立或飞行姿势的问题；资源证据显示受影响的 `sleep_in` 起始段包含站立或中性姿态，而 `sleep_loop` 才是稳定睡眠姿态。卢多翼龙还叠加资源缺少 `fall_start`/`fall_loop` 以及上游空中路径可能先发送 `FLYING`/`GLIDE` 的问题；双脊龙则可由自然睡眠或麻醉睡眠触发，夜行性基因只改变睡眠触发时机，不是独立动画路径。JS-revise 只在已有 sleep guard 成立、实体注册名属于 `jurassicsaga:ludodactylus` 或 `jurassicsaga:dilophosaurus`、且上游最终发送层正要发送精确 `sleep_in` 时，把这一帧替换为 `JSAnimations.SLEEP_LOOP` 并取消原始 `sleep_in`。该兼容不改变 sleep guard duration、麻醉状态、NBT、网络协议、自然睡眠条件、夜行性基因行为、低血量睡眠行为或飞行动物飞行清理逻辑；若未来 Jurassic Saga 修复这些资源首段姿态或 transition 重放行为，或新版本可用更精确的上游版本/资源探测区分受影响包，应删除或收窄该兼容表。
 - 服务端在确认麻醉 active/ready、raw sleeping 或短期 sleep stabilization window 后，会向追踪玩家和自身发送 30 tick 的短时 sleep animation guard，睡眠期间最多每 10 tick 续期；客户端在附件或 raw sleeping 尚未先到达的同步窗口内也会阻止普通动画、错误退出睡眠动画和 procedural bone 覆盖，收到 0 tick guard 时立即清除保护。
 - 客户端 sleep animation guard 绑定当前客户端 level/session；若客户端 level/session 变化或 gameTime 回退，会自动清空旧 guard，避免复用的 entity id 继承上一世界的短时保护。
-- 客户端还会在 TravelersLib 内置 `travelers.azurelib` 实体动画命令包应用前检查动画 stage。若 `sleep_in` 或 `sleep_loop` 先于 S2C guard 或 raw sleeping 同步到达，客户端会先登记 10 tick 本地 sleep animation guard，并立即复用受保护 avian 稳定逻辑清理可切换飞行状态；该睡眠 stage 仍可应用。guard 生效时，普通或退出睡眠 stage 会被取消应用；睡眠进入、睡眠循环和死亡动画仍可通过。
+- 客户端还会在 Travelers Lib 内置 `collinvht.travelers.client.azure` 实体动画命令包应用前检查动画 stage。若 `sleep_in` 或 `sleep_loop` 先于 S2C guard 或 raw sleeping 同步到达，客户端会先登记 10 tick 本地 sleep animation guard，并立即复用受保护 avian 稳定逻辑清理可切换飞行状态；该睡眠 stage 仍可应用。guard 生效时，普通或退出睡眠 stage 会被取消应用；睡眠进入、睡眠循环和死亡动画仍可通过。
 - 玩家开始追踪已经麻醉或 raw sleeping 的 `JSAnimalBase` 时，服务端会准备真实睡眠状态、同步麻醉附件并补发短时 sleep animation guard；除已确认上游 `sleep_in` 闪回案例会把 `sleep_in` 替换为 `sleep_loop` 外，不会由 JS-revise 主动发送 sleep transition，下一次原生服务端动画仍由 Jurassic Saga 自己发送物种睡眠动画。保存实体 NBT 时，麻醉 active/ready 和普通 raw sleeping 都会写入 JS-revise 私有睡眠 marker，读回时立即恢复 raw sleeping，下一 tick 仍由麻醉附件或原模组自然睡眠逻辑继续纠正；若已不应睡眠，有限稳定窗口结束后会正常醒来。
 
 这些操作统一从 `JSAnimalBase` 和 Travelers 的稳定生物基类生效，因此不需要逐个物种接入。麻醉期间
@@ -414,7 +429,7 @@ Minecraft 原版 16×16 像素物品的尺寸、硬边与有限调色板风格�
 
 ### 通用模型出水修正
 
-TravelersLib 会在渲染时将睡眠动画的根骨骼 Y 偏移应用到整个模型，而服务端碰撞箱并不知道该偏移。这会导致碰撞箱已经到达水面，但陆生恐龙或翼龙模型仍完全位于水下。
+Travelers Lib 会在渲染时将睡眠动画的根骨骼 Y 偏移应用到整个模型，而服务端碰撞箱并不知道该偏移。这会导致碰撞箱已经到达水面，但陆生恐龙或翼龙模型仍完全位于水下。
 
 `TravelersAzureModelRendererMixin` 在以下条件成立时校正根骨骼的额外垂直偏移：
 
@@ -555,11 +570,11 @@ HUD 当前可以显示：
 
 ### 自然下蛋进度
 
-Jurassic Saga `0.2` 中确认存在自然 `eggTime` 下蛋倒计时的动物为蛇怪、芦苇蛙、短吻鳄和鸵鸟。JS-revise 会在恐龙博士眼镜 HUD 底部为这类实体显示一条标签和进度条：进度从空到满表示距离下一次自然下蛋越来越近，不再显示具体剩余秒数。
+Jurassic Saga `0.2.1` 中确认存在自然 `eggTime` 下蛋倒计时的动物为蛇怪、芦苇蛙、短吻鳄和鸵鸟。JS-revise 会在恐龙博士眼镜 HUD 底部为这类实体显示一条标签和进度条：进度从空到满表示距离下一次自然下蛋越来越近，不再显示具体剩余秒数。
 
 该功能严格读取动物自身的 `eggTime` 字段，不使用 `JSMetabolismModule.gestation`，也不使用已生成蛋实体的孵化进度。`eggTime` 不是 Jurassic Saga 同步到客户端的数据，因此 HUD 会由客户端低频请求服务端快照；正缓存 40 tick 内直接使用，40 到 200 tick 内会按请求冷却刷新但继续显示旧快照，超过 200 tick 后才隐藏旧值。服务端会重新验证玩家佩戴眼镜、目标仍是 `JSAnimalBase`、目标在 8 格观察范围内，并在字段、性别、游戏规则或数值非法时只隐藏这一项。
 
-已知周期上限按 Jurassic Saga `0.2` 的重置范围处理：蛇怪和芦苇蛙为 `6000` tick，短吻鳄为 `10000` tick，鸵鸟为 `12000` tick。蛇怪遵守原模组行为，只要求非雄性、存活且非幼体；芦苇蛙、短吻鳄和鸵鸟还会遵守 `jsDropEggs` 游戏规则。未来若主模组新增带 `eggTime` 字段的 `JSAnimalBase` 子类，JS-revise 会使用安全回退周期显示通用进度，而不会因为缺少物种表条目跳过。
+已知周期上限按 Jurassic Saga `0.2.1` 的重置范围处理：蛇怪和芦苇蛙为 `6000` tick，短吻鳄为 `10000` tick，鸵鸟为 `12000` tick。蛇怪遵守原模组行为，只要求非雄性、存活且非幼体；芦苇蛙、短吻鳄和鸵鸟还会遵守 `jsDropEggs` 游戏规则。`0.2.1` 将这四类实体移动到 `misc.misc_extant` 包，JS-revise 的规则按 `eggTime` 能力和简单类名兼容路径迁移。未来若主模组新增带 `eggTime` 字段的 `JSAnimalBase` 子类，JS-revise 会使用安全回退周期显示通用进度，而不会因为缺少物种表条目跳过。
 
 ### 动态视觉
 
@@ -586,6 +601,8 @@ Jurassic Saga `0.2` 中确认存在自然 `eggTime` 下蛋倒计时的动物为�
 - 超过上限时直接清空，防止长期增长。
 - 实体离开客户端世界时按 UUID 失效。
 - 断线和客户端世界卸载时全部清空。
+
+捕获笼观察快照在服务端生成时复用 `DinosaurObservationSystem`，因此同样受 2048 条观察缓存上限保护。客户端的捕获笼 HUD 缓存按维度 ID 和方块坐标隔离请求冷却，避免跨世界切换后同一坐标或复用实体 ID 压制当前世界的新请求。
 
 ### 反射兼容
 
@@ -631,7 +648,6 @@ Jurassic Saga 群系替换为原版群系：
 | --- | --- |
 | `burnt_forest` | `forest` |
 | `grassy_plains` | `plains` |
-| `magma_cave` | `dripstone_caves` |
 | `mediterranean_scrub_forest` | `forest` |
 | `mediterranean_scrub_plains` | `plains` |
 | `redwood` | `old_growth_pine_taiga` |
@@ -696,7 +712,7 @@ TerraBlender 注册，也不执行返回值替换。原版回退群系 Holder �
 
 - `entityId`
 
-客户端在恐龙博士眼镜当前观察目标无缓存或正缓存超过 40 tick 时低频发送，请求冷却为 20 tick。服务端会重新检查玩家仍佩戴眼镜、实体存在于同一服务端世界、实体是 `JSAnimalBase`，且碰撞箱距离玩家眼睛位置不超过 8 格。校验失败时返回 unavailable 快照，不信任客户端观察结果。
+客户端在恐龙博士眼镜当前观察目标无缓存或正缓存超过 40 tick 时低频发送，请求冷却为 20 tick。缓存和请求冷却按客户端维度 ID 与实体 ID 记录，跨世界切换或客户端 gameTime 回退不会复用旧世界的正缓存或冷却。服务端会重新检查玩家仍佩戴眼镜、实体存在于同一服务端世界、实体是 `JSAnimalBase`，且碰撞箱距离玩家眼睛位置不超过 8 格。校验失败时返回 unavailable 快照，不信任客户端观察结果。
 
 ### S2C：`egg_laying_progress`
 
@@ -719,7 +735,7 @@ TerraBlender 注册，也不执行返回值替换。原版回退群系 Holder �
 
 - `pos`：客户端正在观察的捕获笼方块坐标，可以是 controller 或 part。
 
-服务端会重新验证玩家佩戴恐龙博士眼镜、方块仍是 `dinosaur_capture_cage`、玩家眼睛位置距离整个 2×4×2 笼子范围不超过 8 格，并且 controller block entity 中确实有捕获数据。校验失败时返回 unavailable 快照。
+客户端对同一维度 ID 和方块坐标的捕获笼观察请求有 20 tick 冷却，跨世界的同坐标笼子使用独立冷却键。服务端会重新验证玩家佩戴恐龙博士眼镜、方块仍是 `dinosaur_capture_cage`、玩家眼睛位置距离整个 2×4×2 笼子范围不超过 8 格，并且 controller block entity 中确实有捕获数据。校验失败时返回 unavailable 快照。
 
 ### S2C：`capture_cage_observation`
 
@@ -764,14 +780,14 @@ Data Attachment 的年龄、麻醉和漂浮状态使用 NeoForge 附件同步机
 
 | Mixin | 目标 | 用途 |
 | --- | --- | --- |
-| `JSCommonMixin` | Jurassic Saga `JSCommon` | 补充附属模组初始化入口 |
 | `JSAnimalAnimationSystemsMixin` | Travelers `TravelersAnimal` | 在麻醉 active/ready 和所有 raw sleeping 生物期间，服务端只准备原生睡眠 guard 并放行 Jurassic Saga `animateServer`，客户端只取消普通 `animate` 覆盖 |
 | `JSAnimalBaseSystemsMixin` | `JSAnimalBase` | 在服务端 AI 步开始前准备麻醉状态，并在 Travelers 服务端动画前准备自然睡眠状态；返回后保持麻醉或短期稳定窗口内的睡眠状态 |
 | `JSAvianBaseSystemsMixin` | `JSAvianBase` | 阻止麻醉 active/ready 和 raw sleeping 翼龙重新起飞与飞行控制，并让 raw sleeping 优先于 `isFlying()`；在翼龙 AI 步前后和读档恢复后兜底清理受保护睡眠窗口内的 stale 飞行标记；主动 travel 输入仍只在麻醉 active/ready 期间过滤 |
 | `JSEntityDataHolderSystemsMixin` | Jurassic Saga `JSEntityDataHolder` | 桥接麻醉期间的 `isSleeping()` 读取，阻止麻醉 active/ready 或短期稳定窗口内写回 raw `sleeping=false`，并用私有 NBT marker 恢复读档首帧 raw sleeping |
 | `LivingEntityTravelMixin` | Minecraft `LivingEntity` | 过滤麻醉生物主动旅行输入并保留被动碰撞移动 |
 | `TravelersAnimationDefinitionMixin` | Travelers `TravelersAnimationDefinition` | 在动画最终发送层阻止睡眠状态下的普通站立、移动、飞行、游泳、休息和错误退出睡眠动画覆盖睡眠动画 |
-| `AzEntityDispatchCommandPacketMixin` | TravelersLib 内置 `travelers.azurelib` 实体动画命令包 | 收到 `sleep_in`/`sleep_loop` 时先建立 10 tick 本地 sleep guard 并稳定翼龙状态；guard 生效时，在动画命令应用前取消普通动画和错误退出睡眠 stage |
+| `TravelersHandler1211ServerMixin` | Travelers `Handler1211`，仅服务端 | 规避 Travelers Lib `0.7.1` 服务端初始化过早加载客户端渲染 helper 的问题 |
+| `AzEntityDispatchCommandPacketMixin` | Travelers Lib 内置 `collinvht.travelers.client.azure` 实体动画命令包 | 收到 `sleep_in`/`sleep_loop` 时先建立 10 tick 本地 sleep guard 并稳定翼龙状态；guard 生效时，在动画命令应用前取消普通动画和错误退出睡眠 stage |
 | `TravelersSmartAnimalBaseMixin` | Travelers `SmartAnimalBase` | 麻醉 active/ready 期间暂停任务、移动和导航控制器 |
 | `EntityTypeSpawnEggMixin` | Minecraft `EntityType` | 控制刷怪蛋成年/幼年阶段 |
 | `JSTerrablenderMixin` | Jurassic Saga `JSTerrablender` | 按配置取消 Jurassic Saga TerraBlender 群系区域和地表规则注册 |
@@ -855,7 +871,7 @@ build/libs/jsrevise-<version>.jar
 当前版本构建产物目标：
 
 ```text
-build/libs/jsrevise-1.0.96.jar
+build/libs/jsrevise-1.0.98.jar
 ```
 
 修改模组代码或资源并重新发布构建时，需要同步更新
@@ -863,7 +879,7 @@ build/libs/jsrevise-1.0.96.jar
 
 ## 自动化测试
 
-当前共有 27 个含 `@Test` 的测试文件、139 项 JUnit `@Test`，以及 15 项 `@GameTest(...)`。
+当前共有 29 个含 `@Test` 的测试文件、149 项 JUnit `@Test`，以及 15 项 `@GameTest(...)`。
 
 覆盖内容：
 
@@ -877,7 +893,7 @@ build/libs/jsrevise-1.0.96.jar
 - 麻醉周期只执行一次行为任务清理。
 - 待生效剂量到点后，所有已注册 `JSAnimalBase` 在主模组服务端动画器执行前都会先完成 active 推进并读取到睡眠状态；客户端只读桥接也会把到点 pending 视为睡眠窗口。
 - 麻醉 active/ready 期间所有已注册 `JSAnimalBase` 会跳过 Travelers 任务/移动/导航控制器；guard 准备和客户端普通 `animate` 都不直接写 transition，同时继续阻止物种动画器回发站立、行走或飞行动画。
-- 睡眠动画接管只在 guard 进入边沿执行一次，并只清掉 Travelers 内部非睡眠 transition 状态；除 Jurassic Saga `0.2` 已确认上游 `sleep_in` 闪回案例会替换为 `sleep_loop` 的可追溯兼容外，不由 JS-revise 主动写入 sleep transition，也不停止 TravelersLib 内置 base controller。
+- 睡眠动画接管只在 guard 进入边沿执行一次，并只清掉 Travelers 内部非睡眠 transition 状态；除 Jurassic Saga `0.2/0.2.1` 线已确认上游 `sleep_in` 闪回案例会替换为 `sleep_loop` 的可追溯兼容外，不由 JS-revise 主动写入 sleep transition，也不停止 Travelers Lib 内置 base controller。
 - 麻醉 active/ready、raw sleeping 或短期 sleep stabilization window 期间，Travelers 动画定义发送层会阻止普通站立、移动、飞行、游泳、休息以及睡眠退出动画；guard 生效期间只允许睡眠进入、睡眠循环和死亡动画。
 - 开始追踪已麻醉生物时，服务端会重新保持 raw sleeping、同步麻醉附件并发送短时 sleep animation guard；除已确认上游 `sleep_in` 闪回案例的兼容替换外，不主动推进 sleep transition。
 - 已确认上游 `sleep_in` 闪回案例的纯函数矩阵和 GameTest 物种边界，当前覆盖卢多翼龙和双脊龙。
@@ -1001,9 +1017,10 @@ build/libs/jsrevise-1.0.96.jar
 
 ## 当前状态
 
-截至 `1.0.96`：
+截至 `1.0.98`：
 
-- 项目已适配 Jurassic Saga `0.2`。本地 Jurassic Saga `0.2` 发布包声明 TravelersLib `[0.6.0,1.1.0)`，因此 JS-revise 的运行依赖范围同步放宽到 `[0.6.0,1.1.0)`，避免实际整合包使用 TravelersLib `0.6` 时被 NeoForge 在依赖排序阶段拒绝加载。自动化构建使用 TravelersLib `0.6`，并继续通过 TravelersLib 内置的 `travelers.azurelib` API 处理动画兼容，不再保留外部 AzureLib 仓库或依赖说明。
+- 项目已适配 Jurassic Saga `0.2.1` 与 Travelers Lib `0.7.1`。运行依赖声明改为 Jurassic Saga `[0.2.1,0.3.0)` 和 Travelers runtime modId `travelers` `[0.7.1,0.8.0)`；自动化构建通过 Modrinth Maven 的 `maven.modrinth:travelers-lib:0.7.1` 获取与用户提供运行包一致的 `collinvht.travelers.*` 命名空间。旧 Collinvht `travelerslib-neoforge-1.21.1:0.7.1` artifact 仍暴露旧 `travelers.*` 包，不能作为本轮适配的编译依据。
+- 新增 Travelers Lib `0.7.1` 服务端初始化兼容 Mixin，防止 dedicated server 在 Travelers 构造阶段加载客户端渲染顶点类；该 Mixin 只在服务端生效，客户端仍走 Travelers 原始初始化路径。
 - 项目已完成模块化拆分。
 - 麻醉和年龄数据已迁移到 NeoForge Data Attachment。
 - 麻醉状态由服务端推进并同步。
@@ -1012,7 +1029,7 @@ build/libs/jsrevise-1.0.96.jar
 - 海王龙使用约 `165..195` tick 的水生周期，速度接近其他恐龙；该周期由普通周期按 `75%` 自动推导，并保留防止实体静止的水生位置修正能力与专用姿态修正。
 - 飞行动物具有持续水体捕获；麻醉生效时先清除旧飞行动量，随后持续阻止起飞、飞行朝向推进和主动旅行输入。自然 raw sleeping 的飞行动物也会清理可切换飞行姿态；翼龙 AI 步前后和读档恢复 `js.isFlying` 后还会在受保护睡眠窗口内兜底稳定真实飞行标记，避免 `isFlying()` 把 `isSleeping()` 压回 false。非水生漂浮阶段仍以真实实体碰撞移动保留麻醉后产生的玩家碰撞、水流和其他被动水平移动。
 - 麻醉睡眠状态会在 `JSAnimalBase.customServerAiStep()` 开始时提前写入，并在该方法返回后再次保持原始 sleeping 数据；到点的待生效剂量会先推进为 active，并在 `isSleeping()` 读取处桥接。自然睡眠会在 Travelers 服务端动画执行前按原条件提前写 raw sleeping，刚进入睡眠或读档恢复睡眠时会获得有限 sleep stabilization window，ready tick 的 Travelers 任务、移动和导航控制器会被暂停。
-- Travelers `TravelersAnimal` 服务端动画入口会在麻醉 active/ready、任意 raw sleeping 或短期 sleep stabilization window 的 `JSAnimalBase` 期间准备真实睡眠 guard、清理边沿旧普通 transition，并放行 Jurassic Saga 原生 `animateServer` 发送物种自己的 sleep transition；睡眠接管不再停止 TravelersLib 内置 base controller，只清理非睡眠 transition，避免内置 Azure controller cancel 清空睡眠动画、队列和 fade 状态后让受影响生物短暂闪回站立或飞行姿势。客户端普通 `animate` 入口只在 guard 生效时取消普通客户端动画覆盖；除 Jurassic Saga `0.2` 已确认上游 `sleep_in` 闪回案例在最终发送层被替换为 `sleep_loop` 的可追溯兼容外，不主动发送 sleep transition。当前兼容案例为卢多翼龙和双脊龙；夜行性基因只影响双脊龙等生物进入自然睡眠的时机，不改变这条兼容逻辑的边界。Travelers 动画定义的 `sendForEntity` 发送层和客户端 TravelersLib 内置 `travelers.azurelib` 实体动画命令包应用层都会阻止睡眠状态下的普通站立、移动、飞行、游泳、休息和错误退出睡眠动画；若 sleep stage 包先到，客户端会先建短本地 guard 并立即清理翼龙可切换飞行标记。服务端还会在确认睡眠 guard 后发送短时 S2C sleep animation guard，玩家开始追踪已麻醉或 raw sleeping 生物时也会强制补发 guard，麻醉状态会额外同步附件和读档 marker。因此霸王龙、卢多翼龙、双脊龙以及固定飞行态/简化动画动物不应在入睡、重进存档或同步窗口中短暂切回站立、行走或飞行姿势。
+- Travelers `TravelersAnimal` 服务端动画入口会在麻醉 active/ready、任意 raw sleeping 或短期 sleep stabilization window 的 `JSAnimalBase` 期间准备真实睡眠 guard、清理边沿旧普通 transition，并放行 Jurassic Saga 原生 `animateServer` 发送物种自己的 sleep transition；睡眠接管不再停止 Travelers Lib 内置 base controller，只清理非睡眠 transition，避免内置 Azure controller cancel 清空睡眠动画、队列和 fade 状态后让受影响生物短暂闪回站立或飞行姿势。客户端普通 `animate` 入口只在 guard 生效时取消普通客户端动画覆盖；除 Jurassic Saga `0.2/0.2.1` 线已确认上游 `sleep_in` 闪回案例在最终发送层被替换为 `sleep_loop` 的可追溯兼容外，不主动发送 sleep transition。当前兼容案例为卢多翼龙和双脊龙；夜行性基因只影响双脊龙等生物进入自然睡眠的时机，不改变这条兼容逻辑的边界。Travelers 动画定义的 `sendForEntity` 发送层和客户端 Travelers Lib 内置 `collinvht.travelers.client.azure` 实体动画命令包应用层都会阻止睡眠状态下的普通站立、移动、飞行、游泳、休息和错误退出睡眠动画；若 sleep stage 包先到，客户端会先建短本地 guard 并立即清理翼龙可切换飞行标记。服务端还会在确认睡眠 guard 后发送短时 S2C sleep animation guard，玩家开始追踪已麻醉或 raw sleeping 生物时也会强制补发 guard，麻醉状态会额外同步附件和读档 marker。因此霸王龙、卢多翼龙、双脊龙以及固定飞行态/简化动画动物不应在入睡、重进存档或同步窗口中短暂切回站立、行走或飞行姿势。
 - 麻醉首次生效时会完整停止所有当前运行的 Travelers 任务并解除乘客关系；麻醉 active/ready 期间任务、移动和导航控制器暂停，因此抓取、俯冲、战斗跳跃及未来同类任务不能继续缓存目标或直接写入追踪速度。
 - 漂浮状态必须由真实流体接触或实体正下方无方块阻挡的水面支撑；旧水面缓存不能再让已被推上沙砾等陆地方块的恐龙继续沉浮。
 - 水面效果通过 S2C 事件和客户端实体 tick 补偿生成，粒子数量随当前体型缩放，并采用“破水/换向明显、周期过程适量”的阶段化节奏。
@@ -1030,7 +1047,7 @@ build/libs/jsrevise-1.0.96.jar
 - Jurassic Saga TerraBlender 主世界群系区域和地表规则注册会按配置被源头取消；
   `MultiNoiseBiomeSource` 层保留已知群系到原版群系的兜底替换，并按服务器缓存回退 Holder。
 - 客户端 Mixin 和 Shift tooltip 已与通用服务端代码隔离。
-- 自动化覆盖包含 27 个含 `@Test` 的测试文件、139 项 JUnit `@Test` 和 15 项 `@GameTest(...)`；发布前仍以 `.\gradlew.bat test runGameTestServer assemble` 为标准验证命令。
+- 自动化覆盖包含 29 个含 `@Test` 的测试文件、149 项 JUnit `@Test` 和 15 项 `@GameTest(...)`；发布前仍以 `.\gradlew.bat test runGameTestServer assemble` 为标准验证命令。
 
 仍需在实际整合包中重点验证：
 

@@ -9,7 +9,6 @@
     "JSAnimalBaseSystemsMixin",
     "JSAquaticBaseSystemsMixin",
     "JSAvianBaseSystemsMixin",
-    "JSCommonMixin",
     "JSTerrablenderMixin",
     "JSEntityDataHolderSystemsMixin",
     "LivingEntityTravelMixin",
@@ -26,7 +25,9 @@
     "client.TravelersClientAnimatorMixin",
     "client.TravelersAzureModelRendererMixin"
   ],
-  "server": [],
+  "server": [
+    "server.TravelersHandler1211ServerMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

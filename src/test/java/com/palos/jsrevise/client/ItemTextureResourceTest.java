@@ -38,9 +38,7 @@ class ItemTextureResourceTest {
             Map.entry("dinosaur_capture_cage_side_badge.png", new int[]{64, 32}),
             Map.entry("dinosaur_capture_cage_side_bars.png", new int[]{64, 32}),
             Map.entry("dinosaur_capture_cage_top.png", new int[]{32, 64}),
-            Map.entry("dinosaur_capture_cage_bottom.png", new int[]{32, 64}),
-            Map.entry("dinosaur_capture_cage_corner_post.png", new int[]{8, 32}),
-            Map.entry("dinosaur_capture_cage_detail.png", new int[]{16, 16})
+            Map.entry("dinosaur_capture_cage_bottom.png", new int[]{32, 64})
     );
     private static final Map<String, Integer> DINOSAUR_CAPTURE_CAGE_LIGHT_GRAY_MINIMUMS = Map.ofEntries(
             Map.entry("dinosaur_capture_cage_front.png", 360),
@@ -48,9 +46,7 @@ class ItemTextureResourceTest {
             Map.entry("dinosaur_capture_cage_side_badge.png", 950),
             Map.entry("dinosaur_capture_cage_side_bars.png", 950),
             Map.entry("dinosaur_capture_cage_top.png", 1300),
-            Map.entry("dinosaur_capture_cage_bottom.png", 150),
-            Map.entry("dinosaur_capture_cage_corner_post.png", 0),
-            Map.entry("dinosaur_capture_cage_detail.png", 100)
+            Map.entry("dinosaur_capture_cage_bottom.png", 150)
     );
     private static final List<String> DINOSAUR_CAPTURE_CAGE_BLOCK_MODELS = List.of(
             "dinosaur_capture_cage_x0_y0_z0",
@@ -521,41 +517,6 @@ class ItemTextureResourceTest {
         return new PixelBounds(minX, minY, maxX, maxY, count, sumX, sumY);
     }
 
-    private static void assertOpaqueBoundsAtLeast(BufferedImage image, int minWidth, int minHeight) {
-        int minX = image.getWidth();
-        int minY = image.getHeight();
-        int maxX = -1;
-        int maxY = -1;
-        for (int y = 0; y < image.getHeight(); y++) {
-            for (int x = 0; x < image.getWidth(); x++) {
-                if (isOpaque(image.getRGB(x, y))) {
-                    minX = Math.min(minX, x);
-                    minY = Math.min(minY, y);
-                    maxX = Math.max(maxX, x);
-                    maxY = Math.max(maxY, y);
-                }
-            }
-        }
-
-        assertTrue(maxX >= minX && maxY >= minY);
-        assertTrue(maxX - minX + 1 >= minWidth);
-        assertTrue(maxY - minY + 1 >= minHeight);
-    }
-
-    private static void assertCaptureCageItemBadgeEmbeddedInLongSide(BufferedImage itemIcon) {
-        PixelBounds badgeBounds = boundsOfPixels(
-                itemIcon,
-                color -> isCaptureCageBadgeGold(color) || isWarmDinosaurSilhouette(color)
-        );
-
-        assertTrue(badgeBounds.minX() >= 9);
-        assertTrue(badgeBounds.maxX() <= 13);
-        assertTrue(badgeBounds.minY() >= 7);
-        assertTrue(badgeBounds.maxY() <= 11);
-        assertTrue(badgeBounds.centerX() >= 10.0D && badgeBounds.centerX() <= 12.0D);
-        assertTrue(badgeBounds.centerY() >= 8.0D && badgeBounds.centerY() <= 10.0D);
-    }
-
     private static void assertFrontIsOnlyDoorPanel(BufferedImage front, BufferedImage back) {
         assertTrue(countPixelsInRegion(front, 4, 3, 24, 25, ItemTextureResourceTest::isCaptureCageDoorLine) >= 100);
         assertTrue(countPixelsInRegion(back, 4, 3, 24, 25, ItemTextureResourceTest::isCaptureCageDoorLine) <= 10);
@@ -907,14 +868,6 @@ class ItemTextureResourceTest {
                 && green <= 85
                 && blue <= 75
                 && red >= blue;
-    }
-
-    private static boolean isDeepDoorDark(int color) {
-        int alpha = (color >>> 24) & 0xFF;
-        int red = (color >>> 16) & 0xFF;
-        int green = (color >>> 8) & 0xFF;
-        int blue = color & 0xFF;
-        return alpha != 0 && red <= 45 && green <= 55 && blue <= 65;
     }
 
     private static boolean isCaptureCageDoorLine(int color) {

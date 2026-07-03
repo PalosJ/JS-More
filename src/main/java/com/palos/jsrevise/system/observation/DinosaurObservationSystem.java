@@ -27,7 +27,7 @@ public final class DinosaurObservationSystem {
 
     public static DinosaurObservationSnapshot capture(JSAnimalBase animal) {
         long gameTime = animal.level().getGameTime();
-        CacheKey key = new CacheKey(animal.getUUID(), animal.level().dimension().location());
+        CacheKey key = new CacheKey(animal.getUUID(), animal.level().dimension().location(), animal.level().isClientSide);
         CachedSnapshot cached = SNAPSHOTS.get(key);
         if (cached != null && gameTime >= cached.capturedAt() && gameTime - cached.capturedAt() <= CACHE_TICKS) {
             return cached.snapshot();
@@ -140,7 +140,7 @@ public final class DinosaurObservationSystem {
         }
     }
 
-    private record CacheKey(UUID entityId, ResourceLocation dimensionId) {
+    record CacheKey(UUID entityId, ResourceLocation dimensionId, boolean clientSide) {
     }
 
     private record CachedSnapshot(long capturedAt, DinosaurObservationSnapshot snapshot) {

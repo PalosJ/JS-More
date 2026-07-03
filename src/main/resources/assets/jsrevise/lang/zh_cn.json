@@ -38,16 +38,10 @@
   "overlay.jsrevise.age.game": "%s 游戏天",
   "overlay.jsrevise.age.unknown": "未知",
   "overlay.jsrevise.egg_laying": "下蛋进度",
-  "overlay.jsrevise.capture_cage": "捕获笼",
-  "overlay.jsrevise.capture_cage.empty": "空",
-  "overlay.jsrevise.capture_cage.occupied": "已捕获",
-  "overlay.jsrevise.capture_cage.status": "捕获状态：",
   "overlay.jsrevise.capture_cage.duration": "被捕获时长：",
   "overlay.jsrevise.capture_cage.durability": "笼体耐久：",
   "overlay.jsrevise.anesthetic.pending": "麻醉生效：",
   "overlay.jsrevise.anesthetic.remaining": "麻醉剩余：",
-  "overlay.jsrevise.anesthetic.remaining_label": "麻醉剩余：",
   "overlay.jsrevise.anesthetic.addition": "(+%s)",
-  "overlay.jsrevise.unknown": "未知",
-  "overlay.jsrevise.none": "无"
+  "overlay.jsrevise.unknown": "未知"
 }

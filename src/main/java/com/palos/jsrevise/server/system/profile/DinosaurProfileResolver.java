@@ -122,7 +122,12 @@ public final class DinosaurProfileResolver {
                 }
             }
         }
-        if (!EGG_TYPE_HINTS.containsKey(speciesId.getPath()) && LOGGED_FALLBACKS.add(speciesId) && debugLogging()) {
+        if (shouldLogInferredFallback(
+                speciesId,
+                EGG_TYPE_HINTS.containsKey(speciesId.getPath()),
+                debugLogging(),
+                LOGGED_FALLBACKS
+        )) {
             JSRevise.LOGGER.info("Using inferred dinosaur profile for {}", speciesId);
         }
         return profile;
@@ -320,7 +325,23 @@ public final class DinosaurProfileResolver {
     }
 
     private static boolean debugLogging() {
-        return JSReviseConfig.DEBUG_LOGGING.get();
+        try {
+            return JSReviseConfig.DEBUG_LOGGING.get();
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    static boolean shouldLogInferredFallback(
+            ResourceLocation speciesId,
+            boolean knownEggType,
+            boolean debugLogging,
+            Set<ResourceLocation> loggedFallbacks
+    ) {
+        if (speciesId == null || knownEggType || !debugLogging || loggedFallbacks == null) {
+            return false;
+        }
+        return loggedFallbacks.add(speciesId);
     }
 
     private static boolean isFinitePositive(double value) {
