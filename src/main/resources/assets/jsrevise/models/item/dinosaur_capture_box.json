@@ -1,12 +1,12 @@
 {
   "textures": {
-    "particle": "jsrevise:block/dinosaur_capture_cage_side_badge",
-    "front": "jsrevise:block/dinosaur_capture_cage_front",
-    "back": "jsrevise:block/dinosaur_capture_cage_back",
-    "side_badge": "jsrevise:block/dinosaur_capture_cage_side_badge",
-    "side_bars": "jsrevise:block/dinosaur_capture_cage_side_bars",
-    "top": "jsrevise:block/dinosaur_capture_cage_top",
-    "bottom": "jsrevise:block/dinosaur_capture_cage_bottom"
+    "particle": "jsrevise:block/dinosaur_capture_box_side_badge",
+    "front": "jsrevise:block/dinosaur_capture_box_front",
+    "back": "jsrevise:block/dinosaur_capture_box_back",
+    "side_badge": "jsrevise:block/dinosaur_capture_box_side_badge",
+    "side_bars": "jsrevise:block/dinosaur_capture_box_side_bars",
+    "top": "jsrevise:block/dinosaur_capture_box_top",
+    "bottom": "jsrevise:block/dinosaur_capture_box_bottom"
   },
   "elements": [
     {

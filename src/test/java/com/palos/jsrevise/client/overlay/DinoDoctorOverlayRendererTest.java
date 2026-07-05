@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.palos.jsrevise.server.registry.JSReviseBlocks;
 import com.palos.jsrevise.server.system.age.DinosaurAgeEstimate;
+import com.palos.jsrevise.server.system.capture.CapturedDinosaurData;
 import com.palos.jsrevise.server.system.size.DinosaurLifecycleStage;
 import com.palos.jsrevise.system.observation.CaptureCageObservationSnapshot;
 import com.palos.jsrevise.system.observation.DinosaurObservationSnapshot;
@@ -125,20 +127,34 @@ class DinoDoctorOverlayRendererTest {
 
     @Test
     void captureCageLinesShowDurabilityAndDurationBeforeGenes() {
+        int durability = CapturedDinosaurData.MAX_DURABILITY * 3 / 4;
         CaptureCageObservationSnapshot snapshot = CaptureCageObservationSnapshot.from(
                 ResourceLocation.fromNamespaceAndPath("jurassicsaga", "test_dino"),
                 snapshotWithEggProgressAndGenes(),
                 400L,
-                750
+                durability
         );
 
         List<DinoDoctorOverlayRenderer.OverlayLine> lines =
                 DinoDoctorOverlayRenderer.createCaptureCageObservationLines(snapshot);
 
-        assertLabelValueLine(lines.get(9), "overlay.jsrevise.capture_cage.durability");
-        assertEquals("750/1000", lines.get(9).mainSegments().get(1).text().getString());
-        assertLabelValueLine(lines.get(10), "overlay.jsrevise.capture_cage.duration");
+        assertLabelValueLine(lines.get(9), "overlay.jsrevise.capture_box.durability");
+        assertEquals(
+                durability + "/" + CapturedDinosaurData.MAX_DURABILITY,
+                lines.get(9).mainSegments().get(1).text().getString()
+        );
+        assertLabelValueLine(lines.get(10), "overlay.jsrevise.capture_box.duration");
         assertSingleRegularLabel(lines.get(11), "overlay.jsrevise.genes");
+    }
+
+    @Test
+    void brokenCaptureBoxIsNotAValidHudCaptureBoxTarget() {
+        assertTrue(DinoDoctorOverlayRenderer.isCaptureBoxObservationBlock(
+                JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get().defaultBlockState()
+        ));
+        assertFalse(DinoDoctorOverlayRenderer.isCaptureBoxObservationBlock(
+                JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get().defaultBlockState()
+        ));
     }
 
     @Test

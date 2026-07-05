@@ -17,12 +17,13 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public final class DinosaurCaptureCageRenderer implements BlockEntityRenderer<DinosaurCaptureCageBlockEntity> {
-    static final ResourceLocation FRONT_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_cage_front.png");
-    static final ResourceLocation BACK_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_cage_back.png");
-    static final ResourceLocation SIDE_BADGE_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_cage_side_badge.png");
-    static final ResourceLocation SIDE_BARS_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_cage_side_bars.png");
-    static final ResourceLocation TOP_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_cage_top.png");
-    static final ResourceLocation BOTTOM_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_cage_bottom.png");
+    static final ResourceLocation FRONT_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_box_front.png");
+    static final ResourceLocation BACK_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_box_back.png");
+    static final ResourceLocation SIDE_BADGE_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_box_side_badge.png");
+    static final ResourceLocation SIDE_BARS_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_box_side_bars.png");
+    static final ResourceLocation TOP_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_box_top.png");
+    static final ResourceLocation BOTTOM_TEXTURE = JSRevise.id("textures/block/dinosaur_capture_box_bottom.png");
+    static final double DEFAULT_BOX_INSET = 0.0D;
 
     public DinosaurCaptureCageRenderer(BlockEntityRendererProvider.Context context) {
     }
@@ -37,12 +38,19 @@ public final class DinosaurCaptureCageRenderer implements BlockEntityRenderer<Di
             int packedOverlay
     ) {
         Direction facing = facing(blockEntity.getBlockState());
-        renderBackFace(poseStack, bufferSource, packedLight, packedOverlay, facing);
-        renderFrontFace(poseStack, bufferSource, packedLight, packedOverlay, facing);
-        renderLeftFace(poseStack, bufferSource, packedLight, packedOverlay, facing);
-        renderRightFace(poseStack, bufferSource, packedLight, packedOverlay, facing);
-        renderTopFace(poseStack, bufferSource, packedLight, packedOverlay, facing);
-        renderBottomFace(poseStack, bufferSource, packedLight, packedOverlay, facing);
+        renderBox(
+                poseStack,
+                bufferSource,
+                packedLight,
+                packedOverlay,
+                facing,
+                FRONT_TEXTURE,
+                BACK_TEXTURE,
+                SIDE_BADGE_TEXTURE,
+                SIDE_BARS_TEXTURE,
+                TOP_TEXTURE,
+                BOTTOM_TEXTURE
+        );
     }
 
     @Override
@@ -57,8 +65,10 @@ public final class DinosaurCaptureCageRenderer implements BlockEntityRenderer<Di
 
     @Override
     public AABB getRenderBoundingBox(DinosaurCaptureCageBlockEntity blockEntity) {
-        Direction facing = facing(blockEntity.getBlockState());
-        BlockPos controllerPos = blockEntity.getBlockPos();
+        return renderBoundingBox(blockEntity.getBlockPos(), facing(blockEntity.getBlockState()));
+    }
+
+    static AABB renderBoundingBox(BlockPos controllerPos, Direction facing) {
         int minX = Integer.MAX_VALUE;
         int minY = Integer.MAX_VALUE;
         int minZ = Integer.MAX_VALUE;
@@ -77,24 +87,78 @@ public final class DinosaurCaptureCageRenderer implements BlockEntityRenderer<Di
         return new AABB(minX, minY, minZ, maxX + 1.0D, maxY + 1.0D, maxZ + 1.0D);
     }
 
+    static void renderBox(
+            PoseStack poseStack,
+            MultiBufferSource bufferSource,
+            int packedLight,
+            int packedOverlay,
+            Direction facing,
+            ResourceLocation frontTexture,
+            ResourceLocation backTexture,
+            ResourceLocation sideBadgeTexture,
+            ResourceLocation sideBarsTexture,
+            ResourceLocation topTexture,
+            ResourceLocation bottomTexture
+    ) {
+        renderBox(
+                poseStack,
+                bufferSource,
+                packedLight,
+                packedOverlay,
+                facing,
+                frontTexture,
+                backTexture,
+                sideBadgeTexture,
+                sideBarsTexture,
+                topTexture,
+                bottomTexture,
+                DEFAULT_BOX_INSET
+        );
+    }
+
+    static void renderBox(
+            PoseStack poseStack,
+            MultiBufferSource bufferSource,
+            int packedLight,
+            int packedOverlay,
+            Direction facing,
+            ResourceLocation frontTexture,
+            ResourceLocation backTexture,
+            ResourceLocation sideBadgeTexture,
+            ResourceLocation sideBarsTexture,
+            ResourceLocation topTexture,
+            ResourceLocation bottomTexture,
+            double inset
+    ) {
+        BoxBounds bounds = BoxBounds.inset(inset);
+        renderBackFace(poseStack, bufferSource, packedLight, packedOverlay, facing, backTexture, bounds);
+        renderFrontFace(poseStack, bufferSource, packedLight, packedOverlay, facing, frontTexture, bounds);
+        renderLeftFace(poseStack, bufferSource, packedLight, packedOverlay, facing, sideBadgeTexture, bounds);
+        renderRightFace(poseStack, bufferSource, packedLight, packedOverlay, facing, sideBarsTexture, bounds);
+        renderTopFace(poseStack, bufferSource, packedLight, packedOverlay, facing, topTexture, bounds);
+        renderBottomFace(poseStack, bufferSource, packedLight, packedOverlay, facing, bottomTexture, bounds);
+    }
+
     private static void renderBackFace(
             PoseStack poseStack,
             MultiBufferSource bufferSource,
             int packedLight,
             int packedOverlay,
-            Direction facing
+            Direction facing,
+            ResourceLocation texture,
+            BoxBounds bounds
     ) {
         Direction normal = facing.getOpposite();
         renderQuad(
                 poseStack,
                 bufferSource,
-                BACK_TEXTURE,
+                texture,
                 packedLight,
                 packedOverlay,
-                point(0.0D, 0.0D, 0.0D, facing),
-                point(DinosaurCaptureCageBlock.WIDTH, 0.0D, 0.0D, facing),
-                point(DinosaurCaptureCageBlock.WIDTH, DinosaurCaptureCageBlock.HEIGHT, 0.0D, facing),
-                point(0.0D, DinosaurCaptureCageBlock.HEIGHT, 0.0D, facing),
+                point(bounds.minX(), bounds.minY(), bounds.minZ(), facing),
+                point(bounds.maxX(), bounds.minY(), bounds.minZ(), facing),
+                point(bounds.maxX(), bounds.maxY(), bounds.minZ(), facing),
+                point(bounds.minX(), bounds.maxY(), bounds.minZ(), facing),
                 normal
         );
     }
@@ -104,18 +168,20 @@ public final class DinosaurCaptureCageRenderer implements BlockEntityRenderer<Di
             MultiBufferSource bufferSource,
             int packedLight,
             int packedOverlay,
-            Direction facing
+            Direction facing,
+            ResourceLocation texture,
+            BoxBounds bounds
     ) {
         renderQuad(
                 poseStack,
                 bufferSource,
-                FRONT_TEXTURE,
+                texture,
                 packedLight,
                 packedOverlay,
-                point(DinosaurCaptureCageBlock.WIDTH, 0.0D, DinosaurCaptureCageBlock.LENGTH, facing),
-                point(0.0D, 0.0D, DinosaurCaptureCageBlock.LENGTH, facing),
-                point(0.0D, DinosaurCaptureCageBlock.HEIGHT, DinosaurCaptureCageBlock.LENGTH, facing),
-                point(DinosaurCaptureCageBlock.WIDTH, DinosaurCaptureCageBlock.HEIGHT, DinosaurCaptureCageBlock.LENGTH, facing),
+                point(bounds.maxX(), bounds.minY(), bounds.maxZ(), facing),
+                point(bounds.minX(), bounds.minY(), bounds.maxZ(), facing),
+                point(bounds.minX(), bounds.maxY(), bounds.maxZ(), facing),
+                point(bounds.maxX(), bounds.maxY(), bounds.maxZ(), facing),
                 facing
         );
     }
@@ -125,19 +191,21 @@ public final class DinosaurCaptureCageRenderer implements BlockEntityRenderer<Di
             MultiBufferSource bufferSource,
             int packedLight,
             int packedOverlay,
-            Direction facing
+            Direction facing,
+            ResourceLocation texture,
+            BoxBounds bounds
     ) {
         Direction normal = facing.getCounterClockWise();
         renderQuad(
                 poseStack,
                 bufferSource,
-                SIDE_BADGE_TEXTURE,
+                texture,
                 packedLight,
                 packedOverlay,
-                point(0.0D, 0.0D, DinosaurCaptureCageBlock.LENGTH, facing),
-                point(0.0D, 0.0D, 0.0D, facing),
-                point(0.0D, DinosaurCaptureCageBlock.HEIGHT, 0.0D, facing),
-                point(0.0D, DinosaurCaptureCageBlock.HEIGHT, DinosaurCaptureCageBlock.LENGTH, facing),
+                point(bounds.minX(), bounds.minY(), bounds.maxZ(), facing),
+                point(bounds.minX(), bounds.minY(), bounds.minZ(), facing),
+                point(bounds.minX(), bounds.maxY(), bounds.minZ(), facing),
+                point(bounds.minX(), bounds.maxY(), bounds.maxZ(), facing),
                 normal
         );
     }
@@ -147,19 +215,21 @@ public final class DinosaurCaptureCageRenderer implements BlockEntityRenderer<Di
             MultiBufferSource bufferSource,
             int packedLight,
             int packedOverlay,
-            Direction facing
+            Direction facing,
+            ResourceLocation texture,
+            BoxBounds bounds
     ) {
         Direction normal = facing.getClockWise();
         renderQuad(
                 poseStack,
                 bufferSource,
-                SIDE_BARS_TEXTURE,
+                texture,
                 packedLight,
                 packedOverlay,
-                point(DinosaurCaptureCageBlock.WIDTH, 0.0D, 0.0D, facing),
-                point(DinosaurCaptureCageBlock.WIDTH, 0.0D, DinosaurCaptureCageBlock.LENGTH, facing),
-                point(DinosaurCaptureCageBlock.WIDTH, DinosaurCaptureCageBlock.HEIGHT, DinosaurCaptureCageBlock.LENGTH, facing),
-                point(DinosaurCaptureCageBlock.WIDTH, DinosaurCaptureCageBlock.HEIGHT, 0.0D, facing),
+                point(bounds.maxX(), bounds.minY(), bounds.minZ(), facing),
+                point(bounds.maxX(), bounds.minY(), bounds.maxZ(), facing),
+                point(bounds.maxX(), bounds.maxY(), bounds.maxZ(), facing),
+                point(bounds.maxX(), bounds.maxY(), bounds.minZ(), facing),
                 normal
         );
     }
@@ -169,18 +239,20 @@ public final class DinosaurCaptureCageRenderer implements BlockEntityRenderer<Di
             MultiBufferSource bufferSource,
             int packedLight,
             int packedOverlay,
-            Direction facing
+            Direction facing,
+            ResourceLocation texture,
+            BoxBounds bounds
     ) {
         renderQuad(
                 poseStack,
                 bufferSource,
-                TOP_TEXTURE,
+                texture,
                 packedLight,
                 packedOverlay,
-                point(0.0D, DinosaurCaptureCageBlock.HEIGHT, 0.0D, facing),
-                point(DinosaurCaptureCageBlock.WIDTH, DinosaurCaptureCageBlock.HEIGHT, 0.0D, facing),
-                point(DinosaurCaptureCageBlock.WIDTH, DinosaurCaptureCageBlock.HEIGHT, DinosaurCaptureCageBlock.LENGTH, facing),
-                point(0.0D, DinosaurCaptureCageBlock.HEIGHT, DinosaurCaptureCageBlock.LENGTH, facing),
+                point(bounds.minX(), bounds.maxY(), bounds.minZ(), facing),
+                point(bounds.maxX(), bounds.maxY(), bounds.minZ(), facing),
+                point(bounds.maxX(), bounds.maxY(), bounds.maxZ(), facing),
+                point(bounds.minX(), bounds.maxY(), bounds.maxZ(), facing),
                 Direction.UP
         );
     }
@@ -190,18 +262,20 @@ public final class DinosaurCaptureCageRenderer implements BlockEntityRenderer<Di
             MultiBufferSource bufferSource,
             int packedLight,
             int packedOverlay,
-            Direction facing
+            Direction facing,
+            ResourceLocation texture,
+            BoxBounds bounds
     ) {
         renderQuad(
                 poseStack,
                 bufferSource,
-                BOTTOM_TEXTURE,
+                texture,
                 packedLight,
                 packedOverlay,
-                point(0.0D, 0.0D, DinosaurCaptureCageBlock.LENGTH, facing),
-                point(DinosaurCaptureCageBlock.WIDTH, 0.0D, DinosaurCaptureCageBlock.LENGTH, facing),
-                point(DinosaurCaptureCageBlock.WIDTH, 0.0D, 0.0D, facing),
-                point(0.0D, 0.0D, 0.0D, facing),
+                point(bounds.minX(), bounds.minY(), bounds.maxZ(), facing),
+                point(bounds.maxX(), bounds.minY(), bounds.maxZ(), facing),
+                point(bounds.maxX(), bounds.minY(), bounds.minZ(), facing),
+                point(bounds.minX(), bounds.minY(), bounds.minZ(), facing),
                 Direction.DOWN
         );
     }
@@ -244,7 +318,7 @@ public final class DinosaurCaptureCageRenderer implements BlockEntityRenderer<Di
                 .setNormal(pose, normal.getStepX(), normal.getStepY(), normal.getStepZ());
     }
 
-    private static Point point(double localX, double localY, double localZ, Direction facing) {
+    static Point point(double localX, double localY, double localZ, Direction facing) {
         Direction right = facing.getClockWise();
         return new Point(
                 component(localX, right.getStepX()) + component(localZ, facing.getStepX()),
@@ -270,5 +344,19 @@ public final class DinosaurCaptureCageRenderer implements BlockEntityRenderer<Di
     }
 
     record Point(double x, double y, double z) {
+    }
+
+    private record BoxBounds(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        private static BoxBounds inset(double inset) {
+            double safeInset = Math.max(0.0D, Math.min(inset, 0.125D));
+            return new BoxBounds(
+                    safeInset,
+                    safeInset,
+                    safeInset,
+                    DinosaurCaptureCageBlock.WIDTH - safeInset,
+                    DinosaurCaptureCageBlock.HEIGHT - safeInset,
+                    DinosaurCaptureCageBlock.LENGTH - safeInset
+            );
+        }
     }
 }

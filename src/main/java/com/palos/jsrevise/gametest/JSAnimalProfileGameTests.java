@@ -2,9 +2,14 @@ package com.palos.jsrevise.gametest;
 
 import com.palos.jsrevise.JSRevise;
 import com.palos.jsrevise.server.registry.JSReviseAttachments;
+import com.palos.jsrevise.server.registry.JSReviseItems;
 import com.palos.jsrevise.server.system.anesthetic.AnestheticData;
 import com.palos.jsrevise.server.system.anesthetic.AnestheticFloatData;
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
+import com.palos.jsrevise.server.system.capture.CapturedDinosaurData;
+import com.palos.jsrevise.server.system.capture.CapturedDinosaurVitals;
+import com.palos.jsrevise.server.system.capture.DinosaurCaptureItemData;
+import com.palos.jsrevise.server.system.capture.DinosaurCaptureService;
 import com.palos.jsrevise.server.system.profile.DinosaurProfileResolver;
 import com.palos.jsrevise.server.system.size.DinosaurSizeProfile;
 import com.palos.jsrevise.system.observation.EggLayingProgressResolver;
@@ -20,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import jp.jurassicsaga.server.animal.JSAnimals;
 import jp.jurassicsaga.server.animal.animals.obj.JSAnimal;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
@@ -33,6 +39,8 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -134,6 +142,76 @@ public final class JSAnimalProfileGameTests {
         requireEggTimerClass("OstrichEntity", OSTRICH_EGG_TIMER_CLASSES, eggTimerClasses, failures);
         if (!failures.isEmpty()) {
             helper.fail("Invalid natural egg-layer timer coverage: " + String.join(", ", failures));
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void zeroDurabilityCapturedStackReleasesAnimalAndCreatesBrokenCarrier(GameTestHelper helper) {
+        JSAnimalBase animal = null;
+        ResourceLocation animalId = null;
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            Entity entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+            if (entity instanceof JSAnimalBase candidate && candidate.getBbWidth() <= 2.0F && candidate.getBbHeight() <= 2.0F) {
+                animal = candidate;
+                animalId = BuiltInRegistries.ENTITY_TYPE.getKey(candidate.getType());
+                break;
+            }
+            if (entity != null) {
+                entity.discard();
+            }
+        }
+        if (animal == null || animalId == null) {
+            helper.fail("No small Jurassic Saga animal was available for capture stack release verification");
+            return;
+        }
+
+        BlockPos releaseBlock = helper.absolutePos(new BlockPos(4, 2, 4));
+        clearReleaseVolume(helper, releaseBlock);
+        UUID uuid = animal.getUUID();
+        CompoundTag entityNbt = animal.saveWithoutId(new CompoundTag());
+        entityNbt.putString("id", animalId.toString());
+        entityNbt.putUUID("UUID", uuid);
+        CapturedDinosaurData data = new CapturedDinosaurData(
+                animalId,
+                uuid,
+                "GameTest Animal",
+                0L,
+                0L,
+                0L,
+                0,
+                entityNbt,
+                new CompoundTag(),
+                CapturedDinosaurVitals.deserializeNBT(new CompoundTag())
+        );
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        DinosaurCaptureItemData.set(stack, data);
+
+        DinosaurCaptureService.StackSettlementResult result = DinosaurCaptureService.settleCapturedStack(
+                stack,
+                helper.getLevel(),
+                Vec3.atBottomCenterOf(releaseBlock),
+                0.0F
+        );
+
+        ItemStack replacement = result.carrierReplacement();
+        if (result != DinosaurCaptureService.StackSettlementResult.BROKEN
+                || result.consumesCarrier()
+                || !replacement.is(JSReviseItems.BROKEN_DINOSAUR_CAPTURE_BOX.get())
+                || replacement.getCount() != 1) {
+            helper.fail("Zero durability captured stack did not request a broken capture box replacement");
+            return;
+        }
+        if (DinosaurCaptureItemData.hasCapturedDinosaur(stack)
+                || DinosaurCaptureItemData.hasCapturedDinosaur(replacement)
+                || replacement.isBarVisible()) {
+            helper.fail("Released captured stack or broken replacement still exposes captured data or durability bar");
+            return;
+        }
+        Entity released = helper.getLevel().getEntity(uuid);
+        if (!(released instanceof JSAnimalBase)) {
+            helper.fail("Released captured stack did not spawn the original JSAnimalBase UUID");
             return;
         }
         helper.succeed();
@@ -1228,6 +1306,12 @@ public final class JSAnimalProfileGameTests {
             }
         }
         failures.add("missing eggTime class " + label + " expected one of " + String.join(", ", expectedClassNames));
+    }
+
+    private static void clearReleaseVolume(GameTestHelper helper, BlockPos center) {
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-4, -1, -4), center.offset(4, 4, 4))) {
+            helper.getLevel().setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        }
     }
 
     private static final class TrackingTask extends TravelerTaskBase {

@@ -262,12 +262,12 @@ public final class DinoDoctorOverlayRenderer {
     static List<OverlayLine> createCaptureCageObservationLines(CaptureCageObservationSnapshot snapshot) {
         List<OverlayLine> lines = new ArrayList<>(createObservationLines(snapshot.observation()));
         OverlayLine durabilityLine = OverlayLine.labeled(
-                Component.translatable("overlay.jsrevise.capture_cage.durability"),
+                Component.translatable("overlay.jsrevise.capture_box.durability"),
                 plainValue(snapshot.cageDurability() + "/" + CapturedDinosaurData.MAX_DURABILITY),
                 0xBFD1E6
         );
         OverlayLine durationLine = OverlayLine.labeled(
-                Component.translatable("overlay.jsrevise.capture_cage.duration"),
+                Component.translatable("overlay.jsrevise.capture_box.duration"),
                 formatAnestheticDuration(snapshot.capturedDurationTicks()),
                 0xBFD1E6
         );
@@ -457,7 +457,7 @@ public final class DinoDoctorOverlayRenderer {
         }
         BlockPos hitPos = blockHitResult.getBlockPos();
         BlockState state = minecraft.level.getBlockState(hitPos);
-        if (!state.is(JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get())) {
+        if (!isCaptureBoxObservationBlock(state)) {
             return null;
         }
         BlockPos controllerPos = DinosaurCaptureCageBlock.controllerPos(hitPos, state);
@@ -967,11 +967,15 @@ public final class DinoDoctorOverlayRenderer {
                 return false;
             }
             BlockState state = minecraft.level.getBlockState(this.cagePos);
-            return state.is(JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get())
+            return isCaptureBoxObservationBlock(state)
                     && isWithinObservationRange(
                     minecraft.player.getEyePosition(),
                     cageBounds(this.cagePos, state.getValue(DinosaurCaptureCageBlock.FACING))
             );
         }
+    }
+
+    static boolean isCaptureBoxObservationBlock(BlockState state) {
+        return state.is(JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get());
     }
 }

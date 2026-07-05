@@ -23,6 +23,7 @@ public final class JSReviseCreativeTabs {
                         output.accept(JSReviseItems.ANESTHETIC_CROSSBOW.get());
                         output.accept(JSReviseItems.ANESTHETIC_SYRINGE.get());
                         output.accept(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+                        output.accept(JSReviseItems.BROKEN_DINOSAUR_CAPTURE_BOX.get());
                     })
                     .build()
     );

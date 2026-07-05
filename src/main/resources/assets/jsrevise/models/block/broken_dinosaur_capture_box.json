@@ -1,0 +1,7 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "jsrevise:block/broken_dinosaur_capture_box_side_badge"
+  },
+  "elements": []
+}

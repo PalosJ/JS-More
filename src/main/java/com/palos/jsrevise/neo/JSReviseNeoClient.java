@@ -8,6 +8,7 @@ import com.palos.jsrevise.client.JSReviseItemTooltipHandler;
 import com.palos.jsrevise.client.overlay.ClientCaptureCageObservationCache;
 import com.palos.jsrevise.client.overlay.ClientEggLayingProgressCache;
 import com.palos.jsrevise.client.overlay.DinoDoctorOverlayRenderer;
+import com.palos.jsrevise.client.render.BrokenDinosaurCaptureBoxRenderer;
 import com.palos.jsrevise.client.render.DinosaurCaptureCageRenderer;
 import com.palos.jsrevise.client.render.FloatingModelGeometryResolver;
 import com.palos.jsrevise.server.registry.JSReviseBlockEntityTypes;
@@ -56,6 +57,10 @@ public final class JSReviseNeoClient {
         event.registerBlockEntityRenderer(
                 JSReviseBlockEntityTypes.DINOSAUR_CAPTURE_CAGE.get(),
                 DinosaurCaptureCageRenderer::new
+        );
+        event.registerBlockEntityRenderer(
+                JSReviseBlockEntityTypes.BROKEN_DINOSAUR_CAPTURE_BOX.get(),
+                BrokenDinosaurCaptureBoxRenderer::new
         );
     }
 

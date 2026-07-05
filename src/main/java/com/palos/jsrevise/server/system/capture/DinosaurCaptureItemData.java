@@ -1,7 +1,11 @@
 package com.palos.jsrevise.server.system.capture;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.WeakHashMap;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -13,6 +17,9 @@ public final class DinosaurCaptureItemData {
     public static final String CAPTURE_TAG = "DinosaurCapture";
     private static final int MAX_PENDING_ANESTHETIC_DOSES = 64;
     private static final long MAX_RELATIVE_ANESTHETIC_TICKS = 20L * 60L * 60L * 24L;
+    private static final int PROJECTED_DURABILITY_CACHE_REFRESH_INTERVAL_TICKS = 20;
+    private static final Map<ItemStack, ProjectedDurabilityCacheEntry> PROJECTED_DURABILITY_CACHE =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     private DinosaurCaptureItemData() {
     }
@@ -71,7 +78,8 @@ public final class DinosaurCaptureItemData {
                 stack,
                 tag -> tag.put(CAPTURE_TAG, data.serializeNBT())
         );
-        clearLegacyDamage(stack);
+        syncDamageMirror(stack, data, data.lastSettledGameTime());
+        PROJECTED_DURABILITY_CACHE.remove(stack);
     }
 
     public static void clear(ItemStack stack) {
@@ -80,11 +88,124 @@ public final class DinosaurCaptureItemData {
         }
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(CAPTURE_TAG));
         removeEmptyCustomData(stack);
-        clearLegacyDamage(stack);
+        clearDamageMirror(stack);
+        PROJECTED_DURABILITY_CACHE.remove(stack);
     }
 
-    private static void clearLegacyDamage(ItemStack stack) {
+    public static boolean syncDamageMirror(ItemStack stack, long currentGameTime) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        Optional<CapturedDinosaurData> captured = get(stack);
+        if (captured.isEmpty()) {
+            return clearDamageMirror(stack);
+        }
+        return syncDamageMirror(stack, captured.get(), currentGameTime);
+    }
+
+    public static boolean syncDamageMirror(ItemStack stack, CapturedDinosaurData data, long currentGameTime) {
+        if (stack == null || stack.isEmpty() || data == null) {
+            return false;
+        }
+        int maxDamage = CapturedDinosaurData.MAX_DURABILITY;
+        int projectedDurability = projectedDurability(data, currentGameTime);
+        int damage = maxDamage - clamp(projectedDurability, 0, maxDamage);
+        boolean changed = false;
+        Integer storedMaxDamage = stack.get(DataComponents.MAX_DAMAGE);
+        if (storedMaxDamage == null || storedMaxDamage != maxDamage) {
+            stack.set(DataComponents.MAX_DAMAGE, maxDamage);
+            changed = true;
+        }
+        Integer storedDamage = stack.get(DataComponents.DAMAGE);
+        if (storedDamage == null || storedDamage != damage) {
+            stack.set(DataComponents.DAMAGE, damage);
+            changed = true;
+        }
+        PROJECTED_DURABILITY_CACHE.remove(stack);
+        return changed;
+    }
+
+    public static void cacheProjectedDurability(ItemStack stack, long currentGameTime) {
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        Optional<CapturedDinosaurData> captured = get(stack);
+        if (captured.isEmpty()) {
+            PROJECTED_DURABILITY_CACHE.remove(stack);
+            return;
+        }
+        cacheProjectedDurability(stack, captured.get(), currentGameTime);
+    }
+
+    public static void cacheProjectedDurabilityIfStale(ItemStack stack, long currentGameTime) {
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        if (!hasCaptureTag(stack)) {
+            PROJECTED_DURABILITY_CACHE.remove(stack);
+            return;
+        }
+        long safeCurrentGameTime = Math.max(0L, currentGameTime);
+        ProjectedDurabilityCacheEntry cached = PROJECTED_DURABILITY_CACHE.get(stack);
+        if (cached != null
+                && safeCurrentGameTime >= cached.gameTime()
+                && safeCurrentGameTime - cached.gameTime() < PROJECTED_DURABILITY_CACHE_REFRESH_INTERVAL_TICKS) {
+            return;
+        }
+        cacheProjectedDurability(stack, safeCurrentGameTime);
+    }
+
+    public static OptionalInt cachedProjectedDurability(ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !hasCaptureTag(stack)) {
+            PROJECTED_DURABILITY_CACHE.remove(stack);
+            return OptionalInt.empty();
+        }
+        ProjectedDurabilityCacheEntry cached = PROJECTED_DURABILITY_CACHE.get(stack);
+        return cached == null ? OptionalInt.empty() : OptionalInt.of(cached.durability());
+    }
+
+    public static OptionalInt mirroredDurability(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return OptionalInt.empty();
+        }
+        Integer maxDamage = stack.get(DataComponents.MAX_DAMAGE);
+        Integer damage = stack.get(DataComponents.DAMAGE);
+        if (maxDamage == null
+                || damage == null
+                || maxDamage != CapturedDinosaurData.MAX_DURABILITY
+                || maxDamage <= 0) {
+            return OptionalInt.empty();
+        }
+        return OptionalInt.of(maxDamage - clamp(damage, 0, maxDamage));
+    }
+
+    private static void cacheProjectedDurability(ItemStack stack, CapturedDinosaurData data, long currentGameTime) {
+        PROJECTED_DURABILITY_CACHE.put(
+                stack,
+                new ProjectedDurabilityCacheEntry(
+                        clamp(projectedDurability(data, currentGameTime), 0, CapturedDinosaurData.MAX_DURABILITY),
+                        Math.max(0L, currentGameTime)
+                )
+        );
+    }
+
+    private static boolean hasCaptureTag(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+        return customData != null && customData.contains(CAPTURE_TAG);
+    }
+
+    private static boolean clearDamageMirror(ItemStack stack) {
+        boolean changed = stack.has(DataComponents.DAMAGE) || stack.has(DataComponents.MAX_DAMAGE);
         stack.remove(DataComponents.DAMAGE);
+        stack.remove(DataComponents.MAX_DAMAGE);
+        return changed;
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private static void removeEmptyCustomData(ItemStack stack) {
@@ -137,5 +258,8 @@ public final class DinosaurCaptureItemData {
 
     private static long safeAdd(long left, long right) {
         return right > 0L && left > Long.MAX_VALUE - right ? Long.MAX_VALUE : left + right;
+    }
+
+    private record ProjectedDurabilityCacheEntry(int durability, long gameTime) {
     }
 }

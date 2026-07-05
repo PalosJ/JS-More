@@ -5,12 +5,14 @@ import com.palos.jsrevise.server.system.capture.CapturedDinosaurData;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureItemData;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureService;
 import java.util.List;
+import java.util.OptionalInt;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.ChatFormatting;
-import net.minecraft.util.Mth;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
@@ -18,6 +20,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 
 public final class DinosaurCaptureCageItem extends BlockItem {
@@ -65,10 +68,10 @@ public final class DinosaurCaptureCageItem extends BlockItem {
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         DinosaurCaptureItemData.get(stack).ifPresentOrElse(
                 data -> {
-                    tooltip.add(Component.translatable("tooltip.jsrevise.dinosaur_capture_cage.occupied", data.displayName())
+                    tooltip.add(Component.translatable("tooltip.jsrevise.dinosaur_capture_box.occupied", data.displayName())
                             .withStyle(ChatFormatting.GRAY));
                 },
-                () -> tooltip.add(Component.translatable("tooltip.jsrevise.dinosaur_capture_cage.empty")
+                () -> tooltip.add(Component.translatable("tooltip.jsrevise.dinosaur_capture_box.empty")
                         .withStyle(ChatFormatting.GRAY))
         );
     }
@@ -79,21 +82,38 @@ public final class DinosaurCaptureCageItem extends BlockItem {
     }
 
     @Override
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
+        if (level.isClientSide) {
+            DinosaurCaptureItemData.cacheProjectedDurabilityIfStale(stack, level.getGameTime());
+        }
+    }
+
+    @Override
     public int getBarWidth(ItemStack stack) {
-        int durability = DinosaurCaptureItemData.get(stack)
-                .map(CapturedDinosaurData::durability)
-                .orElse(0);
+        int durability = durabilityForBar(stack);
         return Math.round(13.0F * Mth.clamp(durability, 0, CapturedDinosaurData.MAX_DURABILITY)
                 / (float) CapturedDinosaurData.MAX_DURABILITY);
     }
 
     @Override
     public int getBarColor(ItemStack stack) {
-        int durability = DinosaurCaptureItemData.get(stack)
-                .map(CapturedDinosaurData::durability)
-                .orElse(0);
+        int durability = durabilityForBar(stack);
         float ratio = Mth.clamp(durability / (float) CapturedDinosaurData.MAX_DURABILITY, 0.0F, 1.0F);
         return Mth.hsvToRgb(ratio / 3.0F, 1.0F, 1.0F);
+    }
+
+    private static int durabilityForBar(ItemStack stack) {
+        OptionalInt cachedDurability = DinosaurCaptureItemData.cachedProjectedDurability(stack);
+        if (cachedDurability.isPresent()) {
+            return cachedDurability.getAsInt();
+        }
+        OptionalInt mirroredDurability = DinosaurCaptureItemData.mirroredDurability(stack);
+        if (mirroredDurability.isPresent()) {
+            return mirroredDurability.getAsInt();
+        }
+        return DinosaurCaptureItemData.get(stack)
+                .map(CapturedDinosaurData::durability)
+                .orElse(0);
     }
 
     public static String formatTicks(long ticks) {

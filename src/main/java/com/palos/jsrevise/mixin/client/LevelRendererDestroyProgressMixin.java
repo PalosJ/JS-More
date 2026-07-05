@@ -1,5 +1,6 @@
 package com.palos.jsrevise.mixin.client;
 
+import com.palos.jsrevise.server.block.BrokenDinosaurCaptureBoxBlock;
 import com.palos.jsrevise.server.block.DinosaurCaptureCageBlock;
 import com.palos.jsrevise.server.registry.JSReviseBlocks;
 import java.util.HashMap;
@@ -47,24 +48,34 @@ public abstract class LevelRendererDestroyProgressMixin {
             return;
         }
         BlockState state = level.getBlockState(pos);
-        if (!state.is(JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get())) {
+        CageMirror mirror = jsrevise$mirrorForState(pos, state);
+        if (mirror == null) {
             return;
         }
 
-        CageMirror mirror = new CageMirror(
-                DinosaurCaptureCageBlock.controllerPos(pos, state),
-                state.getValue(DinosaurCaptureCageBlock.FACING)
-        );
         this.jsrevise$cageDestroyMirrors.put(breakerId, mirror);
         this.jsrevise$withMirrorGuard(() -> {
-            for (DinosaurCaptureCageBlock.PartPlacement placement :
-                    DinosaurCaptureCageBlock.placements(mirror.controllerPos(), mirror.facing())) {
-                if (!placement.pos().equals(pos)) {
-                    ((LevelRenderer) (Object) this).destroyBlockProgress(
-                            jsrevise$fakeBreakerId(breakerId, jsrevise$partIndex(placement)),
-                            placement.pos(),
-                            progress
-                    );
+            if (mirror.broken()) {
+                for (BrokenDinosaurCaptureBoxBlock.PartPlacement placement :
+                        BrokenDinosaurCaptureBoxBlock.placements(mirror.controllerPos(), mirror.facing())) {
+                    if (!placement.pos().equals(pos)) {
+                        ((LevelRenderer) (Object) this).destroyBlockProgress(
+                                jsrevise$fakeBreakerId(breakerId, jsrevise$partIndex(placement)),
+                                placement.pos(),
+                                progress
+                        );
+                    }
+                }
+            } else {
+                for (DinosaurCaptureCageBlock.PartPlacement placement :
+                        DinosaurCaptureCageBlock.placements(mirror.controllerPos(), mirror.facing())) {
+                    if (!placement.pos().equals(pos)) {
+                        ((LevelRenderer) (Object) this).destroyBlockProgress(
+                                jsrevise$fakeBreakerId(breakerId, jsrevise$partIndex(placement)),
+                                placement.pos(),
+                                progress
+                        );
+                    }
                 }
             }
         });
@@ -83,13 +94,24 @@ public abstract class LevelRendererDestroyProgressMixin {
     @Unique
     private void jsrevise$clearMirrorProgress(int breakerId, CageMirror mirror) {
         this.jsrevise$withMirrorGuard(() -> {
-            for (DinosaurCaptureCageBlock.PartPlacement placement :
-                    DinosaurCaptureCageBlock.placements(mirror.controllerPos(), mirror.facing())) {
-                ((LevelRenderer) (Object) this).destroyBlockProgress(
-                        jsrevise$fakeBreakerId(breakerId, jsrevise$partIndex(placement)),
-                        placement.pos(),
-                        -1
-                );
+            if (mirror.broken()) {
+                for (BrokenDinosaurCaptureBoxBlock.PartPlacement placement :
+                        BrokenDinosaurCaptureBoxBlock.placements(mirror.controllerPos(), mirror.facing())) {
+                    ((LevelRenderer) (Object) this).destroyBlockProgress(
+                            jsrevise$fakeBreakerId(breakerId, jsrevise$partIndex(placement)),
+                            placement.pos(),
+                            -1
+                    );
+                }
+            } else {
+                for (DinosaurCaptureCageBlock.PartPlacement placement :
+                        DinosaurCaptureCageBlock.placements(mirror.controllerPos(), mirror.facing())) {
+                    ((LevelRenderer) (Object) this).destroyBlockProgress(
+                            jsrevise$fakeBreakerId(breakerId, jsrevise$partIndex(placement)),
+                            placement.pos(),
+                            -1
+                    );
+                }
             }
         });
     }
@@ -110,6 +132,25 @@ public abstract class LevelRendererDestroyProgressMixin {
     }
 
     @Unique
+    private static CageMirror jsrevise$mirrorForState(BlockPos pos, BlockState state) {
+        if (state.is(JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get())) {
+            return new CageMirror(
+                    DinosaurCaptureCageBlock.controllerPos(pos, state),
+                    state.getValue(DinosaurCaptureCageBlock.FACING),
+                    false
+            );
+        }
+        if (state.is(JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get())) {
+            return new CageMirror(
+                    BrokenDinosaurCaptureBoxBlock.controllerPos(pos, state),
+                    state.getValue(BrokenDinosaurCaptureBoxBlock.FACING),
+                    true
+            );
+        }
+        return null;
+    }
+
+    @Unique
     private static int jsrevise$partIndex(DinosaurCaptureCageBlock.PartPlacement placement) {
         return (placement.offsetY() * DinosaurCaptureCageBlock.LENGTH * DinosaurCaptureCageBlock.WIDTH)
                 + (placement.offsetZ() * DinosaurCaptureCageBlock.WIDTH)
@@ -117,6 +158,13 @@ public abstract class LevelRendererDestroyProgressMixin {
     }
 
     @Unique
-    private record CageMirror(BlockPos controllerPos, Direction facing) {
+    private static int jsrevise$partIndex(BrokenDinosaurCaptureBoxBlock.PartPlacement placement) {
+        return (placement.offsetY() * BrokenDinosaurCaptureBoxBlock.LENGTH * BrokenDinosaurCaptureBoxBlock.WIDTH)
+                + (placement.offsetZ() * BrokenDinosaurCaptureBoxBlock.WIDTH)
+                + placement.offsetX();
+    }
+
+    @Unique
+    private record CageMirror(BlockPos controllerPos, Direction facing, boolean broken) {
     }
 }

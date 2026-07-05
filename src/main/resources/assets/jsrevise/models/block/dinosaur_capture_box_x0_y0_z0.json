@@ -1,7 +1,7 @@
 {
   "ambientocclusion": false,
   "textures": {
-    "particle": "jsrevise:block/dinosaur_capture_cage_side_badge"
+    "particle": "jsrevise:block/dinosaur_capture_box_side_badge"
   },
   "elements": []
 }

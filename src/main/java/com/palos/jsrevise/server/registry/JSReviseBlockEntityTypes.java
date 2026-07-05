@@ -1,6 +1,7 @@
 package com.palos.jsrevise.server.registry;
 
 import com.palos.jsrevise.JSRevise;
+import com.palos.jsrevise.server.block.entity.BrokenDinosaurCaptureBoxBlockEntity;
 import com.palos.jsrevise.server.block.entity.DinosaurCaptureCageBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -14,11 +15,22 @@ public final class JSReviseBlockEntityTypes {
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DinosaurCaptureCageBlockEntity>>
             DINOSAUR_CAPTURE_CAGE = BLOCK_ENTITY_TYPES.register(
-            "dinosaur_capture_cage",
+            "dinosaur_capture_box",
             () -> BlockEntityType.Builder
                     .of(DinosaurCaptureCageBlockEntity::new, JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get())
                     .build(null)
     );
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BrokenDinosaurCaptureBoxBlockEntity>>
+            BROKEN_DINOSAUR_CAPTURE_BOX = BLOCK_ENTITY_TYPES.register(
+            "broken_dinosaur_capture_box",
+            () -> BlockEntityType.Builder
+                    .of(BrokenDinosaurCaptureBoxBlockEntity::new, JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get())
+                    .build(null)
+    );
+
+    static {
+        BLOCK_ENTITY_TYPES.addAlias(JSRevise.id("dinosaur_capture_cage"), JSRevise.id("dinosaur_capture_box"));
+    }
 
     private JSReviseBlockEntityTypes() {
     }

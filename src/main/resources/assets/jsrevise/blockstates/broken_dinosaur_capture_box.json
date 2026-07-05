@@ -1,259 +1,259 @@
 {
   "variants": {
     "facing=north,offset_x=0,offset_y=0,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=1,offset_y=0,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=0,offset_y=0,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=1,offset_y=0,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=0,offset_y=0,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=1,offset_y=0,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=0,offset_y=0,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=1,offset_y=0,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=0,offset_y=1,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=1,offset_y=1,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=0,offset_y=1,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=1,offset_y=1,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=0,offset_y=1,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=1,offset_y=1,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=0,offset_y=1,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=north,offset_x=1,offset_y=1,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 0
     },
     "facing=east,offset_x=0,offset_y=0,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=1,offset_y=0,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=0,offset_y=0,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=1,offset_y=0,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=0,offset_y=0,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=1,offset_y=0,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=0,offset_y=0,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=1,offset_y=0,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=0,offset_y=1,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=1,offset_y=1,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=0,offset_y=1,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=1,offset_y=1,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=0,offset_y=1,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=1,offset_y=1,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=0,offset_y=1,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=east,offset_x=1,offset_y=1,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 90
     },
     "facing=south,offset_x=0,offset_y=0,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=1,offset_y=0,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=0,offset_y=0,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=1,offset_y=0,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=0,offset_y=0,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=1,offset_y=0,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=0,offset_y=0,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=1,offset_y=0,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=0,offset_y=1,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=1,offset_y=1,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=0,offset_y=1,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=1,offset_y=1,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=0,offset_y=1,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=1,offset_y=1,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=0,offset_y=1,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=south,offset_x=1,offset_y=1,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 180
     },
     "facing=west,offset_x=0,offset_y=0,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=1,offset_y=0,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=0,offset_y=0,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=1,offset_y=0,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=0,offset_y=0,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=1,offset_y=0,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=0,offset_y=0,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y0_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=1,offset_y=0,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y0_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=0,offset_y=1,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=1,offset_y=1,offset_z=0": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z0",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=0,offset_y=1,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=1,offset_y=1,offset_z=1": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z1",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=0,offset_y=1,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=1,offset_y=1,offset_z=2": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z2",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=0,offset_y=1,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x0_y1_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     },
     "facing=west,offset_x=1,offset_y=1,offset_z=3": {
-      "model": "jsrevise:block/dinosaur_capture_cage_x1_y1_z3",
+      "model": "jsrevise:block/broken_dinosaur_capture_box",
       "y": 270
     }
   }

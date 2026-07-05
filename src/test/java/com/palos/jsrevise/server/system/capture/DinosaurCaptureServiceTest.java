@@ -4,12 +4,25 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.palos.jsrevise.server.block.BrokenDinosaurCaptureBoxBlock;
+import com.palos.jsrevise.server.block.DinosaurCaptureCageBlock;
+import com.palos.jsrevise.server.registry.JSReviseBlocks;
 import com.palos.jsrevise.server.registry.JSReviseItems;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
 class DinosaurCaptureServiceTest {
@@ -18,8 +31,26 @@ class DinosaurCaptureServiceTest {
     @Test
     void passiveStackSettlementIgnoresElapsedTimeOnlyChanges() {
         UUID uuid = UUID.randomUUID();
-        CapturedDinosaurData current = data(uuid, 1000, 10L, 10L, 10L, 200L, 20.0F, 50.0D);
-        CapturedDinosaurData settled = data(uuid, 1000, 10L, 30L, 30L, 180L, 20.0F, 50.0D);
+        CapturedDinosaurData current = data(
+                uuid,
+                CapturedDinosaurData.MAX_DURABILITY,
+                10L,
+                10L,
+                10L,
+                200L,
+                20.0F,
+                50.0D
+        );
+        CapturedDinosaurData settled = data(
+                uuid,
+                CapturedDinosaurData.MAX_DURABILITY,
+                10L,
+                30L,
+                30L,
+                180L,
+                20.0F,
+                50.0D
+        );
 
         assertFalse(DinosaurCaptureService.shouldPersistPassiveStackSettlement(current, settled));
     }
@@ -44,8 +75,26 @@ class DinosaurCaptureServiceTest {
     @Test
     void passiveStackSettlementIgnoresTemporaryEntityNbtChanges() {
         UUID uuid = UUID.randomUUID();
-        CapturedDinosaurData current = data(uuid, 1000, 10L, 10L, 10L, 200L, 20.0F, 50.0D);
-        CapturedDinosaurData settled = data(uuid, 1000, 10L, 30L, 30L, 180L, 19.0F, 50.0D);
+        CapturedDinosaurData current = data(
+                uuid,
+                CapturedDinosaurData.MAX_DURABILITY,
+                10L,
+                10L,
+                10L,
+                200L,
+                20.0F,
+                50.0D
+        );
+        CapturedDinosaurData settled = data(
+                uuid,
+                CapturedDinosaurData.MAX_DURABILITY,
+                10L,
+                30L,
+                30L,
+                180L,
+                19.0F,
+                50.0D
+        );
 
         assertFalse(DinosaurCaptureService.shouldPersistPassiveStackSettlement(current, settled));
     }
@@ -53,8 +102,26 @@ class DinosaurCaptureServiceTest {
     @Test
     void passiveStackSettlementIgnoresTemporaryVitalsChanges() {
         UUID uuid = UUID.randomUUID();
-        CapturedDinosaurData current = data(uuid, 1000, 10L, 10L, 10L, 200L, 20.0F, 50.0D);
-        CapturedDinosaurData settled = data(uuid, 1000, 10L, 30L, 30L, 180L, 20.0F, 49.0D);
+        CapturedDinosaurData current = data(
+                uuid,
+                CapturedDinosaurData.MAX_DURABILITY,
+                10L,
+                10L,
+                10L,
+                200L,
+                20.0F,
+                50.0D
+        );
+        CapturedDinosaurData settled = data(
+                uuid,
+                CapturedDinosaurData.MAX_DURABILITY,
+                10L,
+                30L,
+                30L,
+                180L,
+                20.0F,
+                49.0D
+        );
 
         assertFalse(DinosaurCaptureService.shouldPersistPassiveStackSettlement(current, settled));
     }
@@ -62,10 +129,55 @@ class DinosaurCaptureServiceTest {
     @Test
     void passiveStackSettlementIgnoresPositiveDurabilityDecay() {
         UUID uuid = UUID.randomUUID();
-        CapturedDinosaurData current = data(uuid, 1000, 10L, 10L, 10L, 0L, 20.0F, 50.0D);
-        CapturedDinosaurData settled = data(uuid, 990, 10L, 210L, 210L, 0L, 18.0F, 45.0D);
+        CapturedDinosaurData current = data(
+                uuid,
+                CapturedDinosaurData.MAX_DURABILITY,
+                10L,
+                10L,
+                10L,
+                0L,
+                20.0F,
+                50.0D
+        );
+        CapturedDinosaurData settled = data(
+                uuid,
+                CapturedDinosaurData.MAX_DURABILITY - 10,
+                10L,
+                210L,
+                210L,
+                0L,
+                18.0F,
+                45.0D
+        );
 
         assertFalse(DinosaurCaptureService.shouldPersistPassiveStackSettlement(current, settled));
+    }
+
+    @Test
+    void passiveStackSettlementApplicationDoesNotSyncDamageMirrorForPositiveDecay() {
+        UUID uuid = UUID.randomUUID();
+        CapturedDinosaurData current = data(uuid, CapturedDinosaurData.MAX_DURABILITY, 10L, 10L, 10L, 0L, 20.0F, 50.0D);
+        CapturedDinosaurData settled = data(
+                uuid,
+                CapturedDinosaurData.MAX_DURABILITY - 10,
+                10L,
+                210L,
+                210L,
+                0L,
+                18.0F,
+                45.0D
+        );
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        DinosaurCaptureItemData.set(stack, current);
+        CompoundTag customBefore = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+
+        DinosaurCaptureService.StackSettlementResult result =
+                DinosaurCaptureService.applyPassiveStackSettlement(stack, current, settled);
+
+        assertEquals(DinosaurCaptureService.StackSettlementResult.UNCHANGED, result);
+        assertEquals(Integer.valueOf(0), stack.get(DataComponents.DAMAGE));
+        assertEquals(Integer.valueOf(CapturedDinosaurData.MAX_DURABILITY), stack.get(DataComponents.MAX_DAMAGE));
+        assertEquals(customBefore, stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag());
     }
 
     @Test
@@ -78,16 +190,24 @@ class DinosaurCaptureServiceTest {
     }
 
     @Test
-    void successfulAutomaticReleaseClearsStackDataAndConsumesCarrier() {
+    void successfulAutomaticReleaseReturnsBrokenCarrierReplacement() {
         ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
         DinosaurCaptureItemData.set(stack, data(UUID.randomUUID(), 0, 10L, 30L, 10L, 0L, 20.0F, 50.0D));
 
         DinosaurCaptureService.StackSettlementResult result = DinosaurCaptureService.releasedStackSettlement(stack);
+        ItemStack replacement = result.carrierReplacement();
 
-        assertEquals(DinosaurCaptureService.StackSettlementResult.RELEASED, result);
-        assertTrue(result.consumesCarrier());
+        assertEquals(DinosaurCaptureService.StackSettlementResult.BROKEN, result);
+        assertFalse(result.consumesCarrier());
+        assertTrue(result.replacesCarrierWithBroken());
+        assertTrue(replacement.is(JSReviseItems.BROKEN_DINOSAUR_CAPTURE_BOX.get()));
+        assertEquals(1, replacement.getCount());
         assertFalse(DinosaurCaptureItemData.hasCapturedDinosaur(stack));
-        assertFalse(stack.isEmpty());
+        assertFalse(DinosaurCaptureItemData.hasCapturedDinosaur(replacement));
+        assertFalse(stack.has(DataComponents.DAMAGE));
+        assertFalse(stack.has(DataComponents.MAX_DAMAGE));
+        assertFalse(replacement.has(DataComponents.DAMAGE));
+        assertFalse(replacement.has(DataComponents.MAX_DAMAGE));
     }
 
     @Test
@@ -108,11 +228,11 @@ class DinosaurCaptureServiceTest {
     }
 
     @Test
-    void manualReleaseCleanupKeepsEmptyCageStack() {
+    void manualReleaseCleanupKeepsSurvivalEmptyCageStack() {
         ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
         DinosaurCaptureItemData.set(stack, data(UUID.randomUUID(), 0, 10L, 30L, 10L, 0L, 20.0F, 50.0D));
 
-        DinosaurCaptureItemData.clear(stack);
+        DinosaurCaptureService.clearManuallyReleasedStack(stack, false);
 
         assertFalse(DinosaurCaptureItemData.hasCapturedDinosaur(stack));
         assertFalse(stack.isEmpty());
@@ -120,17 +240,164 @@ class DinosaurCaptureServiceTest {
     }
 
     @Test
+    void manualReleaseCleanupConsumesCreativeCarrier() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        DinosaurCaptureItemData.set(stack, data(UUID.randomUUID(), 0, 10L, 30L, 10L, 0L, 20.0F, 50.0D));
+
+        DinosaurCaptureService.clearManuallyReleasedStack(stack, true);
+
+        assertTrue(stack.isEmpty());
+        assertFalse(DinosaurCaptureItemData.hasCapturedDinosaur(stack));
+        assertFalse(stack.has(DataComponents.DAMAGE));
+        assertFalse(stack.has(DataComponents.MAX_DAMAGE));
+    }
+
+    @Test
+    void creativePlacementConsumesCapturedCarrierToPreserveUniqueness() {
+        assertTrue(DinosaurCaptureService.shouldConsumePlacedStack(true, true));
+    }
+
+    @Test
+    void creativePlacementKeepsEmptyCarrierAvailable() {
+        assertFalse(DinosaurCaptureService.shouldConsumePlacedStack(true, false));
+    }
+
+    @Test
+    void survivalPlacementConsumesCarrier() {
+        assertTrue(DinosaurCaptureService.shouldConsumePlacedStack(false, false));
+        assertTrue(DinosaurCaptureService.shouldConsumePlacedStack(false, true));
+    }
+
+    @Test
+    void successfulCapturedPlacementConsumesWholeMalformedCarrierStack() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get(), 2);
+        DinosaurCaptureItemData.set(stack, data(UUID.randomUUID(), 80, 10L, 10L, 10L, 0L, 20.0F, 50.0D));
+
+        DinosaurCaptureService.consumeSuccessfullyPlacedStack(stack, false, true);
+
+        assertTrue(stack.isEmpty());
+        assertFalse(DinosaurCaptureItemData.hasCapturedDinosaur(stack));
+        assertFalse(stack.has(DataComponents.DAMAGE));
+        assertFalse(stack.has(DataComponents.MAX_DAMAGE));
+    }
+
+    @Test
+    void successfulCapturedCreativePlacementConsumesWholeMalformedCarrierStack() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get(), 2);
+        DinosaurCaptureItemData.set(stack, data(UUID.randomUUID(), 80, 10L, 10L, 10L, 0L, 20.0F, 50.0D));
+
+        DinosaurCaptureService.consumeSuccessfullyPlacedStack(stack, true, true);
+
+        assertTrue(stack.isEmpty());
+        assertFalse(DinosaurCaptureItemData.hasCapturedDinosaur(stack));
+        assertFalse(stack.has(DataComponents.DAMAGE));
+        assertFalse(stack.has(DataComponents.MAX_DAMAGE));
+    }
+
+    @Test
+    void successfulEmptyCreativePlacementKeepsCarrierStack() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get(), 2);
+
+        DinosaurCaptureService.consumeSuccessfullyPlacedStack(stack, true, false);
+
+        assertEquals(2, stack.getCount());
+        assertFalse(DinosaurCaptureItemData.hasCapturedDinosaur(stack));
+    }
+
+    @Test
+    void automaticReleasePositionPrefersSafePosition() {
+        Vec3 safePosition = new Vec3(1.5D, 64.0D, 2.5D);
+        Vec3 origin = new Vec3(20.2D, -80.0D, -7.8D);
+
+        assertEquals(
+                safePosition,
+                DinosaurCaptureService.automaticReleasePosition(Optional.of(safePosition), origin)
+        );
+    }
+
+    @Test
+    void automaticReleasePositionFallsBackToOriginBlockCenterWhenNoSafePositionExists() {
+        Vec3 origin = new Vec3(20.2D, -80.0D, -7.8D);
+
+        assertEquals(
+                Vec3.atBottomCenterOf(BlockPos.containing(origin)),
+                DinosaurCaptureService.automaticReleasePosition(Optional.empty(), origin)
+        );
+    }
+
+    @Test
+    void placedReleaseSuccessBuildsBrokenBoxReplacementForSameFootprintAndFacing() {
+        BlockPos controller = new BlockPos(4, 70, -3);
+        for (Direction facing : Direction.Plane.HORIZONTAL) {
+            List<DinosaurCaptureService.BrokenCagePartReplacement> replacements =
+                    DinosaurCaptureService.brokenCageReplacementPartsForRelease(true, controller, facing);
+
+            assertEquals(BrokenDinosaurCaptureBoxBlock.PART_COUNT, replacements.size());
+            assertEquals(cagePositions(controller, facing), replacementPositions(replacements));
+            for (DinosaurCaptureService.BrokenCagePartReplacement replacement : replacements) {
+                BlockState state = replacement.state();
+                assertTrue(state.is(JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get()));
+                assertEquals(facing, state.getValue(BrokenDinosaurCaptureBoxBlock.FACING));
+                assertEquals(controller, BrokenDinosaurCaptureBoxBlock.controllerPos(replacement.pos(), state));
+            }
+        }
+    }
+
+    @Test
+    void placedReleaseFailureDoesNotBuildBrokenBoxReplacement() {
+        assertTrue(DinosaurCaptureService.brokenCageReplacementPartsForRelease(
+                false,
+                new BlockPos(4, 70, -3),
+                Direction.NORTH
+        ).isEmpty());
+    }
+
+    @Test
+    void placedReleaseReplacementFailureFallsBackToBrokenBoxItem() {
+        DinosaurCaptureService.PlacedCageResidueResult result =
+                DinosaurCaptureService.placedCageResidueResult(false);
+        ItemStack fallback = result.fallbackItem();
+
+        assertEquals(DinosaurCaptureService.PlacedCageResidueResult.FALLBACK_BROKEN_BOX_ITEM, result);
+        assertTrue(result.dropsFallbackItem());
+        assertTrue(fallback.is(JSReviseItems.BROKEN_DINOSAUR_CAPTURE_BOX.get()));
+        assertEquals(1, fallback.getCount());
+        assertFalse(DinosaurCaptureItemData.hasCapturedDinosaur(fallback));
+    }
+
+    @Test
     void projectedDurabilityShowsPositiveDecayWithoutPersistence() {
         UUID uuid = UUID.randomUUID();
-        CapturedDinosaurData current = data(uuid, 1000, 10L, 10L, 10L, 0L, 20.0F, 50.0D);
+        CapturedDinosaurData current = data(
+                uuid,
+                CapturedDinosaurData.MAX_DURABILITY,
+                10L,
+                10L,
+                10L,
+                0L,
+                20.0F,
+                50.0D
+        );
 
-        assertEquals(990, DinosaurCaptureItemData.projectedDurability(current, 210L));
+        assertEquals(
+                CapturedDinosaurData.MAX_DURABILITY - 10,
+                DinosaurCaptureItemData.projectedDurability(current, 210L)
+        );
     }
 
     @Test
     void durabilitySettlementStartsAfterUnpersistedActiveAnestheticEnds() {
         UUID uuid = UUID.randomUUID();
-        CapturedDinosaurData current = data(uuid, 1000, 1_000L, 1_000L, 1_000L, 600L, 20.0F, 50.0D);
+        CapturedDinosaurData current = data(
+                uuid,
+                CapturedDinosaurData.MAX_DURABILITY,
+                1_000L,
+                1_000L,
+                1_000L,
+                600L,
+                20.0F,
+                50.0D
+        );
         long currentGameTime = 1_680L;
         long fallbackElapsedTicks = currentGameTime - current.lastSettledGameTime();
 
@@ -141,7 +408,7 @@ class DinosaurCaptureServiceTest {
         );
 
         assertEquals(80L, durabilityElapsedTicks);
-        assertEquals(996L, current.durability() - durabilityElapsedTicks / 20L);
+        assertEquals(CapturedDinosaurData.MAX_DURABILITY - 4L, current.durability() - durabilityElapsedTicks / 20L);
     }
 
     @Test
@@ -149,7 +416,7 @@ class DinosaurCaptureServiceTest {
         UUID uuid = UUID.randomUUID();
         CapturedDinosaurData current = data(
                 uuid,
-                1000,
+                CapturedDinosaurData.MAX_DURABILITY,
                 2_000L,
                 2_000L,
                 2_000L,
@@ -167,7 +434,7 @@ class DinosaurCaptureServiceTest {
         );
 
         assertEquals(60L, durabilityElapsedTicks);
-        assertEquals(997L, current.durability() - durabilityElapsedTicks / 20L);
+        assertEquals(CapturedDinosaurData.MAX_DURABILITY - 3L, current.durability() - durabilityElapsedTicks / 20L);
     }
 
     private static CapturedDinosaurData data(
@@ -246,6 +513,20 @@ class DinosaurCaptureServiceTest {
         tag.putLong("DelayTicks", delayTicks);
         tag.putInt("DurationTicks", durationTicks);
         return tag;
+    }
+
+    private static Set<BlockPos> cagePositions(BlockPos controller, Direction facing) {
+        return DinosaurCaptureCageBlock.placements(controller, facing).stream()
+                .map(DinosaurCaptureCageBlock.PartPlacement::pos)
+                .collect(Collectors.toSet());
+    }
+
+    private static Set<BlockPos> replacementPositions(
+            List<DinosaurCaptureService.BrokenCagePartReplacement> replacements
+    ) {
+        return replacements.stream()
+                .map(DinosaurCaptureService.BrokenCagePartReplacement::pos)
+                .collect(Collectors.toSet());
     }
 
     private static CompoundTag vitalsNbt(double hungerPercent) {

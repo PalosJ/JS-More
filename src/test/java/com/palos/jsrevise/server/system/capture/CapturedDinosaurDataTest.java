@@ -101,7 +101,7 @@ class CapturedDinosaurDataTest {
                 10L,
                 20L,
                 30L,
-                1000,
+                CapturedDinosaurData.MAX_DURABILITY,
                 oversized,
                 new CompoundTag(),
                 CapturedDinosaurVitals.deserializeNBT(new CompoundTag())
@@ -120,23 +120,24 @@ class CapturedDinosaurDataTest {
                 10L,
                 20L,
                 30L,
-                900,
+                CapturedDinosaurData.MAX_DURABILITY,
                 previousNbt,
                 new CompoundTag(),
                 CapturedDinosaurVitals.deserializeNBT(new CompoundTag())
         );
         CompoundTag oversizedRuntimeNbt = new CompoundTag();
         oversizedRuntimeNbt.putString("Oversized", "x".repeat(1024 * 1024 + 256));
+        int updatedDurability = CapturedDinosaurData.MAX_DURABILITY * 3 / 4;
 
         CapturedDinosaurData updated = previous.withRuntimeState(
                 40L,
-                800,
+                updatedDurability,
                 oversizedRuntimeNbt,
                 new CompoundTag(),
                 CapturedDinosaurVitals.deserializeNBT(new CompoundTag())
         );
 
-        assertEquals(800, updated.durability());
+        assertEquals(updatedDurability, updated.durability());
         assertEquals(40L, updated.lastSettledGameTime());
         assertEquals(12.0F, updated.entityNbt().getFloat("Health"));
         assertEquals("minecraft:pig", updated.entityNbt().getString("id"));

@@ -1,6 +1,8 @@
 package com.palos.jsrevise.server.system.capture;
 
+import com.palos.jsrevise.server.block.BrokenDinosaurCaptureBoxBlock;
 import com.palos.jsrevise.server.block.DinosaurCaptureCageBlock;
+import com.palos.jsrevise.server.block.entity.BrokenDinosaurCaptureBoxBlockEntity;
 import com.palos.jsrevise.server.block.entity.DinosaurCaptureCageBlockEntity;
 import com.palos.jsrevise.server.registry.JSReviseBlocks;
 import com.palos.jsrevise.server.registry.JSReviseItems;
@@ -15,11 +17,13 @@ import java.util.UUID;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import jp.jurassicsaga.server.animal.entity.obj.diet.Diet;
 import jp.jurassicsaga.server.animal.entity.obj.modules.obj.JSMetabolismModule;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.Containers;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
@@ -37,23 +41,40 @@ public final class DinosaurCaptureService {
     private static final int SETTLEMENT_INTERVAL_TICKS = 20;
     private static final int HUNGER_THIRST_SETTLEMENT_SECONDS = 10;
     private static final int WATER_BUCKET_THIRST_POINTS = 40;
+    private static final int STACK_RELEASE_BASE_RADIUS = 4;
+    private static final int STACK_RELEASE_MAX_RADIUS = 12;
+    private static final int STACK_RELEASE_VERTICAL_DOWN = 2;
+    private static final int STACK_RELEASE_VERTICAL_UP = 6;
 
     private DinosaurCaptureService() {
     }
 
     public enum StackSettlementResult {
-        UNCHANGED(false),
-        PERSISTED(false),
-        RELEASED(true);
+        UNCHANGED(false, false),
+        PERSISTED(false, false),
+        RELEASED(true, false),
+        BROKEN(false, true);
 
         private final boolean consumesCarrier;
+        private final boolean replacesCarrierWithBroken;
 
-        StackSettlementResult(boolean consumesCarrier) {
+        StackSettlementResult(boolean consumesCarrier, boolean replacesCarrierWithBroken) {
             this.consumesCarrier = consumesCarrier;
+            this.replacesCarrierWithBroken = replacesCarrierWithBroken;
         }
 
         public boolean consumesCarrier() {
             return this.consumesCarrier;
+        }
+
+        public boolean replacesCarrierWithBroken() {
+            return this.replacesCarrierWithBroken;
+        }
+
+        public ItemStack carrierReplacement() {
+            return this.replacesCarrierWithBroken
+                    ? new ItemStack(JSReviseItems.BROKEN_DINOSAUR_CAPTURE_BOX.get())
+                    : ItemStack.EMPTY;
         }
     }
 
@@ -118,7 +139,7 @@ public final class DinosaurCaptureService {
             DinosaurCaptureItemData.set(stack, settled);
             return InteractionResult.FAIL;
         }
-        DinosaurCaptureItemData.clear(stack);
+        clearManuallyReleasedStack(stack, player.getAbilities().instabuild);
         return InteractionResult.SUCCESS;
     }
 
@@ -141,8 +162,9 @@ public final class DinosaurCaptureService {
             return InteractionResult.FAIL;
         }
         Player player = context.getPlayer();
-        if (!level.isClientSide && (player == null || !player.getAbilities().instabuild)) {
-            stack.shrink(1);
+        boolean creativeMode = player != null && player.getAbilities().instabuild;
+        if (!level.isClientSide) {
+            consumeSuccessfullyPlacedStack(stack, creativeMode, captured.isPresent());
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
@@ -161,12 +183,15 @@ public final class DinosaurCaptureService {
         Direction facing = state.getBlock() instanceof DinosaurCaptureCageBlock && state.hasProperty(DinosaurCaptureCageBlock.FACING)
                 ? state.getValue(DinosaurCaptureCageBlock.FACING)
                 : Direction.NORTH;
-        Optional<Vec3> releaseTarget = findReleasePositionNearCage(level, settled, cage.getBlockPos(), facing, facing.toYRot());
-        if (releaseTarget.isEmpty() || !releaseDinosaur(level, settled, releaseTarget.get(), facing.toYRot())) {
+        Vec3 releaseTarget = automaticReleasePosition(
+                findReleasePositionNearCage(level, settled, cage.getBlockPos(), facing, facing.toYRot()),
+                Vec3.atBottomCenterOf(cage.getBlockPos())
+        );
+        if (!releaseDinosaur(level, settled, releaseTarget, facing.toYRot(), false)) {
             return false;
         }
         cage.setCapturedDinosaur(null);
-        DinosaurCaptureCageBlock.removeWholeCageWithoutDrops(level, cage.getBlockPos(), facing);
+        replaceCageWithBrokenBox(level, cage.getBlockPos(), facing);
         return true;
     }
 
@@ -287,22 +312,43 @@ public final class DinosaurCaptureService {
         CapturedDinosaurData current = captured.get();
         CapturedDinosaurData settled = settleCapturedData(level, current);
         if (settled.durability() <= 0) {
-            Optional<Vec3> releaseTarget = findReleasePositionNear(level, settled, releaseOrigin, yRot);
-            if (releaseTarget.isPresent() && releaseDinosaur(level, settled, releaseTarget.get(), yRot)) {
+            Vec3 releaseTarget = automaticReleasePosition(
+                    findReleasePositionNear(level, settled, releaseOrigin, yRot),
+                    releaseOrigin
+            );
+            if (releaseDinosaur(level, settled, releaseTarget, yRot, false)) {
                 return releasedStackSettlement(stack);
             }
         }
-        Optional<CapturedDinosaurData> persisted = passiveStackSettlementForPersistence(current, settled);
-        if (persisted.isPresent()) {
-            DinosaurCaptureItemData.set(stack, persisted.get());
-            return StackSettlementResult.PERSISTED;
-        }
-        return StackSettlementResult.UNCHANGED;
+        return applyPassiveStackSettlement(stack, current, settled);
     }
 
     static StackSettlementResult releasedStackSettlement(ItemStack stack) {
         DinosaurCaptureItemData.clear(stack);
-        return StackSettlementResult.RELEASED;
+        return StackSettlementResult.BROKEN;
+    }
+
+    static void clearManuallyReleasedStack(ItemStack stack, boolean consumeCarrier) {
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        DinosaurCaptureItemData.clear(stack);
+        if (consumeCarrier) {
+            stack.shrink(1);
+        }
+    }
+
+    static StackSettlementResult applyPassiveStackSettlement(
+            ItemStack stack,
+            CapturedDinosaurData current,
+            CapturedDinosaurData settled
+    ) {
+        Optional<CapturedDinosaurData> persisted = passiveStackSettlementForPersistence(current, settled);
+        if (persisted.isEmpty()) {
+            return StackSettlementResult.UNCHANGED;
+        }
+        DinosaurCaptureItemData.set(stack, persisted.get());
+        return StackSettlementResult.PERSISTED;
     }
 
     static boolean shouldPersistPassiveStackSettlement(CapturedDinosaurData current, CapturedDinosaurData settled) {
@@ -447,6 +493,69 @@ public final class DinosaurCaptureService {
         }
     }
 
+    private static PlacedCageResidueResult replaceCageWithBrokenBox(Level level, BlockPos controllerPos, Direction facing) {
+        DinosaurCaptureCageBlock.removeWholeCageWithoutDrops(level, controllerPos, facing);
+        PlacedCageResidueResult result = placedCageResidueResult(placeBrokenCageBlocks(level, controllerPos, facing));
+        ItemStack fallback = result.fallbackItem();
+        if (!fallback.isEmpty()) {
+            Containers.dropItemStack(
+                    level,
+                    controllerPos.getX() + 0.5D,
+                    controllerPos.getY() + 0.5D,
+                    controllerPos.getZ() + 0.5D,
+                    fallback
+            );
+        }
+        return result;
+    }
+
+    private static boolean placeBrokenCageBlocks(Level level, BlockPos controllerPos, Direction facing) {
+        List<BlockPos> placed = new ArrayList<>(BrokenDinosaurCaptureBoxBlock.PART_COUNT);
+        for (BrokenCagePartReplacement replacement : brokenCageReplacementPartsForRelease(true, controllerPos, facing)) {
+            if (!level.setBlock(replacement.pos(), replacement.state(), Block.UPDATE_ALL)) {
+                rollbackBrokenParts(level, placed);
+                return false;
+            }
+            placed.add(replacement.pos());
+        }
+
+        BlockEntity blockEntity = level.getBlockEntity(controllerPos);
+        if (blockEntity instanceof BrokenDinosaurCaptureBoxBlockEntity) {
+            return true;
+        }
+        rollbackBrokenParts(level, placed);
+        return false;
+    }
+
+    private static void rollbackBrokenParts(Level level, List<BlockPos> placed) {
+        for (BlockPos pos : placed) {
+            if (level.getBlockState(pos).is(JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get())) {
+                level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
+            }
+        }
+    }
+
+    static List<BrokenCagePartReplacement> brokenCageReplacementPartsForRelease(
+            boolean released,
+            BlockPos controllerPos,
+            Direction facing
+    ) {
+        if (!released) {
+            return List.of();
+        }
+        Direction safeFacing = facing == null ? Direction.NORTH : facing;
+        BrokenDinosaurCaptureBoxBlock block = JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get();
+        List<BrokenCagePartReplacement> replacements = new ArrayList<>(BrokenDinosaurCaptureBoxBlock.PART_COUNT);
+        for (BrokenDinosaurCaptureBoxBlock.PartPlacement placement :
+                BrokenDinosaurCaptureBoxBlock.placements(controllerPos, safeFacing)) {
+            replacements.add(new BrokenCagePartReplacement(
+                    placement.pos(),
+                    block.partState(safeFacing, placement.offsetX(), placement.offsetY(), placement.offsetZ())
+            ));
+        }
+        return replacements;
+    }
+
     private static Optional<Vec3> findReleasePosition(
             ServerLevel level,
             CapturedDinosaurData data,
@@ -460,13 +569,20 @@ public final class DinosaurCaptureService {
             return Optional.empty();
         }
         for (int radius = 0; radius <= 3; radius++) {
+            ReleaseCandidate bestCandidate = null;
             for (BlockPos candidate : BlockPos.betweenClosed(base.offset(-radius, -1, -radius), base.offset(radius, 2, radius))) {
                 Vec3 position = Vec3.atBottomCenterOf(candidate);
                 animal.get().moveTo(position.x(), position.y(), position.z(), yRot, animal.get().getXRot());
                 animal.get().refreshDimensions();
                 if (canReleaseAt(level, animal.get())) {
-                    return Optional.of(position);
+                    bestCandidate = betterReleaseCandidate(
+                            bestCandidate,
+                            new ReleaseCandidate(position, releaseSafetyScore(level, animal.get()))
+                    );
                 }
+            }
+            if (bestCandidate != null) {
+                return Optional.of(bestCandidate.position());
             }
         }
         return Optional.empty();
@@ -484,17 +600,43 @@ public final class DinosaurCaptureService {
         if (animal.isEmpty()) {
             return Optional.empty();
         }
-        for (int radius = 0; radius <= 4; radius++) {
-            for (BlockPos candidate : BlockPos.betweenClosed(base.offset(-radius, -1, -radius), base.offset(radius, 2, radius))) {
+        int horizontalRadius = stackReleaseHorizontalRadius(animal.get());
+        int verticalUp = stackReleaseVerticalUp(animal.get());
+        for (int radius = 0; radius <= horizontalRadius; radius++) {
+            ReleaseCandidate bestCandidate = null;
+            BlockPos min = base.offset(-radius, -STACK_RELEASE_VERTICAL_DOWN, -radius);
+            BlockPos max = base.offset(radius, verticalUp, radius);
+            for (BlockPos candidate : BlockPos.betweenClosed(min, max)) {
+                int dx = Math.abs(candidate.getX() - base.getX());
+                int dz = Math.abs(candidate.getZ() - base.getZ());
+                if (Math.max(dx, dz) != radius) {
+                    continue;
+                }
                 Vec3 position = Vec3.atBottomCenterOf(candidate);
                 animal.get().moveTo(position.x(), position.y(), position.z(), yRot, animal.get().getXRot());
                 animal.get().refreshDimensions();
                 if (canReleaseAt(level, animal.get())) {
-                    return Optional.of(position);
+                    bestCandidate = betterReleaseCandidate(
+                            bestCandidate,
+                            new ReleaseCandidate(position, releaseSafetyScore(level, animal.get()))
+                    );
                 }
+            }
+            if (bestCandidate != null) {
+                return Optional.of(bestCandidate.position());
             }
         }
         return Optional.empty();
+    }
+
+    private static int stackReleaseHorizontalRadius(JSAnimalBase animal) {
+        int radius = (int) Math.ceil(Math.max(1.0F, animal.getBbWidth()) / 2.0F) + 6;
+        return Math.max(STACK_RELEASE_BASE_RADIUS, Math.min(STACK_RELEASE_MAX_RADIUS, radius));
+    }
+
+    private static int stackReleaseVerticalUp(JSAnimalBase animal) {
+        int verticalUp = (int) Math.ceil(Math.max(1.0F, animal.getBbHeight())) + 1;
+        return Math.max(2, Math.min(STACK_RELEASE_VERTICAL_UP, verticalUp));
     }
 
     private static Optional<Vec3> findReleasePositionNearCage(
@@ -524,6 +666,7 @@ public final class DinosaurCaptureService {
             maxZ = Math.max(maxZ, pos.getZ());
         }
         for (int radius = 0; radius <= 4; radius++) {
+            ReleaseCandidate bestCandidate = null;
             BlockPos min = new BlockPos(minX - radius, minY - 1, minZ - radius);
             BlockPos max = new BlockPos(maxX + radius, maxY + 2, maxZ + radius);
             for (BlockPos candidate : BlockPos.betweenClosed(min, max)) {
@@ -531,14 +674,54 @@ public final class DinosaurCaptureService {
                 animal.get().moveTo(position.x(), position.y(), position.z(), yRot, animal.get().getXRot());
                 animal.get().refreshDimensions();
                 if (canReleaseAt(level, animal.get())) {
-                    return Optional.of(position);
+                    bestCandidate = betterReleaseCandidate(
+                            bestCandidate,
+                            new ReleaseCandidate(position, releaseSafetyScore(level, animal.get()))
+                    );
                 }
+            }
+            if (bestCandidate != null) {
+                return Optional.of(bestCandidate.position());
             }
         }
         return Optional.empty();
     }
 
+    static Vec3 automaticReleasePosition(Optional<Vec3> safePosition, Vec3 origin) {
+        if (safePosition.isPresent()) {
+            return safePosition.get();
+        }
+        Vec3 safeOrigin = origin == null ? Vec3.ZERO : origin;
+        return Vec3.atBottomCenterOf(BlockPos.containing(safeOrigin));
+    }
+
+    static boolean shouldConsumePlacedStack(boolean creativeMode, boolean containsCapturedData) {
+        return containsCapturedData || !creativeMode;
+    }
+
+    static void consumeSuccessfullyPlacedStack(ItemStack stack, boolean creativeMode, boolean containsCapturedData) {
+        if (stack == null || stack.isEmpty() || !shouldConsumePlacedStack(creativeMode, containsCapturedData)) {
+            return;
+        }
+        if (containsCapturedData) {
+            DinosaurCaptureItemData.clear(stack);
+            stack.setCount(0);
+            return;
+        }
+        stack.shrink(1);
+    }
+
     public static boolean releaseDinosaur(ServerLevel level, CapturedDinosaurData data, Vec3 position, float yRot) {
+        return releaseDinosaur(level, data, position, yRot, true);
+    }
+
+    private static boolean releaseDinosaur(
+            ServerLevel level,
+            CapturedDinosaurData data,
+            Vec3 position,
+            float yRot,
+            boolean requireSafePosition
+    ) {
         Optional<JSAnimalBase> loaded = createTemporaryAnimal(level, data);
         if (loaded.isEmpty() || hasExistingEntityWithUuid(level, data.originalUuid())) {
             return false;
@@ -547,7 +730,7 @@ public final class DinosaurCaptureService {
         animal.moveTo(position.x(), position.y(), position.z(), yRot, animal.getXRot());
         animal.setYHeadRot(yRot);
         animal.refreshDimensions();
-        if (!canReleaseAt(level, animal)) {
+        if (requireSafePosition && !canReleaseAt(level, animal)) {
             return false;
         }
         animal.ejectPassengers();
@@ -576,6 +759,95 @@ public final class DinosaurCaptureService {
                         && level.isLoaded(pos)
                         && level.getWorldBorder().isWithinBounds(pos)
         );
+    }
+
+    private static ReleaseCandidate betterReleaseCandidate(ReleaseCandidate current, ReleaseCandidate candidate) {
+        if (current == null || candidate.score() < current.score()) {
+            return candidate;
+        }
+        return current;
+    }
+
+    private static int releaseSafetyScore(ServerLevel level, JSAnimalBase animal) {
+        AABB bounds = animal.getBoundingBox();
+        int minX = floorBlock(bounds.minX);
+        int minY = floorBlock(bounds.minY);
+        int minZ = floorBlock(bounds.minZ);
+        int maxX = floorBlock(bounds.maxX - 1.0E-7D);
+        int maxY = floorBlock(bounds.maxY - 1.0E-7D);
+        int maxZ = floorBlock(bounds.maxZ - 1.0E-7D);
+        int score = 0;
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (level.getFluidState(pos).is(FluidTags.LAVA)) {
+                        score += 10_000;
+                    } else if (!level.getFluidState(pos).isEmpty()) {
+                        score += 200;
+                    }
+                }
+            }
+        }
+        if (!hasReleaseFloorSupport(level, bounds)) {
+            score += 2_000;
+        }
+        return score;
+    }
+
+    private static boolean hasReleaseFloorSupport(ServerLevel level, AABB bounds) {
+        int floorY = floorBlock(bounds.minY - 1.0E-7D);
+        int minX = floorBlock(bounds.minX);
+        int minZ = floorBlock(bounds.minZ);
+        int maxX = floorBlock(bounds.maxX - 1.0E-7D);
+        int maxZ = floorBlock(bounds.maxZ - 1.0E-7D);
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                BlockPos floorPos = new BlockPos(x, floorY, z);
+                if (!level.isOutsideBuildHeight(floorPos)
+                        && !level.getBlockState(floorPos).getCollisionShape(level, floorPos).isEmpty()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static int floorBlock(double coordinate) {
+        return (int) Math.floor(coordinate);
+    }
+
+    private record ReleaseCandidate(Vec3 position, int score) {
+    }
+
+    record BrokenCagePartReplacement(BlockPos pos, BlockState state) {
+    }
+
+    enum PlacedCageResidueResult {
+        FULL_BROKEN_BOX(false),
+        FALLBACK_BROKEN_BOX_ITEM(true);
+
+        private final boolean dropsFallbackItem;
+
+        PlacedCageResidueResult(boolean dropsFallbackItem) {
+            this.dropsFallbackItem = dropsFallbackItem;
+        }
+
+        public boolean dropsFallbackItem() {
+            return this.dropsFallbackItem;
+        }
+
+        public ItemStack fallbackItem() {
+            return this.dropsFallbackItem
+                    ? new ItemStack(JSReviseItems.BROKEN_DINOSAUR_CAPTURE_BOX.get())
+                    : ItemStack.EMPTY;
+        }
+    }
+
+    static PlacedCageResidueResult placedCageResidueResult(boolean placedFullBrokenBox) {
+        return placedFullBrokenBox
+                ? PlacedCageResidueResult.FULL_BROKEN_BOX
+                : PlacedCageResidueResult.FALLBACK_BROKEN_BOX_ITEM;
     }
 
     private static CapturedDinosaurData snapshotFromTemporaryAnimal(

@@ -21,7 +21,7 @@ public record CapturedDinosaurData(
         CompoundTag relativeAnestheticNbt,
         CapturedDinosaurVitals vitals
 ) {
-    public static final int MAX_DURABILITY = 1000;
+    public static final int MAX_DURABILITY = 100;
     private static final String ENTITY_TYPE = "EntityType";
     private static final String ORIGINAL_UUID = "OriginalUuid";
     private static final String DISPLAY_NAME = "DisplayName";

@@ -28,7 +28,7 @@ public final class JSReviseItemTooltipHandler {
         } else if (item instanceof DinoDoctorGogglesItem) {
             descriptionKey = "item.jsrevise.dino_doctor_goggles.desc.1";
         } else if (item instanceof DinosaurCaptureCageItem) {
-            descriptionKey = "item.jsrevise.dinosaur_capture_cage.desc.1";
+            descriptionKey = "item.jsrevise.dinosaur_capture_box.desc.1";
         } else {
             return;
         }
@@ -48,16 +48,16 @@ public final class JSReviseItemTooltipHandler {
             long currentGameTime = currentTooltipGameTime(data);
             List<Component> tooltip = event.getToolTip();
             tooltip.add(Component.translatable(
-                    "tooltip.jsrevise.dinosaur_capture_cage.durability",
+                    "tooltip.jsrevise.dinosaur_capture_box.durability",
                     DinosaurCaptureItemData.projectedDurability(data, currentGameTime),
                     CapturedDinosaurData.MAX_DURABILITY
             ).withStyle(ChatFormatting.DARK_GREEN));
             tooltip.add(Component.translatable(
-                    "tooltip.jsrevise.dinosaur_capture_cage.anesthetic_remaining",
+                    "tooltip.jsrevise.dinosaur_capture_box.anesthetic_remaining",
                     DinosaurCaptureCageItem.formatTicks(data.remainingAnestheticTicks(currentGameTime))
             ).withStyle(ChatFormatting.DARK_AQUA));
             tooltip.add(Component.translatable(
-                    "tooltip.jsrevise.dinosaur_capture_cage.captured_duration",
+                    "tooltip.jsrevise.dinosaur_capture_box.captured_duration",
                     DinosaurCaptureCageItem.formatTicks(data.capturedDurationTicks(currentGameTime))
             ).withStyle(ChatFormatting.DARK_AQUA));
         });

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.palos.jsrevise.server.system.age.DinosaurAgeEstimate;
+import com.palos.jsrevise.server.system.capture.CapturedDinosaurData;
 import com.palos.jsrevise.server.system.size.DinosaurLifecycleStage;
 import java.util.List;
 import java.util.Optional;
@@ -44,22 +45,23 @@ class CaptureCageObservationSnapshotTest {
                         Component.literal("Gene Test")
                 ))
         );
+        int durability = CapturedDinosaurData.MAX_DURABILITY * 3 / 4;
 
         CaptureCageObservationSnapshot snapshot = CaptureCageObservationSnapshot.from(
                 ResourceLocation.fromNamespaceAndPath("jurassicsaga", "test_dino"),
                 observation,
                 400L,
-                750
+                durability
         );
         CompoundTag tag = snapshot.serializeNBT();
 
         assertTrue(tag.contains("DisplayName"));
-        assertEquals(750, tag.getInt("CageDurability"));
+        assertEquals(durability, tag.getInt("CageDurability"));
         assertTrue(!tag.contains("EntityNbt"));
         CaptureCageObservationSnapshot decoded = CaptureCageObservationSnapshot.deserializeNBT(tag).orElseThrow();
         assertEquals("Test Dino", decoded.observation().displayName().getString());
         assertEquals(400L, decoded.capturedDurationTicks());
-        assertEquals(750, decoded.cageDurability());
+        assertEquals(durability, decoded.cageDurability());
         assertEquals(600L, decoded.observation().remainingAnestheticTicks().orElseThrow());
         assertEquals(1, decoded.observation().genes().size());
         assertEquals("Gene Test", decoded.observation().genes().getFirst().displayName().getString());

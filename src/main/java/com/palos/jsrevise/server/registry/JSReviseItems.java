@@ -3,6 +3,7 @@ package com.palos.jsrevise.server.registry;
 import com.palos.jsrevise.JSRevise;
 import com.palos.jsrevise.server.item.AnestheticCrossbowItem;
 import com.palos.jsrevise.server.item.AnestheticSyringeItem;
+import com.palos.jsrevise.server.item.BrokenDinosaurCaptureBoxItem;
 import com.palos.jsrevise.server.item.DinoDoctorGogglesItem;
 import com.palos.jsrevise.server.item.DinosaurCaptureCageItem;
 import net.minecraft.world.item.Item;
@@ -21,9 +22,18 @@ public final class JSReviseItems {
             ITEMS.register("dino_doctor_goggles", DinoDoctorGogglesItem::new);
     public static final DeferredItem<Item> DINOSAUR_CAPTURE_CAGE =
             ITEMS.register(
-                    "dinosaur_capture_cage",
+                    "dinosaur_capture_box",
                     () -> new DinosaurCaptureCageItem(JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get())
             );
+    public static final DeferredItem<Item> BROKEN_DINOSAUR_CAPTURE_BOX =
+            ITEMS.register(
+                    "broken_dinosaur_capture_box",
+                    () -> new BrokenDinosaurCaptureBoxItem(JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get())
+            );
+
+    static {
+        ITEMS.addAlias(JSRevise.id("dinosaur_capture_cage"), JSRevise.id("dinosaur_capture_box"));
+    }
 
     private JSReviseItems() {
     }

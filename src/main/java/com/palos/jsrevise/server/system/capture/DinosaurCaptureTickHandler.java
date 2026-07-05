@@ -23,8 +23,14 @@ public final class DinosaurCaptureTickHandler {
                 || level.getGameTime() % 20L != 0L) {
             return;
         }
-        if (settleStack(itemEntity.getItem(), level, itemEntity.position(), itemEntity.getYRot()).consumesCarrier()) {
+        ItemStack stack = itemEntity.getItem();
+        DinosaurCaptureService.StackSettlementResult result = settleStack(stack, level, itemEntity.position(), itemEntity.getYRot());
+        if (result.consumesCarrier()) {
             itemEntity.discard();
+        } else if (result.replacesCarrierWithBroken()) {
+            itemEntity.setItem(result.carrierReplacement());
+        } else if (result == DinosaurCaptureService.StackSettlementResult.PERSISTED) {
+            itemEntity.setItem(stack);
         }
     }
 
@@ -50,12 +56,7 @@ public final class DinosaurCaptureTickHandler {
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             DinosaurCaptureService.StackSettlementResult result =
                     settleStack(inventory.getItem(slot), level, player.position(), player.getYRot());
-            if (result.consumesCarrier()) {
-                inventory.setItem(slot, ItemStack.EMPTY);
-                inventory.setChanged();
-            } else if (result == DinosaurCaptureService.StackSettlementResult.PERSISTED) {
-                inventory.setChanged();
-            }
+            applySettlementToContainerSlot(inventory, slot, result);
         }
     }
 
@@ -72,14 +73,38 @@ public final class DinosaurCaptureTickHandler {
                     : player.position();
             DinosaurCaptureService.StackSettlementResult result =
                     settleStack(slot.getItem(), level, releaseOrigin, player.getYRot());
-            if (result.consumesCarrier()) {
-                slot.set(ItemStack.EMPTY);
-                slot.setChanged();
-                slot.container.setChanged();
-            } else if (result == DinosaurCaptureService.StackSettlementResult.PERSISTED) {
-                slot.setChanged();
-                slot.container.setChanged();
-            }
+            applySettlementToMenuSlot(slot, result);
+        }
+    }
+
+    static void applySettlementToContainerSlot(
+            Container inventory,
+            int slot,
+            DinosaurCaptureService.StackSettlementResult result
+    ) {
+        if (result.consumesCarrier()) {
+            inventory.setItem(slot, ItemStack.EMPTY);
+            inventory.setChanged();
+        } else if (result.replacesCarrierWithBroken()) {
+            inventory.setItem(slot, result.carrierReplacement());
+            inventory.setChanged();
+        } else if (result == DinosaurCaptureService.StackSettlementResult.PERSISTED) {
+            inventory.setChanged();
+        }
+    }
+
+    static void applySettlementToMenuSlot(Slot slot, DinosaurCaptureService.StackSettlementResult result) {
+        if (result.consumesCarrier()) {
+            slot.set(ItemStack.EMPTY);
+            slot.setChanged();
+            slot.container.setChanged();
+        } else if (result.replacesCarrierWithBroken()) {
+            slot.set(result.carrierReplacement());
+            slot.setChanged();
+            slot.container.setChanged();
+        } else if (result == DinosaurCaptureService.StackSettlementResult.PERSISTED) {
+            slot.setChanged();
+            slot.container.setChanged();
         }
     }
 
