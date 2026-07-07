@@ -624,18 +624,24 @@ class ItemTextureResourceTest {
 
     private static void assertBrokenCaptureBoxItemModelUsesRendererDerivedDebris(JsonObject model) {
         JsonArray elements = model.getAsJsonArray("elements");
-        assertTrue(elements.size() >= 8, "Broken capture box item model should include a box and debris elements");
+        assertEquals(
+                8,
+                elements.size(),
+                "Broken capture box item model should include one box and seven debris elements"
+        );
         assertModelElementsUseFiniteCoordinatesAndSafeRotations(elements);
         assertModelElement(elements.get(1).getAsJsonObject(),
-                new double[]{4.0D, 4.13D, 18.4D},
-                new double[]{7.5D, 4.23D, 21.3D},
-                new double[]{5.8D, 4.13D, 19.8D},
-                -22.5D);
-        assertModelElement(elements.get(2).getAsJsonObject(),
-                new double[]{8.5D, 4.18D, 18.6D},
-                new double[]{11.8D, 4.28D, 22.0D},
-                new double[]{10.0D, 4.18D, 20.2D},
+                new double[]{4.0D, 4.13D, -5.3D},
+                new double[]{7.5D, 4.23D, -2.4D},
+                new double[]{5.8D, 4.13D, -3.8D},
                 22.5D);
+        assertFrontDebrisSitsBeforeDoorFace(elements.get(1).getAsJsonObject(), "front_left_door_shard");
+        assertModelElement(elements.get(2).getAsJsonObject(),
+                new double[]{8.5D, 4.18D, -6.0D},
+                new double[]{11.8D, 4.28D, -2.6D},
+                new double[]{10.0D, 4.18D, -4.2D},
+                -22.5D);
+        assertFrontDebrisSitsBeforeDoorFace(elements.get(2).getAsJsonObject(), "front_right_latch_shard");
         assertModelElement(elements.get(3).getAsJsonObject(),
                 new double[]{-0.9D, 4.08D, 5.7D},
                 new double[]{2.8D, 4.18D, 9.2D},
@@ -661,6 +667,14 @@ class ItemTextureResourceTest {
                 new double[]{12.8D, 12.38D, 9.6D},
                 new double[]{11.2D, 12.28D, 7.8D},
                 -22.5D);
+    }
+
+    private static void assertFrontDebrisSitsBeforeDoorFace(JsonObject element, String name) {
+        double fromZ = element.getAsJsonArray("from").get(2).getAsDouble();
+        double toZ = element.getAsJsonArray("to").get(2).getAsDouble();
+        assertTrue(fromZ < 0.0D, name + " should sit in front of the north/front item face");
+        assertTrue(toZ <= 0.0D, name + " should stay on the front-door side of the item model");
+        assertFalse(fromZ > 16.0D || toZ > 16.0D, name + " should not remain behind the box at z > 16");
     }
 
     private static void assertModelElementsUseFiniteCoordinatesAndSafeRotations(JsonArray elements) {
