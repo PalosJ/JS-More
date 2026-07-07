@@ -675,6 +675,10 @@ class ItemTextureResourceTest {
                         "Broken capture box item model from coordinate should be finite");
                 assertTrue(Double.isFinite(toCoordinate),
                         "Broken capture box item model to coordinate should be finite");
+                assertTrue(fromCoordinate >= -16.0D && fromCoordinate <= 32.0D,
+                        "Broken capture box item model from coordinate should stay within vanilla model range -16..32");
+                assertTrue(toCoordinate >= -16.0D && toCoordinate <= 32.0D,
+                        "Broken capture box item model to coordinate should stay within vanilla model range -16..32");
                 assertTrue(fromCoordinate <= toCoordinate,
                         "Broken capture box item model from coordinate should not exceed to coordinate");
             }
