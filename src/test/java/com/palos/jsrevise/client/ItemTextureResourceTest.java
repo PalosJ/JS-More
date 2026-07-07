@@ -14,6 +14,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -109,16 +110,16 @@ class ItemTextureResourceTest {
     @Test
     void crossbowAnimationTexturesKeepStableMinecraftSizedStateSilhouettes() throws IOException {
         Map<String, Integer> expectedOpaquePixels = Map.ofEntries(
-                Map.entry("crossbow_standby.png", 92),
-                Map.entry("crossbow_pulling_0.png", 96),
-                Map.entry("crossbow_pulling_1.png", 98),
-                Map.entry("crossbow_pulling_2.png", 101),
-                Map.entry("crossbow_loaded_1.png", 98),
-                Map.entry("crossbow_loaded_2.png", 97),
-                Map.entry("crossbow_loaded_3.png", 99),
-                Map.entry("crossbow_loaded_4.png", 99),
-                Map.entry("crossbow_loaded_5.png", 102),
-                Map.entry("crossbow_loaded_6.png", 102)
+                Map.entry("crossbow_standby.png", 94),
+                Map.entry("crossbow_pulling_0.png", 99),
+                Map.entry("crossbow_pulling_1.png", 101),
+                Map.entry("crossbow_pulling_2.png", 104),
+                Map.entry("crossbow_loaded_1.png", 99),
+                Map.entry("crossbow_loaded_2.png", 99),
+                Map.entry("crossbow_loaded_3.png", 101),
+                Map.entry("crossbow_loaded_4.png", 101),
+                Map.entry("crossbow_loaded_5.png", 104),
+                Map.entry("crossbow_loaded_6.png", 104)
         );
 
         for (Map.Entry<String, Integer> entry : expectedOpaquePixels.entrySet()) {
@@ -412,7 +413,8 @@ class ItemTextureResourceTest {
 
     @Test
     void loadedCrossbowStringReturnsOneDistinctSymmetricStepPerShot() throws IOException {
-        BufferedImage previous = null;
+        List<BufferedImage> loadedStates = new ArrayList<>();
+        List<Integer> adjacentDifferenceCounts = new ArrayList<>();
 
         for (int loaded = 1; loaded <= 6; loaded++) {
             BufferedImage current = readTexture(ITEM_TEXTURE_ROOT + "crossbow_loaded_" + loaded + ".png");
@@ -420,11 +422,20 @@ class ItemTextureResourceTest {
             assertEquals(current.getRGB(12, 4), current.getRGB(4, 12));
             assertEquals(isOpaque(current.getRGB(5, 12)), isOpaque(current.getRGB(12, 5)));
             assertEquals(isOpaque(current.getRGB(6, 12)), isOpaque(current.getRGB(12, 6)));
-            if (previous != null) {
-                assertTrue(countDifferentPixels(previous, current) > 0);
+            for (BufferedImage earlier : loadedStates) {
+                assertTrue(countDifferentPixels(earlier, current) > 0);
             }
-            previous = current;
+            if (!loadedStates.isEmpty()) {
+                adjacentDifferenceCounts.add(countDifferentPixels(loadedStates.get(loadedStates.size() - 1), current));
+            }
+            loadedStates.add(current);
         }
+
+        assertEquals(
+                List.of(8, 16, 11, 15, 4),
+                adjacentDifferenceCounts,
+                "Loaded crossbow string frames should keep the approved six-step progression"
+        );
     }
 
     @Test
