@@ -69,7 +69,7 @@ class CraftingRecipeResourceTest {
                         ),
                         Map.of(
                                 'B', "jurassicsaga:guidebook",
-                                'G', "minecraft:glass",
+                                'G', "minecraft:glass_pane",
                                 'N', "minecraft:iron_nugget"
                         )
                 ),
@@ -85,7 +85,7 @@ class CraftingRecipeResourceTest {
                         Map.of(
                                 'D', "minecraft:iron_door",
                                 'I', "minecraft:iron_block",
-                                'W', "minecraft:wheat"
+                                'W', "minecraft:blaze_powder"
                         )
                 ),
                 "anesthetic_crossbow", new RecipeExpectation(
