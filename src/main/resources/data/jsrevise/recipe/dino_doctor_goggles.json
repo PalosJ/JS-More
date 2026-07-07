@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "B": {
+      "item": "jurassicsaga:guidebook"
+    },
+    "G": {
+      "item": "minecraft:glass"
+    },
+    "N": {
+      "item": "minecraft:iron_nugget"
+    }
+  },
+  "pattern": [
+    "N N",
+    "GBG"
+  ],
+  "result": {
+    "count": 1,
+    "id": "jsrevise:dino_doctor_goggles"
+  }
+}
