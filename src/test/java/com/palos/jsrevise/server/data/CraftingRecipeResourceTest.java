@@ -85,7 +85,7 @@ class CraftingRecipeResourceTest {
                         Map.of(
                                 'D', "minecraft:iron_door",
                                 'I', "minecraft:iron_block",
-                                'W', "minecraft:blaze_powder"
+                                'W', "minecraft:yellow_dye"
                         )
                 ),
                 "anesthetic_crossbow", new RecipeExpectation(

@@ -4,7 +4,7 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 
 项目目前主要为 Jurassic Saga 生物提供麻醉、落水漂浮、年龄推算、信息观察、刷怪蛋成长阶段控制和世界生成调整等功能。设计重点是让通用功能依赖 Jurassic Saga 的稳定生物基类和运行时能力，而不是依赖固定物种白名单，使主模组未来新增的常规生物能够自动获得基础支持。
 
-本文档以 `1.0.113` 源码为准，面向后续维护、问题排查和功能扩展。
+本文档以 `1.0.114` 源码为准，面向后续维护、问题排查和功能扩展。
 
 ## 基本信息
 
@@ -13,7 +13,7 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 | 模组 ID | `jsrevise` |
 | 显示名称 | `JS-revise` |
 | 作者 | `Palos` |
-| 当前版本 | `1.0.113` |
+| 当前版本 | `1.0.114` |
 | Minecraft | `1.21.1` |
 | NeoForge | `21.1.232` |
 | Java | `21` |
@@ -248,7 +248,7 @@ Minecraft 原版 16×16 像素物品的尺寸、硬边与有限调色板风格�
 
 注册名：`jsrevise:dinosaur_capture_box`
 
-合成配方为 7 个铁块包围中心烈焰粉，并在中排右侧放置 1 个铁门。
+合成配方为 7 个铁块包围中心黄色染料，并在中排右侧放置 1 个铁门。
 
 旧注册名 `jsrevise:dinosaur_capture_cage` 已通过 NeoForge registry alias 指向新的方块、物品和方块实体 ID，用于旧存档和旧物品数据迁移；新资源、语言键和文档均使用 `dinosaur_capture_box`。
 
@@ -883,7 +883,7 @@ build/libs/jsrevise-<version>.jar
 当前版本构建产物目标：
 
 ```text
-build/libs/jsrevise-1.0.113.jar
+build/libs/jsrevise-1.0.114.jar
 ```
 
 修改模组代码或资源并重新发布构建时，需要同步更新
@@ -1029,11 +1029,11 @@ build/libs/jsrevise-1.0.113.jar
 
 ## 当前状态
 
-截至 `1.0.113`：
+截至 `1.0.114`：
 
 - 项目已适配 Jurassic Saga `0.2.1` 与 Travelers Lib `0.7.1`。运行依赖声明改为 Jurassic Saga `[0.2.1,0.3.0)` 和 Travelers runtime modId `travelers` `[0.7.1,0.8.0)`；自动化构建通过 Modrinth Maven 的 `maven.modrinth:travelers-lib:0.7.1` 获取与用户提供运行包一致的 `collinvht.travelers.*` 命名空间。旧 Collinvht `travelerslib-neoforge-1.21.1:0.7.1` artifact 仍暴露旧 `travelers.*` 包，不能作为本轮适配的编译依据。
 - 新增 Travelers Lib `0.7.1` 服务端初始化兼容 Mixin，防止 dedicated server 在 Travelers 构造阶段加载客户端渲染顶点类；该 Mixin 只在服务端生效，客户端仍走 Travelers 原始初始化路径。
-- 新增恐龙博士眼镜、恐龙捕获箱和麻醉弩的 3x3 工作台合成配方；眼镜配方使用玻璃板，捕获箱外圈使用铁块且中心使用烈焰粉，麻醉弩配方保持铁锭、线和绊线钩；配方资源使用 Minecraft 1.21.1 的 `data/jsrevise/recipe/` 单数目录和 `result.id` 字段。
+- 新增恐龙博士眼镜、恐龙捕获箱和麻醉弩的 3x3 工作台合成配方；眼镜配方使用玻璃板，捕获箱外圈使用铁块且中心使用黄色染料，麻醉弩配方保持铁锭、线和绊线钩；配方资源使用 Minecraft 1.21.1 的 `data/jsrevise/recipe/` 单数目录和 `result.id` 字段。
 - 项目已完成模块化拆分。
 - 麻醉和年龄数据已迁移到 NeoForge Data Attachment。
 - 麻醉状态由服务端推进并同步。
