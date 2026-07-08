@@ -4,7 +4,7 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 
 项目目前主要为 Jurassic Saga 生物提供麻醉、落水漂浮、年龄推算、信息观察、刷怪蛋成长阶段控制和世界生成调整等功能。设计重点是让通用功能依赖 Jurassic Saga 的稳定生物基类和运行时能力，而不是依赖固定物种白名单，使主模组未来新增的常规生物能够自动获得基础支持。
 
-本文档以 `1.0.114` 源码为准，面向后续维护、问题排查和功能扩展。
+本文档以 `1.0.115` 源码为准，面向后续维护、问题排查和功能扩展。
 
 ## 基本信息
 
@@ -13,7 +13,7 @@ JS-revise 是由 Palos 开发的 Minecraft 1.21.1 NeoForge 模组，也是 Juras
 | 模组 ID | `jsrevise` |
 | 显示名称 | `JS-revise` |
 | 作者 | `Palos` |
-| 当前版本 | `1.0.114` |
+| 当前版本 | `1.0.115` |
 | Minecraft | `1.21.1` |
 | NeoForge | `21.1.232` |
 | Java | `21` |
@@ -883,7 +883,7 @@ build/libs/jsrevise-<version>.jar
 当前版本构建产物目标：
 
 ```text
-build/libs/jsrevise-1.0.114.jar
+build/libs/jsrevise-1.0.115.jar
 ```
 
 修改模组代码或资源并重新发布构建时，需要同步更新
@@ -891,7 +891,7 @@ build/libs/jsrevise-1.0.114.jar
 
 ## 自动化测试
 
-当前共有 32 个含 `@Test` 的测试文件、191 项 JUnit `@Test`，以及 16 项 `@GameTest(...)`。
+当前共有 33 个含 `@Test` 的测试文件、193 项 JUnit `@Test`，以及 16 项 `@GameTest(...)`。
 
 覆盖内容：
 
@@ -966,7 +966,7 @@ build/libs/jsrevise-1.0.114.jar
 .\gradlew.bat runGameTestServer
 ```
 
-自动化测试不能替代游戏内视觉验证。模型姿态、水面露出比例、粒子可见性、HUD 布局和独立服务器同步仍需要整合包实际测试。
+自动化测试不能替代未来游戏内视觉验证；模型姿态、水面露出比例、粒子可见性、HUD 布局、独立服务器同步、依赖或整合包环境发生变化后，仍需重新执行实际整合包验证。
 
 ## 维护检查清单
 
@@ -1029,7 +1029,7 @@ build/libs/jsrevise-1.0.114.jar
 
 ## 当前状态
 
-截至 `1.0.114`：
+截至 `1.0.115`：
 
 - 项目已适配 Jurassic Saga `0.2.1` 与 Travelers Lib `0.7.1`。运行依赖声明改为 Jurassic Saga `[0.2.1,0.3.0)` 和 Travelers runtime modId `travelers` `[0.7.1,0.8.0)`；自动化构建通过 Modrinth Maven 的 `maven.modrinth:travelers-lib:0.7.1` 获取与用户提供运行包一致的 `collinvht.travelers.*` 命名空间。旧 Collinvht `travelerslib-neoforge-1.21.1:0.7.1` artifact 仍暴露旧 `travelers.*` 包，不能作为本轮适配的编译依据。
 - 新增 Travelers Lib `0.7.1` 服务端初始化兼容 Mixin，防止 dedicated server 在 Travelers 构造阶段加载客户端渲染顶点类；该 Mixin 只在服务端生效，客户端仍走 Travelers 原始初始化路径。
@@ -1061,18 +1061,20 @@ build/libs/jsrevise-1.0.114.jar
 - Jurassic Saga TerraBlender 主世界群系区域和地表规则注册会按配置被源头取消；
   `MultiNoiseBiomeSource` 层保留已知群系到原版群系的兜底替换，并按服务器缓存回退 Holder。
 - 客户端 Mixin 和 Shift tooltip 已与通用服务端代码隔离。
-- 自动化覆盖包含 32 个含 `@Test` 的测试文件、191 项 JUnit `@Test` 和 16 项 `@GameTest(...)`；发布前仍以 `.\gradlew.bat test runGameTestServer assemble` 为标准验证命令。
+- 自动化覆盖包含 33 个含 `@Test` 的测试文件、193 项 JUnit `@Test` 和 16 项 `@GameTest(...)`；发布前仍以 `.\gradlew.bat test runGameTestServer assemble` 为标准验证命令。
 
-仍需在实际整合包中重点验证：
+1.0.115 发布前已在实际整合包中完成验证：
 
-- 艾雷拉龙、腕龙、鸟鳄、卢多翼龙及其他陆生/飞行动物的模型是否按预期露出水面。
-- 成年和幼年生物的露出比例是否符合“体型越大，露出越少”。
-- 海王龙的沉浮振幅、水平姿态和尾部动画。
-- 接近水面、首次破水和沉浮换向时的粒子可见性。
-- DNA 图标、动态主题色、85% HUD 整体缩放、等效 90% 字体和透明度在不同 GUI 缩放下的表现。
-- 独立服务器中的年龄、麻醉倒计时、漂浮阶段和粒子事件同步。
+- 已确认艾雷拉龙、腕龙、鸟鳄、卢多翼龙及其他陆生/飞行动物的模型按预期露出水面。
+- 已确认成年和幼年生物的露出比例符合“体型越大，露出越少”。
+- 已通过海王龙的沉浮振幅、水平姿态和尾部动画验证。
+- 已确认接近水面、首次破水和沉浮换向时的粒子可见性。
+- 已确认 DNA 图标、动态主题色、85% HUD 整体缩放、等效 90% 字体和透明度在不同 GUI 缩放下表现符合预期。
+- 已通过独立服务器中的年龄、麻醉倒计时、漂浮阶段和粒子事件同步验证。
 
-如果游戏内测试结果与自动化测试不一致，应优先区分以下三层：
+以上结论仅对应 1.0.115 发布前的当前整合包环境。未来新增功能、依赖升级或整合包环境变化后，仍需重新执行实际整合包验证。
+
+后续如果游戏内测试结果与自动化测试不一致，应优先区分以下三层：
 
 1. 服务端实体碰撞箱和目标高度。
 2. Jurassic Saga 睡眠动画及 Travelers/Azure 根骨骼变换。
