@@ -19,6 +19,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.junit.jupiter.api.AfterEach;
@@ -50,6 +51,15 @@ class DinosaurCaptureCageBlockTest {
     @Test
     void automaticWholeCageCleanupDoesNotDropCapturedDataFallback() {
         assertFalse(DinosaurCaptureCageBlock.shouldDropOnNonPlayerRemove(false, true, false));
+    }
+
+    @Test
+    void completeAndBrokenCaptureBoxesBlockPistonMovement() {
+        assertEquals(PushReaction.BLOCK, JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get().defaultBlockState().getPistonPushReaction());
+        assertEquals(
+                PushReaction.BLOCK,
+                JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get().defaultBlockState().getPistonPushReaction()
+        );
     }
 
     @Test

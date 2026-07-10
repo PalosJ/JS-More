@@ -19,7 +19,9 @@ public final class ClientEggLayingProgressCache {
     private static final int MAX_CACHE_ENTRIES = 512;
     private static final ConcurrentHashMap<CacheKey, CachedProgress> PROGRESS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<CacheKey, Long> NEXT_REQUEST_TICK = new ConcurrentHashMap<>();
+    private static Object currentSessionKey;
     private static long nextCleanupTick;
+    private static long lastSeenGameTime = Long.MIN_VALUE;
 
     private ClientEggLayingProgressCache() {
     }
@@ -30,6 +32,7 @@ public final class ClientEggLayingProgressCache {
         }
 
         Level level = animal.level();
+        refreshSession(level, level.getGameTime());
         return getOrRequest(
                 level.dimension().location(),
                 animal.getId(),
@@ -42,6 +45,7 @@ public final class ClientEggLayingProgressCache {
         if (level == null || !level.isClientSide() || payload == null) {
             return;
         }
+        refreshSession(level, level.getGameTime());
         Optional<EggLayingProgress> progress = payload.available()
                 ? EggLayingProgress.create(payload.remainingTicks(), payload.maxTicks())
                 : Optional.empty();
@@ -61,7 +65,9 @@ public final class ClientEggLayingProgressCache {
     public static void clearCache() {
         PROGRESS.clear();
         NEXT_REQUEST_TICK.clear();
+        currentSessionKey = null;
         nextCleanupTick = 0L;
+        lastSeenGameTime = Long.MIN_VALUE;
     }
 
     static Optional<EggLayingProgress> getOrRequest(
@@ -105,15 +111,16 @@ public final class ClientEggLayingProgressCache {
     }
 
     static void remember(ResourceLocation dimensionId, int entityId, long gameTime, Optional<EggLayingProgress> progress) {
+        cleanExpiredEntries(gameTime);
         PROGRESS.put(new CacheKey(dimensionId, entityId), new CachedProgress(gameTime, progress));
     }
 
     private static void requestIfReady(CacheKey key, int entityId, long gameTime, IntConsumer requestSender) {
         Long nextTick = NEXT_REQUEST_TICK.get(key);
-        if (nextTick != null && gameTime < nextTick) {
+        if (nextTick != null && (nextTick == Long.MAX_VALUE || gameTime < nextTick)) {
             return;
         }
-        NEXT_REQUEST_TICK.put(key, gameTime + REQUEST_COOLDOWN_TICKS);
+        NEXT_REQUEST_TICK.put(key, nextRequestTick(gameTime));
         requestSender.accept(entityId);
     }
 
@@ -122,22 +129,61 @@ public final class ClientEggLayingProgressCache {
     }
 
     private static void cleanExpiredEntries(long gameTime) {
+        if (refreshGameTime(gameTime)) {
+            return;
+        }
         if (PROGRESS.size() <= MAX_CACHE_ENTRIES && NEXT_REQUEST_TICK.size() <= MAX_CACHE_ENTRIES
                 && gameTime < nextCleanupTick) {
             return;
         }
-        nextCleanupTick = gameTime + CLEANUP_INTERVAL_TICKS;
+        nextCleanupTick = saturatedAdd(gameTime, CLEANUP_INTERVAL_TICKS);
         PROGRESS.entrySet().removeIf(entry -> {
             long capturedAt = entry.getValue().capturedAt();
             return gameTime < capturedAt || gameTime - capturedAt > MAX_STALE_TICKS;
         });
-        NEXT_REQUEST_TICK.entrySet().removeIf(entry -> gameTime > entry.getValue() + CLEANUP_INTERVAL_TICKS);
+        NEXT_REQUEST_TICK.entrySet().removeIf(entry -> requestTickExpired(gameTime, entry.getValue()));
         if (PROGRESS.size() > MAX_CACHE_ENTRIES) {
             PROGRESS.clear();
         }
         if (NEXT_REQUEST_TICK.size() > MAX_CACHE_ENTRIES) {
             NEXT_REQUEST_TICK.clear();
         }
+    }
+
+    private static void refreshSession(Object sessionKey, long gameTime) {
+        if (currentSessionKey != null && currentSessionKey != sessionKey) {
+            resetForGameTime(gameTime);
+        }
+        currentSessionKey = sessionKey;
+        refreshGameTime(gameTime);
+    }
+
+    private static boolean refreshGameTime(long gameTime) {
+        if (lastSeenGameTime != Long.MIN_VALUE && gameTime < lastSeenGameTime) {
+            resetForGameTime(gameTime);
+            return true;
+        }
+        lastSeenGameTime = gameTime;
+        return false;
+    }
+
+    private static void resetForGameTime(long gameTime) {
+        PROGRESS.clear();
+        NEXT_REQUEST_TICK.clear();
+        nextCleanupTick = saturatedAdd(gameTime, CLEANUP_INTERVAL_TICKS);
+        lastSeenGameTime = gameTime;
+    }
+
+    static long nextRequestTick(long gameTime) {
+        return saturatedAdd(gameTime, REQUEST_COOLDOWN_TICKS);
+    }
+
+    private static boolean requestTickExpired(long gameTime, long nextRequestTick) {
+        return gameTime >= nextRequestTick && gameTime - nextRequestTick > CLEANUP_INTERVAL_TICKS;
+    }
+
+    private static long saturatedAdd(long value, long increment) {
+        return value > Long.MAX_VALUE - increment ? Long.MAX_VALUE : value + increment;
     }
 
     private record CacheKey(ResourceLocation dimensionId, int entityId) {

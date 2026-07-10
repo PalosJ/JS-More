@@ -9,7 +9,6 @@ import com.palos.jsrevise.server.block.DinosaurCaptureCageBlock;
 import com.palos.jsrevise.server.registry.JSReviseBlocks;
 import com.palos.jsrevise.server.registry.JSReviseItems;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -181,12 +180,17 @@ class DinosaurCaptureServiceTest {
     }
 
     @Test
-    void passiveStackSettlementDoesNotRewriteAlreadyZeroRetryData() {
+    void passiveStackSettlementPersistsAdvancedZeroDurabilityRetryData() {
         UUID uuid = UUID.randomUUID();
         CapturedDinosaurData current = data(uuid, 0, 10L, 30L, 10L, 0L, 20.0F, 50.0D);
         CapturedDinosaurData settled = data(uuid, 0, 10L, 50L, 10L, 0L, 18.0F, 45.0D);
 
-        assertFalse(DinosaurCaptureService.shouldPersistPassiveStackSettlement(current, settled));
+        CapturedDinosaurData persisted = DinosaurCaptureService
+                .passiveStackSettlementForPersistence(current, settled)
+                .orElseThrow();
+
+        assertEquals(0, persisted.durability());
+        assertEquals(50L, persisted.lastSettledGameTime());
     }
 
     @Test
@@ -223,7 +227,7 @@ class DinosaurCaptureServiceTest {
 
         CapturedDinosaurData retryData = DinosaurCaptureItemData.get(stack).orElseThrow();
         assertEquals(0, retryData.durability());
-        assertEquals(30L, retryData.lastSettledGameTime());
+        assertEquals(50L, retryData.lastSettledGameTime());
         assertTrue(DinosaurCaptureItemData.hasCapturedDinosaur(stack));
     }
 
@@ -302,27 +306,6 @@ class DinosaurCaptureServiceTest {
 
         assertEquals(2, stack.getCount());
         assertFalse(DinosaurCaptureItemData.hasCapturedDinosaur(stack));
-    }
-
-    @Test
-    void automaticReleasePositionPrefersSafePosition() {
-        Vec3 safePosition = new Vec3(1.5D, 64.0D, 2.5D);
-        Vec3 origin = new Vec3(20.2D, -80.0D, -7.8D);
-
-        assertEquals(
-                safePosition,
-                DinosaurCaptureService.automaticReleasePosition(Optional.of(safePosition), origin)
-        );
-    }
-
-    @Test
-    void automaticReleasePositionFallsBackToOriginBlockCenterWhenNoSafePositionExists() {
-        Vec3 origin = new Vec3(20.2D, -80.0D, -7.8D);
-
-        assertEquals(
-                Vec3.atBottomCenterOf(BlockPos.containing(origin)),
-                DinosaurCaptureService.automaticReleasePosition(Optional.empty(), origin)
-        );
     }
 
     @Test
@@ -437,6 +420,30 @@ class DinosaurCaptureServiceTest {
         assertEquals(CapturedDinosaurData.MAX_DURABILITY - 3L, current.durability() - durabilityElapsedTicks / 20L);
     }
 
+    @Test
+    void nonAquaticReleaseOrderingPrefersSupportThenLessWaterThenDistanceAndCoordinates() {
+        DinosaurCaptureService.ReleaseCandidate unsupportedDry = candidate(0, 0, 0, false, 0, 1.0D);
+        DinosaurCaptureService.ReleaseCandidate supportedWet = candidate(1, 0, 0, true, 1, 4.0D);
+        DinosaurCaptureService.ReleaseCandidate supportedDryFar = candidate(2, 0, 0, true, 0, 9.0D);
+        DinosaurCaptureService.ReleaseCandidate supportedDryNear = candidate(3, 0, 0, true, 0, 1.0D);
+
+        assertTrue(DinosaurCaptureService.compareReleaseCandidates(supportedWet, unsupportedDry, false) < 0);
+        assertTrue(DinosaurCaptureService.compareReleaseCandidates(supportedDryFar, supportedWet, false) < 0);
+        assertTrue(DinosaurCaptureService.compareReleaseCandidates(supportedDryNear, supportedDryFar, false) < 0);
+    }
+
+    @Test
+    void aquaticReleaseOrderingPrefersMoreWaterThenDistanceAndCoordinates() {
+        DinosaurCaptureService.ReleaseCandidate dryNear = candidate(0, 0, 0, true, 0, 1.0D);
+        DinosaurCaptureService.ReleaseCandidate wetFar = candidate(1, 0, 0, false, 2, 9.0D);
+        DinosaurCaptureService.ReleaseCandidate wetNearHighX = candidate(3, 0, 0, false, 2, 1.0D);
+        DinosaurCaptureService.ReleaseCandidate wetNearLowX = candidate(2, 0, 0, false, 2, 1.0D);
+
+        assertTrue(DinosaurCaptureService.compareReleaseCandidates(wetFar, dryNear, true) < 0);
+        assertTrue(DinosaurCaptureService.compareReleaseCandidates(wetNearHighX, wetFar, true) < 0);
+        assertTrue(DinosaurCaptureService.compareReleaseCandidates(wetNearLowX, wetNearHighX, true) < 0);
+    }
+
     private static CapturedDinosaurData data(
             UUID uuid,
             int durability,
@@ -533,5 +540,23 @@ class DinosaurCaptureServiceTest {
         CompoundTag tag = new CompoundTag();
         tag.putDouble("HungerPercent", hungerPercent);
         return tag;
+    }
+
+    private static DinosaurCaptureService.ReleaseCandidate candidate(
+            int x,
+            int y,
+            int z,
+            boolean support,
+            int water,
+            double distanceSquared
+    ) {
+        BlockPos pos = new BlockPos(x, y, z);
+        return new DinosaurCaptureService.ReleaseCandidate(
+                Vec3.atBottomCenterOf(pos),
+                pos,
+                support,
+                water,
+                distanceSquared
+        );
     }
 }

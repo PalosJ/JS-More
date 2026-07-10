@@ -21,6 +21,8 @@ public final class DinosaurCaptureCageBlockEntity extends BlockEntity {
     private static final String HAS_CAPTURED_DINOSAUR = "HasCapturedDinosaur";
     @Nullable
     private CapturedDinosaurData capturedDinosaur;
+    @Nullable
+    private Tag unreadableCapturedDinosaur;
     private boolean clientHasCapturedDinosaur;
 
     public DinosaurCaptureCageBlockEntity(BlockPos pos, BlockState blockState) {
@@ -33,12 +35,36 @@ public final class DinosaurCaptureCageBlockEntity extends BlockEntity {
     }
 
     public boolean hasCapturedDinosaur() {
-        return this.capturedDinosaur != null || this.clientHasCapturedDinosaur;
+        return this.capturedDinosaur != null || this.unreadableCapturedDinosaur != null || this.clientHasCapturedDinosaur;
+    }
+
+    public boolean hasUnreadableCapturedDinosaur() {
+        return this.unreadableCapturedDinosaur != null;
+    }
+
+    @Nullable
+    public Tag getUnreadableCapturedDinosaur() {
+        return this.unreadableCapturedDinosaur == null ? null : this.unreadableCapturedDinosaur.copy();
     }
 
     public void setCapturedDinosaur(@Nullable CapturedDinosaurData capturedDinosaur) {
+        if (this.unreadableCapturedDinosaur != null) {
+            return;
+        }
         this.capturedDinosaur = capturedDinosaur;
+        this.unreadableCapturedDinosaur = null;
         this.clientHasCapturedDinosaur = capturedDinosaur != null;
+        markChangedAndSync();
+    }
+
+    public void setUnreadableCapturedDinosaur(@Nullable Tag rawTag) {
+        this.capturedDinosaur = null;
+        this.unreadableCapturedDinosaur = rawTag == null ? null : rawTag.copy();
+        this.clientHasCapturedDinosaur = rawTag != null;
+        markChangedAndSync();
+    }
+
+    private void markChangedAndSync() {
         setChanged();
         if (this.level != null) {
             this.level.sendBlockUpdated(this.worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
@@ -50,16 +76,20 @@ public final class DinosaurCaptureCageBlockEntity extends BlockEntity {
         super.saveAdditional(tag, registries);
         if (this.capturedDinosaur != null) {
             tag.put(CAPTURED_DINOSAUR, this.capturedDinosaur.serializeNBT());
+        } else if (this.unreadableCapturedDinosaur != null) {
+            tag.put(CAPTURED_DINOSAUR, this.unreadableCapturedDinosaur.copy());
         }
     }
 
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        this.capturedDinosaur = tag.contains(CAPTURED_DINOSAUR, Tag.TAG_COMPOUND)
-                ? CapturedDinosaurData.deserializeNBT(tag.getCompound(CAPTURED_DINOSAUR)).orElse(null)
+        Tag rawTag = tag.get(CAPTURED_DINOSAUR);
+        this.capturedDinosaur = rawTag instanceof CompoundTag compoundTag
+                ? CapturedDinosaurData.deserializeNBT(compoundTag).orElse(null)
                 : null;
-        this.clientHasCapturedDinosaur = this.capturedDinosaur != null
+        this.unreadableCapturedDinosaur = rawTag != null && this.capturedDinosaur == null ? rawTag.copy() : null;
+        this.clientHasCapturedDinosaur = rawTag != null
                 || (tag.contains(HAS_CAPTURED_DINOSAUR, Tag.TAG_BYTE) && tag.getBoolean(HAS_CAPTURED_DINOSAUR));
     }
 
@@ -72,7 +102,7 @@ public final class DinosaurCaptureCageBlockEntity extends BlockEntity {
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = new CompoundTag();
-        tag.putBoolean(HAS_CAPTURED_DINOSAUR, this.capturedDinosaur != null);
+        tag.putBoolean(HAS_CAPTURED_DINOSAUR, hasCapturedDinosaur());
         return tag;
     }
 

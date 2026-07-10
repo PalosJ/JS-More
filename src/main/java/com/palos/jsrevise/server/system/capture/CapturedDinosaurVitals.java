@@ -27,6 +27,10 @@ public record CapturedDinosaurVitals(CompoundTag tag) {
     }
 
     public static CapturedDinosaurVitals capture(JSAnimalBase animal) {
+        return capture(animal, 0);
+    }
+
+    public static CapturedDinosaurVitals capture(JSAnimalBase animal, int capturedRelativeTicks) {
         DinosaurObservationSnapshot snapshot = DinosaurObservationSystem.capture(animal);
         CompoundTag tag = new CompoundTag();
         snapshot.currentHealth().ifPresent(value -> putNonNegativeDouble(tag, HEALTH, value));
@@ -43,7 +47,7 @@ public record CapturedDinosaurVitals(CompoundTag tag) {
         age.estimatedAdultGameAgeTicks().ifPresent(value -> putNonNegativeLong(tag, ADULT_GAME_AGE_TICKS, value));
         age.estimatedCurrentRealAgeYears().ifPresent(value -> putNonNegativeDouble(tag, CURRENT_REAL_AGE_YEARS, value));
         age.estimatedAdultRealAgeYears().ifPresent(value -> putNonNegativeDouble(tag, ADULT_REAL_AGE_YEARS, value));
-        tag.putLong(CAPTURED_RELATIVE_TICKS, 0L);
+        tag.putLong(CAPTURED_RELATIVE_TICKS, sanitizeCapturedRelativeTicks(capturedRelativeTicks));
         return new CapturedDinosaurVitals(tag);
     }
 
@@ -53,6 +57,10 @@ public record CapturedDinosaurVitals(CompoundTag tag) {
 
     public CompoundTag serializeNBT() {
         return this.tag.copy();
+    }
+
+    public int capturedRelativeTicks() {
+        return sanitizeCapturedRelativeTicks(this.tag.getLong(CAPTURED_RELATIVE_TICKS));
     }
 
     private static CompoundTag sanitize(CompoundTag source) {
@@ -72,7 +80,9 @@ public record CapturedDinosaurVitals(CompoundTag tag) {
         copyNonNegativeLong(source, safe, ADULT_GAME_AGE_TICKS);
         copyNonNegativeDouble(source, safe, CURRENT_REAL_AGE_YEARS);
         copyNonNegativeDouble(source, safe, ADULT_REAL_AGE_YEARS);
-        copyNonNegativeLong(source, safe, CAPTURED_RELATIVE_TICKS);
+        if (source.contains(CAPTURED_RELATIVE_TICKS, Tag.TAG_LONG)) {
+            safe.putLong(CAPTURED_RELATIVE_TICKS, sanitizeCapturedRelativeTicks(source.getLong(CAPTURED_RELATIVE_TICKS)));
+        }
         return safe;
     }
 
@@ -118,5 +128,9 @@ public record CapturedDinosaurVitals(CompoundTag tag) {
 
     private static void putNonNegativeLong(CompoundTag tag, String key, long value) {
         tag.putLong(key, Math.max(0L, value));
+    }
+
+    private static int sanitizeCapturedRelativeTicks(long value) {
+        return (int) Math.max(0L, Math.min(199L, value));
     }
 }

@@ -6,7 +6,6 @@ import com.palos.jsrevise.server.system.anesthetic.AnestheticVisualState;
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
 import collinvht.travelers.client.azure.common.model.AzBone;
 import collinvht.travelers.client.azure.common.render.AzRendererPipelineContext;
-import collinvht.travelers.client.render.animation.entity.obj.TravelersBoneState;
 import collinvht.travelers.client.render.animation.entity.obj.TravelersClientAnimator;
 import collinvht.travelers.client.render.animal.azure.TravelersAzureModelRenderer;
 import collinvht.travelers.server.animal.entity.SmartAnimalBase;
@@ -81,12 +80,10 @@ public abstract class TravelersAzureModelRendererMixin {
 
         AnestheticVisualState visualState = DinosaurAnestheticSystem.resolveVisualState(animal);
         if (visualState != null) {
-            double travelersRootLift = resolveTravelersRootLift(renderScale);
             double exposureCorrection = resolveExposureCorrection(
                     animal,
                     renderScale,
-                    visualState,
-                    travelersRootLift
+                    visualState
             );
             translationY += exposureCorrection / renderScale;
         }
@@ -96,22 +93,10 @@ public abstract class TravelersAzureModelRendererMixin {
         }
     }
 
-    private double resolveTravelersRootLift(float renderScale) {
-        if (!this.hasAnimator || this.animalAnimator == null) {
-            return 0.0D;
-        }
-        TravelersBoneState rootState = this.animalAnimator.getCachedBoneState("root");
-        if (rootState == null || !Float.isFinite(rootState.offsetY)) {
-            return 0.0D;
-        }
-        return Math.max(0.0D, -rootState.offsetY / 16.0D * renderScale);
-    }
-
     private static double resolveExposureCorrection(
             JSAnimalBase animal,
             float renderScale,
-            AnestheticVisualState visualState,
-            double travelersRootLift
+            AnestheticVisualState visualState
     ) {
         double minimumModelY = FloatingModelGeometryResolver.minimumModelY(animal);
         double baseOffsetAboveSurface = visualState.targetBaseY() - visualState.surfaceY();
@@ -122,7 +107,7 @@ public abstract class TravelersAzureModelRendererMixin {
                     visualState.exposureHeight(),
                     animal.getBbHeight(),
                     baseOffsetAboveSurface,
-                    travelersRootLift,
+                    0.0D,
                     0.80D,
                     0.0D,
                     0.32D
@@ -134,7 +119,7 @@ public abstract class TravelersAzureModelRendererMixin {
                 visualState.exposureHeight(),
                 animal.getBbHeight(),
                 baseOffsetAboveSurface,
-                travelersRootLift,
+                0.0D,
                 0.55D,
                 0.0D,
                 0.22D

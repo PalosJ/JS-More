@@ -89,10 +89,22 @@ public record CaptureCageObservationSnapshot(
         tag.putInt(CAGE_DURABILITY, this.cageDurability);
         ListTag genes = new ListTag();
         for (ObservedGene gene : this.observation.genes()) {
+            if (genes.size() >= ObservedGene.MAX_COUNT) {
+                break;
+            }
+            if (gene == null) {
+                continue;
+            }
+            String geneId = ObservedGene.boundedId(gene.id());
+            if (geneId.isBlank()) {
+                continue;
+            }
             CompoundTag geneTag = new CompoundTag();
-            geneTag.putString(GENE_ID, gene.id());
-            geneTag.putString(GENE_ITEM_ID, gene.itemId().toString());
-            geneTag.putString(GENE_DISPLAY_NAME, gene.displayName().getString());
+            geneTag.putString(GENE_ID, geneId);
+            if (gene.itemId() != null && gene.itemId().toString().length() <= ObservedGene.MAX_ID_LENGTH) {
+                geneTag.putString(GENE_ITEM_ID, gene.itemId().toString());
+            }
+            geneTag.putString(GENE_DISPLAY_NAME, ObservedGene.boundedDisplayName(gene.displayName()));
             genes.add(geneTag);
         }
         tag.put(GENES, genes);
@@ -172,16 +184,25 @@ public record CaptureCageObservationSnapshot(
 
     private static List<ObservedGene> readGenes(ListTag genesTag) {
         List<ObservedGene> genes = new ArrayList<>();
-        for (int index = 0; index < genesTag.size(); index++) {
+        for (int index = 0; index < genesTag.size() && genes.size() < ObservedGene.MAX_COUNT; index++) {
             CompoundTag geneTag = genesTag.getCompound(index);
-            ResourceLocation itemId = ResourceLocation.tryParse(geneTag.getString(GENE_ITEM_ID));
-            if (itemId == null) {
+            String geneId = ObservedGene.boundedId(geneTag.getString(GENE_ID));
+            if (geneId.isBlank()) {
                 continue;
             }
+            String itemIdText = geneTag.contains(GENE_ITEM_ID, Tag.TAG_STRING)
+                    ? geneTag.getString(GENE_ITEM_ID)
+                    : "";
+            ResourceLocation itemId = !itemIdText.isBlank() && itemIdText.length() <= ObservedGene.MAX_ID_LENGTH
+                    ? ResourceLocation.tryParse(itemIdText)
+                    : null;
             genes.add(new ObservedGene(
-                    geneTag.getString(GENE_ID),
+                    geneId,
                     itemId,
-                    Component.literal(geneTag.getString(GENE_DISPLAY_NAME))
+                    Component.literal(ObservedGene.boundedText(
+                            geneTag.getString(GENE_DISPLAY_NAME),
+                            ObservedGene.MAX_DISPLAY_NAME_LENGTH
+                    ))
             ));
         }
         return List.copyOf(genes);

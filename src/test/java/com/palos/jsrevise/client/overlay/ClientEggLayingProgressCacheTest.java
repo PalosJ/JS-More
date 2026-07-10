@@ -124,4 +124,41 @@ class ClientEggLayingProgressCacheTest {
         assertTrue(staleUnavailable.isEmpty());
         assertEquals(List.of(42), requests);
     }
+
+    @Test
+    void gameTimeRollbackClearsCachedProgressAndRequestCooldown() {
+        List<Integer> requests = new ArrayList<>();
+
+        ClientEggLayingProgressCache.getOrRequest(DIMENSION, 42, 100L, requests::add);
+        ClientEggLayingProgressCache.remember(
+                DIMENSION,
+                43,
+                100L,
+                EggLayingProgress.create(30, 100)
+        );
+        ClientEggLayingProgressCache.getOrRequest(DIMENSION, 42, 110L, requests::add);
+
+        Optional<EggLayingProgress> afterRollback = ClientEggLayingProgressCache.getOrRequest(
+                DIMENSION,
+                43,
+                5L,
+                requests::add
+        );
+
+        assertTrue(afterRollback.isEmpty());
+        assertEquals(List.of(42, 43), requests);
+    }
+
+    @Test
+    void requestCooldownSaturatesAtLongMaximum() {
+        List<Integer> requests = new ArrayList<>();
+
+        ClientEggLayingProgressCache.getOrRequest(DIMENSION, 42, Long.MAX_VALUE - 5L, requests::add);
+        ClientEggLayingProgressCache.getOrRequest(DIMENSION, 42, Long.MAX_VALUE - 1L, requests::add);
+        ClientEggLayingProgressCache.getOrRequest(DIMENSION, 42, Long.MAX_VALUE, requests::add);
+        ClientEggLayingProgressCache.getOrRequest(DIMENSION, 42, Long.MAX_VALUE, requests::add);
+
+        assertEquals(Long.MAX_VALUE, ClientEggLayingProgressCache.nextRequestTick(Long.MAX_VALUE - 5L));
+        assertEquals(List.of(42), requests);
+    }
 }

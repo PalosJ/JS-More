@@ -39,6 +39,7 @@ final class GeneObservationResolver {
             try {
                 ResourceLocation itemId = resolveItemId(gene);
                 String geneId = itemId != null ? itemId.getPath() : resolveId(gene);
+                geneId = ObservedGene.boundedId(geneId);
                 if (geneId == null || geneId.isBlank() || !seenIds.add(geneId)) {
                     continue;
                 }
@@ -46,7 +47,14 @@ final class GeneObservationResolver {
                 if (displayName == null || displayName.getString().isBlank()) {
                     displayName = resolveDisplayName(geneId);
                 }
-                result.add(new ObservedGene(geneId, itemId, displayName));
+                result.add(new ObservedGene(
+                        geneId,
+                        itemId,
+                        Component.literal(ObservedGene.boundedDisplayName(displayName))
+                ));
+                if (result.size() >= ObservedGene.MAX_COUNT) {
+                    break;
+                }
             } catch (RuntimeException ignored) {
                 // A changed or malformed optional gene must not disable the whole observation overlay.
             }

@@ -2,6 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.palos.jsrevise.mixin",
+  "plugin": "com.palos.jsrevise.mixin.JSReviseMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "EntityTypeSpawnEggMixin",
@@ -21,7 +22,6 @@
     "client.AzEntityDispatchCommandPacketMixin",
     "client.CustomHeadLayerMixin",
     "client.LevelRendererDestroyProgressMixin",
-    "client.TylosaurusAnimatorMixin",
     "client.TravelersClientAnimatorMixin",
     "client.TravelersAzureModelRendererMixin"
   ],

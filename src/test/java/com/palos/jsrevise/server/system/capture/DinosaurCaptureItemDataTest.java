@@ -8,6 +8,9 @@ import com.palos.jsrevise.server.registry.JSReviseItems;
 import java.util.UUID;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.IntTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
@@ -31,6 +34,7 @@ class DinosaurCaptureItemDataTest {
         );
         assertEquals(CapturedDinosaurData.MAX_DURABILITY, stack.getMaxDamage());
         assertTrue(stack.isBarVisible());
+        assertFalse(stack.isRepairable());
     }
 
     @Test
@@ -133,6 +137,111 @@ class DinosaurCaptureItemDataTest {
         assertFalse(stack.has(DataComponents.CUSTOM_DATA));
         assertFalse(DinosaurCaptureItemData.hasCapturedDinosaur(stack));
         assertFalse(stack.isBarVisible());
+    }
+
+    @Test
+    void inspectDistinguishesAbsentValidAndUnreadableCaptureData() {
+        ItemStack empty = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        assertEquals(DinosaurCaptureItemData.InspectionState.EMPTY, DinosaurCaptureItemData.inspect(empty).state());
+
+        DinosaurCaptureItemData.set(empty, data(CapturedDinosaurData.MAX_DURABILITY));
+        DinosaurCaptureItemData.Inspection valid = DinosaurCaptureItemData.inspect(empty);
+        assertEquals(DinosaurCaptureItemData.InspectionState.VALID, valid.state());
+        assertTrue(valid.validData().isPresent());
+
+        ItemStack unreadable = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        CustomData.update(DataComponents.CUSTOM_DATA, unreadable, tag -> tag.put(
+                DinosaurCaptureItemData.CAPTURE_TAG,
+                IntTag.valueOf(42)
+        ));
+        DinosaurCaptureItemData.Inspection inspection = DinosaurCaptureItemData.inspect(unreadable);
+        assertEquals(DinosaurCaptureItemData.InspectionState.UNREADABLE, inspection.state());
+        assertEquals(IntTag.valueOf(42), inspection.rawTag());
+        assertTrue(DinosaurCaptureItemData.get(unreadable).isEmpty());
+        assertTrue(DinosaurCaptureItemData.hasRawCaptureKey(unreadable));
+    }
+
+    @Test
+    void unreadableDataSurvivesClearAndDamageMirrorSync() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        Tag raw = IntTag.valueOf(42);
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.put(DinosaurCaptureItemData.CAPTURE_TAG, raw));
+        stack.set(DataComponents.MAX_DAMAGE, CapturedDinosaurData.MAX_DURABILITY);
+        stack.set(DataComponents.DAMAGE, 37);
+
+        DinosaurCaptureItemData.clear(stack);
+        assertFalse(DinosaurCaptureItemData.syncDamageMirror(stack, 200L));
+
+        assertEquals(raw, DinosaurCaptureItemData.inspect(stack).rawTag());
+        assertEquals(Integer.valueOf(CapturedDinosaurData.MAX_DURABILITY), stack.get(DataComponents.MAX_DAMAGE));
+        assertEquals(Integer.valueOf(37), stack.get(DataComponents.DAMAGE));
+    }
+
+    @Test
+    void arbitraryUnreadableTagRoundTripsThroughDefensiveCopies() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        ListTag raw = new ListTag();
+        raw.add(IntTag.valueOf(7));
+        DinosaurCaptureItemData.setRawCaptureTag(stack, raw);
+
+        ListTag firstRead = (ListTag) DinosaurCaptureItemData.inspect(stack).rawTag();
+        firstRead.add(IntTag.valueOf(8));
+
+        assertEquals(raw, DinosaurCaptureItemData.inspect(stack).rawTag());
+    }
+
+    @Test
+    void malformedCompoundPayloadRemainsUnreadableAndDefensivelyCopied() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        CompoundTag raw = new CompoundTag();
+        raw.putString("EntityType", ENTITY_TYPE.toString());
+        raw.putIntArray("OriginalUuid", new int[]{1});
+        CompoundTag entityNbt = new CompoundTag();
+        entityNbt.putString("id", ENTITY_TYPE.toString());
+        raw.put("EntityNbt", entityNbt);
+        DinosaurCaptureItemData.setRawCaptureTag(stack, raw);
+
+        raw.putString("CallerMutation", "must not leak");
+        CompoundTag exposed = (CompoundTag) DinosaurCaptureItemData.inspect(stack).rawTag();
+        exposed.putString("ReadMutation", "must not leak");
+        DinosaurCaptureItemData.Inspection inspection = DinosaurCaptureItemData.inspect(stack);
+
+        assertEquals(DinosaurCaptureItemData.InspectionState.UNREADABLE, inspection.state());
+        assertFalse(((CompoundTag) inspection.rawTag()).contains("CallerMutation"));
+        assertFalse(((CompoundTag) inspection.rawTag()).contains("ReadMutation"));
+    }
+
+    @Test
+    void ordinarySetCannotOverwriteUnreadableCaptureData() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        ListTag raw = new ListTag();
+        raw.add(IntTag.valueOf(7));
+        DinosaurCaptureItemData.setRawCaptureTag(stack, raw);
+        stack.set(DataComponents.MAX_DAMAGE, CapturedDinosaurData.MAX_DURABILITY);
+        stack.set(DataComponents.DAMAGE, 37);
+
+        DinosaurCaptureItemData.set(stack, data(CapturedDinosaurData.MAX_DURABILITY));
+
+        DinosaurCaptureItemData.Inspection inspection = DinosaurCaptureItemData.inspect(stack);
+        assertEquals(DinosaurCaptureItemData.InspectionState.UNREADABLE, inspection.state());
+        assertEquals(raw, inspection.rawTag());
+        assertEquals(Integer.valueOf(CapturedDinosaurData.MAX_DURABILITY), stack.get(DataComponents.MAX_DAMAGE));
+        assertEquals(Integer.valueOf(37), stack.get(DataComponents.DAMAGE));
+    }
+
+    @Test
+    void explicitRawSetterCanReplaceUnreadableCaptureDataDefensively() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        DinosaurCaptureItemData.setRawCaptureTag(stack, IntTag.valueOf(1));
+        ListTag replacement = new ListTag();
+        replacement.add(IntTag.valueOf(2));
+
+        DinosaurCaptureItemData.setRawCaptureTag(stack, replacement);
+        replacement.add(IntTag.valueOf(3));
+
+        ListTag expected = new ListTag();
+        expected.add(IntTag.valueOf(2));
+        assertEquals(expected, DinosaurCaptureItemData.inspect(stack).rawTag());
     }
 
     private static CapturedDinosaurData data(int durability) {

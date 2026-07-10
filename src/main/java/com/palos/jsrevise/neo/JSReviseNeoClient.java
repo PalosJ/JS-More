@@ -25,9 +25,11 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.minecraft.client.renderer.entity.ThrownItemRenderer;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
@@ -39,6 +41,7 @@ public final class JSReviseNeoClient {
         eventBus.addListener(JSReviseNeoClient::onClientSetup);
         eventBus.addListener(JSReviseNeoClient::registerEntityRenderers);
         eventBus.addListener(JSReviseNeoClient::registerGuiLayers);
+        eventBus.addListener(JSReviseNeoClient::registerClientReloadListeners);
         NeoForge.EVENT_BUS.addListener(AnestheticCrossbowInputHandler::onInteractionKeyMappingTriggered);
         NeoForge.EVENT_BUS.addListener(ClientFloatingEffects::onEntityTickPost);
         NeoForge.EVENT_BUS.addListener(JSReviseItemTooltipHandler::onItemTooltip);
@@ -66,6 +69,12 @@ public final class JSReviseNeoClient {
 
     private static void registerGuiLayers(RegisterGuiLayersEvent event) {
         event.registerAbove(VanillaGuiLayers.HOTBAR, JSRevise.id("dino_doctor_overlay"), DinoDoctorOverlayRenderer.OVERLAY);
+    }
+
+    private static void registerClientReloadListeners(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener((ResourceManagerReloadListener) resourceManager ->
+                FloatingModelGeometryResolver.clearCache()
+        );
     }
 
     private static void onClientLogout(ClientPlayerNetworkEvent.LoggingOut event) {

@@ -12,6 +12,7 @@ public final class JSReviseConfig {
     public static final ModConfigSpec.BooleanValue DISABLE_JURASSIC_SAGA_BIOME_GENERATION = BUILDER
             .translation("jsrevise.configuration.disable_jurassicsaga_biome_generation")
             .comment("When enabled, replaces Jurassic Saga custom biome generation with vanilla biome fallbacks.")
+            .gameRestart()
             .define("disable_jurassicsaga_biome_generation", true);
 
     public static final ModConfigSpec SPEC = BUILDER.build();

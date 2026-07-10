@@ -4,19 +4,15 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.OptionalLong;
 import java.util.WeakHashMap;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
 public final class DinosaurCaptureItemData {
     public static final String CAPTURE_TAG = "DinosaurCapture";
-    private static final int MAX_PENDING_ANESTHETIC_DOSES = 64;
-    private static final long MAX_RELATIVE_ANESTHETIC_TICKS = 20L * 60L * 60L * 24L;
     private static final int PROJECTED_DURABILITY_CACHE_REFRESH_INTERVAL_TICKS = 20;
     private static final Map<ItemStack, ProjectedDurabilityCacheEntry> PROJECTED_DURABILITY_CACHE =
             Collections.synchronizedMap(new WeakHashMap<>());
@@ -24,34 +20,62 @@ public final class DinosaurCaptureItemData {
     private DinosaurCaptureItemData() {
     }
 
-    public static Optional<CapturedDinosaurData> get(ItemStack stack) {
+    public enum InspectionState {
+        EMPTY,
+        VALID,
+        UNREADABLE
+    }
+
+    public record Inspection(InspectionState state, CapturedDinosaurData data, Tag rawTag) {
+        public Inspection {
+            rawTag = rawTag == null ? null : rawTag.copy();
+        }
+
+        @Override
+        public Tag rawTag() {
+            return this.rawTag == null ? null : this.rawTag.copy();
+        }
+
+        public Optional<CapturedDinosaurData> validData() {
+            return this.state == InspectionState.VALID ? Optional.of(this.data) : Optional.empty();
+        }
+    }
+
+    public static Inspection inspect(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
-            return Optional.empty();
+            return new Inspection(InspectionState.EMPTY, null, null);
         }
         CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
         if (customData == null || !customData.contains(CAPTURE_TAG)) {
-            return Optional.empty();
+            return new Inspection(InspectionState.EMPTY, null, null);
         }
-        CompoundTag root = customData.copyTag();
-        if (!root.contains(CAPTURE_TAG, Tag.TAG_COMPOUND)) {
-            return Optional.empty();
+        Tag rawTag = customData.copyTag().get(CAPTURE_TAG);
+        if (rawTag instanceof CompoundTag compoundTag) {
+            Optional<CapturedDinosaurData> parsed = CapturedDinosaurData.deserializeNBT(compoundTag);
+            if (parsed.isPresent()) {
+                return new Inspection(InspectionState.VALID, parsed.get(), null);
+            }
         }
-        return CapturedDinosaurData.deserializeNBT(root.getCompound(CAPTURE_TAG));
+        return new Inspection(InspectionState.UNREADABLE, null, rawTag);
+    }
+
+    public static Optional<CapturedDinosaurData> get(ItemStack stack) {
+        return inspect(stack).validData();
     }
 
     public static boolean hasCapturedDinosaur(ItemStack stack) {
         return get(stack).isPresent();
     }
 
+    public static boolean hasRawCaptureKey(ItemStack stack) {
+        return inspect(stack).state() != InspectionState.EMPTY;
+    }
+
     public static int projectedDurability(CapturedDinosaurData data, long currentGameTime) {
         if (data == null) {
             return 0;
         }
-        long safeCurrentGameTime = Math.max(0L, currentGameTime);
-        long elapsedTicks = Math.max(0L, safeCurrentGameTime - data.lastSettledGameTime());
-        long durabilityElapsedTicks = durabilityElapsedTicksForSettlement(data, safeCurrentGameTime, elapsedTicks);
-        long elapsedSeconds = durabilityElapsedTicks / 20L;
-        return Math.max(0, (int) Math.max(0L, data.durability() - elapsedSeconds));
+        return durabilityProjection(data, currentGameTime).durability();
     }
 
     static long durabilityElapsedTicksForSettlement(
@@ -62,15 +86,18 @@ public final class DinosaurCaptureItemData {
         if (data == null) {
             return Math.max(0L, fallbackElapsedTicks);
         }
-        return activeAnestheticProtectionEndTick(data, currentGameTime)
-                .stream()
-                .map(protectionEndTick -> Math.max(0L, currentGameTime - Math.max(data.lastSettledGameTime(), protectionEndTick)))
-                .findFirst()
-                .orElse(fallbackElapsedTicks);
+        return AnestheticProtectionIntervals.unprotectedTicks(data, currentGameTime);
+    }
+
+    static int durabilityRemainderTicksForSettlement(CapturedDinosaurData data, long currentGameTime) {
+        return data == null ? 0 : durabilityProjection(data, currentGameTime).remainderTicks();
     }
 
     public static void set(ItemStack stack, CapturedDinosaurData data) {
         if (stack == null || stack.isEmpty() || data == null) {
+            return;
+        }
+        if (inspect(stack).state() == InspectionState.UNREADABLE) {
             return;
         }
         CustomData.update(
@@ -82,8 +109,23 @@ public final class DinosaurCaptureItemData {
         PROJECTED_DURABILITY_CACHE.remove(stack);
     }
 
+    public static void setRawCaptureTag(ItemStack stack, Tag rawTag) {
+        if (stack == null || stack.isEmpty() || rawTag == null) {
+            return;
+        }
+        CustomData.update(
+                DataComponents.CUSTOM_DATA,
+                stack,
+                tag -> tag.put(CAPTURE_TAG, rawTag.copy())
+        );
+        PROJECTED_DURABILITY_CACHE.remove(stack);
+    }
+
     public static void clear(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        if (inspect(stack).state() == InspectionState.UNREADABLE) {
             return;
         }
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(CAPTURE_TAG));
@@ -96,7 +138,11 @@ public final class DinosaurCaptureItemData {
         if (stack == null || stack.isEmpty()) {
             return false;
         }
-        Optional<CapturedDinosaurData> captured = get(stack);
+        Inspection inspection = inspect(stack);
+        if (inspection.state() == InspectionState.UNREADABLE) {
+            return false;
+        }
+        Optional<CapturedDinosaurData> captured = inspection.validData();
         if (captured.isEmpty()) {
             return clearDamageMirror(stack);
         }
@@ -105,6 +151,9 @@ public final class DinosaurCaptureItemData {
 
     public static boolean syncDamageMirror(ItemStack stack, CapturedDinosaurData data, long currentGameTime) {
         if (stack == null || stack.isEmpty() || data == null) {
+            return false;
+        }
+        if (inspect(stack).state() == InspectionState.UNREADABLE) {
             return false;
         }
         int maxDamage = CapturedDinosaurData.MAX_DURABILITY;
@@ -215,51 +264,19 @@ public final class DinosaurCaptureItemData {
         }
     }
 
-    private static OptionalLong activeAnestheticProtectionEndTick(CapturedDinosaurData data, long currentGameTime) {
-        if (data.relativeAnestheticNbt() == null || data.relativeAnestheticNbt().isEmpty()) {
-            return OptionalLong.empty();
-        }
-        CompoundTag anestheticTag = data.relativeAnestheticNbt();
-        if (!anestheticTag.contains("ActiveRemainingTicks", Tag.TAG_LONG)) {
-            return OptionalLong.empty();
-        }
-        long activeRemainingTicks = anestheticTag.getLong("ActiveRemainingTicks");
-        if (activeRemainingTicks < 0L) {
-            return OptionalLong.empty();
-        }
-        long safeCurrentGameTime = Math.max(0L, currentGameTime);
-        long baseGameTime = Math.min(Math.max(0L, data.anestheticReferenceGameTime()), safeCurrentGameTime);
-        long protectionEndTick = safeAdd(baseGameTime, sanitizeRelativeAnestheticTicks(activeRemainingTicks));
-
-        ListTag pendingDoses = anestheticTag.getList("PendingDoses", Tag.TAG_COMPOUND);
-        int count = Math.min(MAX_PENDING_ANESTHETIC_DOSES, pendingDoses.size());
-        for (int index = 0; index < count; index++) {
-            CompoundTag doseTag = pendingDoses.getCompound(index);
-            int durationTicks = doseTag.getInt("DurationTicks");
-            if (durationTicks <= 0) {
-                continue;
-            }
-            long activationTick = safeAdd(baseGameTime, sanitizeRelativeAnestheticTicks(doseTag.getLong("DelayTicks")));
-            if (activationTick <= safeCurrentGameTime) {
-                long extensionBase = Math.max(activationTick, protectionEndTick);
-                protectionEndTick = safeAdd(extensionBase, sanitizeAnestheticDuration(durationTicks));
-            }
-        }
-        return OptionalLong.of(protectionEndTick);
-    }
-
-    private static long sanitizeRelativeAnestheticTicks(long ticks) {
-        return Math.max(0L, Math.min(MAX_RELATIVE_ANESTHETIC_TICKS, ticks));
-    }
-
-    private static long sanitizeAnestheticDuration(long durationTicks) {
-        return Math.max(20L, Math.min(MAX_RELATIVE_ANESTHETIC_TICKS, durationTicks));
-    }
-
-    private static long safeAdd(long left, long right) {
-        return right > 0L && left > Long.MAX_VALUE - right ? Long.MAX_VALUE : left + right;
+    private static DurabilityProjection durabilityProjection(CapturedDinosaurData data, long currentGameTime) {
+        long unprotectedTicks = AnestheticProtectionIntervals.unprotectedTicks(data, currentGameTime);
+        long totalTicks = unprotectedTicks > Long.MAX_VALUE - data.durabilityRemainderTicks()
+                ? Long.MAX_VALUE
+                : unprotectedTicks + data.durabilityRemainderTicks();
+        long durabilityLoss = totalTicks / 20L;
+        int projected = (int) Math.max(0L, data.durability() - Math.min(data.durability(), durabilityLoss));
+        return new DurabilityProjection(projected, (int) (totalTicks % 20L));
     }
 
     private record ProjectedDurabilityCacheEntry(int durability, long gameTime) {
+    }
+
+    private record DurabilityProjection(int durability, int remainderTicks) {
     }
 }

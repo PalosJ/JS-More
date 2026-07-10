@@ -25,12 +25,16 @@ import net.minecraft.world.level.block.Block;
 
 public final class DinosaurCaptureCageItem extends BlockItem {
     public DinosaurCaptureCageItem(Block block) {
-        super(block, new Properties().stacksTo(1));
+        super(block, new Properties().stacksTo(1).setNoRepair());
     }
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
         ItemStack stack = context.getItemInHand();
+        if (DinosaurCaptureItemData.inspect(stack).state()
+                == DinosaurCaptureItemData.InspectionState.UNREADABLE) {
+            return InteractionResult.FAIL;
+        }
         if (DinosaurCaptureItemData.hasCapturedDinosaur(stack) && context.getPlayer() != null && context.getPlayer().isShiftKeyDown()) {
             return DinosaurCaptureService.releaseFromStack(
                     stack,
@@ -49,6 +53,10 @@ public final class DinosaurCaptureCageItem extends BlockItem {
             LivingEntity interactionTarget,
             InteractionHand usedHand
     ) {
+        if (DinosaurCaptureItemData.inspect(stack).state()
+                == DinosaurCaptureItemData.InspectionState.UNREADABLE) {
+            return InteractionResult.FAIL;
+        }
         if (!(interactionTarget instanceof JSAnimalBase animal)) {
             return InteractionResult.PASS;
         }
@@ -66,14 +74,20 @@ public final class DinosaurCaptureCageItem extends BlockItem {
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        DinosaurCaptureItemData.get(stack).ifPresentOrElse(
-                data -> {
-                    tooltip.add(Component.translatable("tooltip.jsrevise.dinosaur_capture_box.occupied", data.displayName())
-                            .withStyle(ChatFormatting.GRAY));
-                },
-                () -> tooltip.add(Component.translatable("tooltip.jsrevise.dinosaur_capture_box.empty")
-                        .withStyle(ChatFormatting.GRAY))
-        );
+        DinosaurCaptureItemData.Inspection inspection = DinosaurCaptureItemData.inspect(stack);
+        if (inspection.state() == DinosaurCaptureItemData.InspectionState.UNREADABLE) {
+            tooltip.add(Component.translatable("tooltip.jsrevise.dinosaur_capture_box.unreadable")
+                    .withStyle(ChatFormatting.RED));
+        } else if (inspection.state() == DinosaurCaptureItemData.InspectionState.VALID) {
+            tooltip.add(Component.translatable(
+                            "tooltip.jsrevise.dinosaur_capture_box.occupied",
+                            inspection.data().displayName()
+                    )
+                    .withStyle(ChatFormatting.GRAY));
+        } else {
+            tooltip.add(Component.translatable("tooltip.jsrevise.dinosaur_capture_box.empty")
+                    .withStyle(ChatFormatting.GRAY));
+        }
     }
 
     @Override

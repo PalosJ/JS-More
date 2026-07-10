@@ -19,7 +19,8 @@ public record CapturedDinosaurData(
         int durability,
         CompoundTag entityNbt,
         CompoundTag relativeAnestheticNbt,
-        CapturedDinosaurVitals vitals
+        CapturedDinosaurVitals vitals,
+        int durabilityRemainderTicks
 ) {
     public static final int MAX_DURABILITY = 100;
     private static final String ENTITY_TYPE = "EntityType";
@@ -29,11 +30,39 @@ public record CapturedDinosaurData(
     private static final String LAST_SETTLED_GAME_TIME = "LastSettledGameTime";
     private static final String ANESTHETIC_REFERENCE_GAME_TIME = "AnestheticReferenceGameTime";
     private static final String DURABILITY = "Durability";
+    private static final String DURABILITY_REMAINDER_TICKS = "DurabilityRemainderTicks";
     private static final String ENTITY_NBT = "EntityNbt";
     private static final String RELATIVE_ANESTHETIC = "RelativeAnesthetic";
     private static final String VITALS = "Vitals";
     private static final int MAX_DISPLAY_NAME_LENGTH = 256;
     private static final int MAX_ENTITY_NBT_BYTES = 1024 * 1024;
+
+    public CapturedDinosaurData(
+            ResourceLocation entityTypeId,
+            UUID originalUuid,
+            String displayName,
+            long capturedGameTime,
+            long lastSettledGameTime,
+            long anestheticReferenceGameTime,
+            int durability,
+            CompoundTag entityNbt,
+            CompoundTag relativeAnestheticNbt,
+            CapturedDinosaurVitals vitals
+    ) {
+        this(
+                entityTypeId,
+                originalUuid,
+                displayName,
+                capturedGameTime,
+                lastSettledGameTime,
+                anestheticReferenceGameTime,
+                durability,
+                entityNbt,
+                relativeAnestheticNbt,
+                vitals,
+                0
+        );
+    }
 
     public CapturedDinosaurData {
         displayName = sanitizeDisplayName(displayName);
@@ -44,6 +73,7 @@ public record CapturedDinosaurData(
         entityNbt = sanitizeEntityNbtForStoredData(entityTypeId, originalUuid, entityNbt);
         relativeAnestheticNbt = relativeAnestheticNbt == null ? new CompoundTag() : relativeAnestheticNbt.copy();
         vitals = vitals == null ? CapturedDinosaurVitals.deserializeNBT(new CompoundTag()) : vitals;
+        durabilityRemainderTicks = Math.max(0, Math.min(19, durabilityRemainderTicks));
     }
 
     public static Optional<CapturedDinosaurData> capture(JSAnimalBase animal) {
@@ -74,7 +104,8 @@ public record CapturedDinosaurData(
                 MAX_DURABILITY,
                 entityNbt.get(),
                 DinosaurAnestheticSystem.saveRelativeAnestheticState(animal),
-                CapturedDinosaurVitals.capture(animal)
+                CapturedDinosaurVitals.capture(animal),
+                0
         ));
     }
 
@@ -98,6 +129,24 @@ public record CapturedDinosaurData(
             CompoundTag relativeAnestheticNbt,
             CapturedDinosaurVitals vitals
     ) {
+        return withRuntimeState(
+                currentGameTime,
+                durability,
+                this.durabilityRemainderTicks,
+                entityNbt,
+                relativeAnestheticNbt,
+                vitals
+        );
+    }
+
+    public CapturedDinosaurData withRuntimeState(
+            long currentGameTime,
+            int durability,
+            int durabilityRemainderTicks,
+            CompoundTag entityNbt,
+            CompoundTag relativeAnestheticNbt,
+            CapturedDinosaurVitals vitals
+    ) {
         CompoundTag runtimeEntityNbt = sanitizeEntityNbtForRuntimeUpdate(entityTypeId, originalUuid, entityNbt)
                 .orElse(this.entityNbt.copy());
         return new CapturedDinosaurData(
@@ -110,7 +159,8 @@ public record CapturedDinosaurData(
                 durability,
                 runtimeEntityNbt,
                 relativeAnestheticNbt,
-                vitals
+                vitals,
+                durabilityRemainderTicks
         );
     }
 
@@ -125,7 +175,8 @@ public record CapturedDinosaurData(
                 durability,
                 this.entityNbt,
                 this.relativeAnestheticNbt,
-                this.vitals
+                this.vitals,
+                this.durabilityRemainderTicks
         );
     }
 
@@ -138,6 +189,7 @@ public record CapturedDinosaurData(
         tag.putLong(LAST_SETTLED_GAME_TIME, this.lastSettledGameTime);
         tag.putLong(ANESTHETIC_REFERENCE_GAME_TIME, this.anestheticReferenceGameTime);
         tag.putInt(DURABILITY, this.durability);
+        tag.putInt(DURABILITY_REMAINDER_TICKS, this.durabilityRemainderTicks);
         tag.put(ENTITY_NBT, this.entityNbt.copy());
         tag.put(RELATIVE_ANESTHETIC, this.relativeAnestheticNbt.copy());
         tag.put(VITALS, this.vitals.serializeNBT());
@@ -145,6 +197,14 @@ public record CapturedDinosaurData(
     }
 
     public static Optional<CapturedDinosaurData> deserializeNBT(CompoundTag tag) {
+        try {
+            return deserializeNBTSafely(tag);
+        } catch (RuntimeException exception) {
+            return Optional.empty();
+        }
+    }
+
+    private static Optional<CapturedDinosaurData> deserializeNBTSafely(CompoundTag tag) {
         if (tag == null
                 || !tag.contains(ENTITY_TYPE, Tag.TAG_STRING)
                 || !tag.hasUUID(ORIGINAL_UUID)
@@ -161,6 +221,9 @@ public record CapturedDinosaurData(
         }
         UUID uuid = tag.getUUID(ORIGINAL_UUID);
         entityNbt = sanitizeEntityNbt(entityTypeId, uuid, entityNbt);
+        if (entityNbt.isEmpty() || estimatedNbtSize(entityNbt) > MAX_ENTITY_NBT_BYTES) {
+            return Optional.empty();
+        }
         CompoundTag anestheticTag = tag.contains(RELATIVE_ANESTHETIC, Tag.TAG_COMPOUND)
                 ? tag.getCompound(RELATIVE_ANESTHETIC).copy()
                 : new CompoundTag();
@@ -177,6 +240,9 @@ public record CapturedDinosaurData(
         int durability = tag.contains(DURABILITY, Tag.TAG_INT)
                 ? tag.getInt(DURABILITY)
                 : MAX_DURABILITY;
+        int durabilityRemainderTicks = tag.contains(DURABILITY_REMAINDER_TICKS, Tag.TAG_INT)
+                ? tag.getInt(DURABILITY_REMAINDER_TICKS)
+                : 0;
         return Optional.of(new CapturedDinosaurData(
                 entityTypeId,
                 uuid,
@@ -187,7 +253,8 @@ public record CapturedDinosaurData(
                 durability,
                 entityNbt,
                 anestheticTag,
-                CapturedDinosaurVitals.deserializeNBT(vitalsTag)
+                CapturedDinosaurVitals.deserializeNBT(vitalsTag),
+                durabilityRemainderTicks
         ));
     }
 
@@ -204,7 +271,9 @@ public record CapturedDinosaurData(
             return Optional.empty();
         }
         CompoundTag safe = sanitizeEntityNbt(entityTypeId, uuid, source);
-        return safe.isEmpty() ? Optional.empty() : Optional.of(safe);
+        return safe.isEmpty() || estimatedNbtSize(safe) > MAX_ENTITY_NBT_BYTES
+                ? Optional.empty()
+                : Optional.of(safe);
     }
 
     private static Optional<CompoundTag> sanitizeEntityNbtForRuntimeUpdate(
@@ -226,12 +295,15 @@ public record CapturedDinosaurData(
     private static CompoundTag sanitizeEntityNbt(ResourceLocation entityTypeId, UUID uuid, CompoundTag source) {
         CompoundTag safe = source == null ? new CompoundTag() : source.copy();
         safe.remove("Passengers");
+        safe.remove("leash");
         safe.remove("Leash");
         safe.remove("RootVehicle");
         safe.remove("Motion");
         safe.remove("Pos");
         safe.remove("Rotation");
         safe.remove("FallFlying");
+        safe.remove("FallDistance");
+        safe.remove("OnGround");
         if (entityTypeId != null) {
             safe.putString("id", entityTypeId.toString());
         }

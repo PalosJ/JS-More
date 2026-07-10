@@ -5,6 +5,7 @@ import com.palos.jsrevise.server.block.BrokenDinosaurCaptureBoxBlock;
 import com.palos.jsrevise.server.block.DinosaurCaptureCageBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -19,6 +20,7 @@ public final class JSReviseBlocks {
                     DinosaurCaptureCageBlock::new,
                     BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                             .sound(SoundType.METAL)
+                            .pushReaction(PushReaction.BLOCK)
                             .noOcclusion()
             );
     public static final DeferredBlock<BrokenDinosaurCaptureBoxBlock> BROKEN_DINOSAUR_CAPTURE_BOX =
@@ -28,6 +30,7 @@ public final class JSReviseBlocks {
                     BlockBehaviour.Properties.ofFullCopy(Blocks.GLASS)
                             .requiresCorrectToolForDrops()
                             .sound(SoundType.METAL)
+                            .pushReaction(PushReaction.BLOCK)
                             .noCollission()
                             .noOcclusion()
             );

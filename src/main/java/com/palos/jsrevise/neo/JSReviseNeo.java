@@ -11,9 +11,11 @@ import com.palos.jsrevise.server.registry.JSReviseCreativeTabs;
 import com.palos.jsrevise.server.registry.JSReviseEntityTypes;
 import com.palos.jsrevise.server.registry.JSReviseItems;
 import com.palos.jsrevise.server.system.JSAnimalTickHandler;
+import com.palos.jsrevise.server.system.capture.DinosaurCaptureAnvilHandler;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureTickHandler;
 import com.palos.jsrevise.server.system.profile.DinosaurProfileResolver;
 import com.palos.jsrevise.server.system.worldgen.JurassicSagaBiomeGenerationController;
+import com.palos.jsrevise.system.observation.DinosaurObservationSystem;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -36,6 +38,7 @@ public final class JSReviseNeo {
         modContainer.registerConfig(ModConfig.Type.COMMON, JSReviseConfig.SPEC);
         NeoForge.EVENT_BUS.addListener(JSAnimalTickHandler::onEntityTickPost);
         NeoForge.EVENT_BUS.addListener(JSAnimalTickHandler::onPlayerStartTracking);
+        NeoForge.EVENT_BUS.addListener(DinosaurCaptureAnvilHandler::onAnvilUpdate);
         NeoForge.EVENT_BUS.addListener(DinosaurCaptureTickHandler::onEntityTickPost);
         NeoForge.EVENT_BUS.addListener(DinosaurCaptureTickHandler::onPlayerTickPost);
         NeoForge.EVENT_BUS.addListener(DinosaurCaptureTickHandler::onPlayerContainerOpen);
@@ -49,6 +52,7 @@ public final class JSReviseNeo {
 
     private static void onServerStopping(ServerStoppingEvent event) {
         ServerRequestRateLimiters.clearAll();
+        DinosaurObservationSystem.clearCache();
         JurassicSagaBiomeGenerationController.clearCache(event.getServer());
     }
 }

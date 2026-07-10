@@ -195,21 +195,21 @@ final class AnestheticMovementController {
             double targetY,
             double maxStep
     ) {
-        double nextY = nextY(animal.getY(), targetY, maxStep);
-        boolean positionChanged = requiresVerticalPositionCorrection(animal.getY(), nextY);
+        double startY = animal.getY();
+        double requestedY = nextY(startY, targetY, maxStep);
+        double requestedDeltaY = requestedY - startY;
+        if (requiresVerticalPositionCorrection(0.0D, requestedDeltaY)) {
+            animal.move(MoverType.SELF, new Vec3(0.0D, requestedDeltaY, 0.0D));
+        }
+        boolean positionChanged = Math.abs(animal.getY() - startY) > POSITION_EPSILON;
         Vec3 currentMotion = animal.getDeltaMovement();
         Vec3 controlledMotion = withControlledVerticalMotion(currentMotion, 0.0D);
         boolean motionChanged = Math.abs(currentMotion.y - controlledMotion.y) > MOTION_EPSILON;
-        if (positionChanged) {
-            animal.setPos(animal.getX(), nextY, animal.getZ());
-        }
         if (motionChanged) {
             animal.setDeltaMovement(controlledMotion);
         }
         if (positionChanged || motionChanged) {
             animal.hasImpulse = true;
-        }
-        if (motionChanged) {
             animal.hurtMarked = true;
         }
     }

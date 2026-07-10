@@ -7,10 +7,12 @@ import com.palos.jsrevise.server.system.age.DinosaurAgeEstimate;
 import com.palos.jsrevise.server.system.capture.CapturedDinosaurData;
 import com.palos.jsrevise.server.system.size.DinosaurLifecycleStage;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
@@ -65,5 +67,70 @@ class CaptureCageObservationSnapshotTest {
         assertEquals(600L, decoded.observation().remainingAnestheticTicks().orElseThrow());
         assertEquals(1, decoded.observation().genes().size());
         assertEquals("Gene Test", decoded.observation().genes().getFirst().displayName().getString());
+    }
+
+    @Test
+    void boundsGeneDataAndPreservesGenesWithoutItemIcons() {
+        List<ObservedGene> genes = new ArrayList<>();
+        genes.add(new ObservedGene("bad id", null, Component.literal("ignored")));
+        String longId = "a".repeat(ObservedGene.MAX_ID_LENGTH + 32);
+        String longDisplayName = "D".repeat(ObservedGene.MAX_DISPLAY_NAME_LENGTH + 32);
+        for (int index = 0; index < ObservedGene.MAX_COUNT + 8; index++) {
+            genes.add(new ObservedGene(
+                    index == 0 ? longId : "gene_" + index,
+                    null,
+                    Component.literal(longDisplayName)
+            ));
+        }
+        DinosaurObservationSnapshot observation = observationWithGenes(genes);
+
+        CompoundTag tag = CaptureCageObservationSnapshot.from(
+                ResourceLocation.fromNamespaceAndPath("jurassicsaga", "test_dino"),
+                observation,
+                0L
+        ).serializeNBT();
+        ListTag serializedGenes = tag.getList("Genes", CompoundTag.TAG_COMPOUND);
+
+        assertEquals(ObservedGene.MAX_COUNT, serializedGenes.size());
+        assertEquals(ObservedGene.MAX_ID_LENGTH, serializedGenes.getCompound(0).getString("Id").length());
+        assertEquals(
+                ObservedGene.MAX_DISPLAY_NAME_LENGTH,
+                serializedGenes.getCompound(0).getString("DisplayName").length()
+        );
+        assertTrue(!serializedGenes.getCompound(0).contains("ItemId"));
+
+        List<ObservedGene> decoded = CaptureCageObservationSnapshot.deserializeNBT(tag)
+                .orElseThrow()
+                .observation()
+                .genes();
+        assertEquals(ObservedGene.MAX_COUNT, decoded.size());
+        assertTrue(decoded.stream().allMatch(gene -> gene.itemId() == null));
+        assertTrue(decoded.stream().noneMatch(gene -> gene.id().isBlank()));
+    }
+
+    private static DinosaurObservationSnapshot observationWithGenes(List<ObservedGene> genes) {
+        return new DinosaurObservationSnapshot(
+                Component.literal("Test Dino"),
+                new DinosaurAgeEstimate(
+                        ResourceLocation.fromNamespaceAndPath("jurassicsaga", "test_dino"),
+                        DinosaurLifecycleStage.ADULT,
+                        100.0D,
+                        OptionalLong.empty(),
+                        OptionalLong.empty(),
+                        OptionalDouble.empty(),
+                        OptionalDouble.empty()
+                ),
+                OptionalDouble.empty(),
+                OptionalDouble.empty(),
+                Optional.empty(),
+                OptionalDouble.empty(),
+                OptionalDouble.empty(),
+                OptionalDouble.empty(),
+                OptionalLong.empty(),
+                OptionalLong.empty(),
+                OptionalLong.empty(),
+                Optional.empty(),
+                genes
+        );
     }
 }

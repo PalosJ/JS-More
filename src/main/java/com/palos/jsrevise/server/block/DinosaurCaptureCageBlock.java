@@ -276,7 +276,7 @@ public final class DinosaurCaptureCageBlock extends Block implements EntityBlock
             if (player.getAbilities().instabuild) {
                 dropCageItem(level, controllerPos, false);
             } else {
-                dropCageItem(level, controllerPos, player.hasCorrectToolForDrops(state));
+                dropCageItem(level, controllerPos, player.hasCorrectToolForDrops(state, level, pos));
             }
         }
         return super.playerWillDestroy(level, pos, state, player);
@@ -409,6 +409,8 @@ public final class DinosaurCaptureCageBlock extends Block implements EntityBlock
                 } else {
                     DinosaurCaptureItemData.set(stack, captured);
                 }
+            } else if (cage.hasUnreadableCapturedDinosaur()) {
+                stack = DinosaurCaptureService.cageStackForUnreadableDrop(cage.getUnreadableCapturedDinosaur());
             } else if (!dropEmpty) {
                 return;
             }

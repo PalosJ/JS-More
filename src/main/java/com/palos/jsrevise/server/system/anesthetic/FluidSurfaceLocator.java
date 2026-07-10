@@ -2,12 +2,14 @@ package com.palos.jsrevise.server.system.anesthetic;
 
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.core.BlockPos;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.level.material.FluidState;
 
 final class FluidSurfaceLocator {
     private static final double CONTACT_EPSILON = 1.0E-4D;
+    private static final int SAMPLE_COLUMN_COUNT = 5;
 
     private FluidSurfaceLocator() {
     }
@@ -21,11 +23,20 @@ final class FluidSurfaceLocator {
 
         int topY = Mth.floor(animal.getBoundingBox().maxY) + 2;
         int bottomY = Mth.floor(animal.getBoundingBox().minY) - 3;
+        AABB bounds = animal.getBoundingBox();
+        int centerX = Mth.floor(animal.getX());
+        int centerZ = Mth.floor(animal.getZ());
+        int minX = Mth.floor(bounds.minX + 0.05D);
+        int maxX = Mth.floor(bounds.maxX - 0.05D);
+        int minZ = Mth.floor(bounds.minZ + 0.05D);
+        int maxZ = Mth.floor(bounds.maxZ - 0.05D);
 
         Double highestSurface = null;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int[] column : sampleColumns(animal)) {
-            Double surface = findColumnSurface(animal, column[0], column[1], topY, bottomY, cursor);
+        for (int index = 0; index < SAMPLE_COLUMN_COUNT; index++) {
+            int x = sampleX(index, centerX, minX, maxX);
+            int z = sampleZ(index, centerZ, minZ, maxZ);
+            Double surface = findColumnSurface(animal, x, z, topY, bottomY, cursor);
             if (surface != null && (highestSurface == null || surface > highestSurface)) {
                 highestSurface = surface;
             }
@@ -53,14 +64,22 @@ final class FluidSurfaceLocator {
             return true;
         }
         AABB bounds = animal.getBoundingBox();
+        int centerX = Mth.floor(animal.getX());
+        int centerZ = Mth.floor(animal.getZ());
+        int minX = Mth.floor(bounds.minX + 0.05D);
+        int maxX = Mth.floor(bounds.maxX - 0.05D);
+        int minZ = Mth.floor(bounds.minZ + 0.05D);
+        int maxZ = Mth.floor(bounds.maxZ - 0.05D);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int[] column : sampleColumns(animal)) {
+        for (int index = 0; index < SAMPLE_COLUMN_COUNT; index++) {
+            int x = sampleX(index, centerX, minX, maxX);
+            int z = sampleZ(index, centerZ, minZ, maxZ);
             int minY = Mth.floor(bounds.minY + CONTACT_EPSILON);
             int maxY = Mth.floor(bounds.maxY - CONTACT_EPSILON);
             for (int y = minY; y <= maxY; y++) {
-                cursor.set(column[0], y, column[1]);
+                cursor.set(x, y, z);
                 FluidState fluidState = animal.level().getFluidState(cursor);
-                if (fluidState.isEmpty()) {
+                if (!fluidState.is(FluidTags.WATER)) {
                     continue;
                 }
                 double fluidTop = y + (double) fluidState.getHeight(animal.level(), cursor);
@@ -78,14 +97,22 @@ final class FluidSurfaceLocator {
             return false;
         }
         AABB bounds = animal.getBoundingBox();
+        int centerX = Mth.floor(animal.getX());
+        int centerZ = Mth.floor(animal.getZ());
+        int minX = Mth.floor(bounds.minX + 0.05D);
+        int maxX = Mth.floor(bounds.maxX - 0.05D);
+        int minZ = Mth.floor(bounds.minZ + 0.05D);
+        int maxZ = Mth.floor(bounds.maxZ - 0.05D);
         int topY = Mth.floor(bounds.minY) + 1;
         int bottomY = Mth.floor(bounds.minY - maximumGap) - 2;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int[] column : sampleColumns(animal)) {
+        for (int index = 0; index < SAMPLE_COLUMN_COUNT; index++) {
+            int x = sampleX(index, centerX, minX, maxX);
+            int z = sampleZ(index, centerZ, minZ, maxZ);
             Double surfaceY = findColumnSurface(
                     animal,
-                    column[0],
-                    column[1],
+                    x,
+                    z,
                     topY,
                     bottomY,
                     cursor
@@ -95,7 +122,7 @@ final class FluidSurfaceLocator {
                     || !isSurfaceWithinSupportGap(bounds.minY, surfaceY, maximumGap)) {
                 continue;
             }
-            if (!hasBlockingBlockBetween(animal, column[0], column[1], surfaceY, bounds.minY)) {
+            if (!hasBlockingBlockBetween(animal, x, z, surfaceY, bounds.minY)) {
                 return true;
             }
         }
@@ -128,7 +155,7 @@ final class FluidSurfaceLocator {
         int firstFluidY = Integer.MIN_VALUE;
         for (int y = topY; y >= bottomY; y--) {
             cursor.set(x, y, z);
-            if (!animal.level().getFluidState(cursor).isEmpty()) {
+            if (animal.level().getFluidState(cursor).is(FluidTags.WATER)) {
                 firstFluidY = y;
                 break;
             }
@@ -141,14 +168,14 @@ final class FluidSurfaceLocator {
         int maxSearchY = Math.min(animal.level().getMaxBuildHeight() - 1, firstFluidY + 32);
         while (surfaceBlockY < maxSearchY) {
             cursor.set(x, surfaceBlockY + 1, z);
-            if (animal.level().getFluidState(cursor).isEmpty()) {
+            if (!animal.level().getFluidState(cursor).is(FluidTags.WATER)) {
                 break;
             }
             surfaceBlockY++;
         }
         cursor.set(x, surfaceBlockY, z);
         FluidState fluidState = animal.level().getFluidState(cursor);
-        return fluidState.isEmpty()
+        return !fluidState.is(FluidTags.WATER)
                 ? null
                 : surfaceBlockY + (double) fluidState.getHeight(animal.level(), cursor);
     }
@@ -195,19 +222,21 @@ final class FluidSurfaceLocator {
         return !animal.level().noBlockCollision(animal, gap);
     }
 
-    private static int[][] sampleColumns(JSAnimalBase animal) {
-        int centerX = Mth.floor(animal.getX());
-        int centerZ = Mth.floor(animal.getZ());
-        int minX = Mth.floor(animal.getBoundingBox().minX + 0.05D);
-        int maxX = Mth.floor(animal.getBoundingBox().maxX - 0.05D);
-        int minZ = Mth.floor(animal.getBoundingBox().minZ + 0.05D);
-        int maxZ = Mth.floor(animal.getBoundingBox().maxZ - 0.05D);
-        return new int[][]{
-                {centerX, centerZ},
-                {minX, minZ},
-                {minX, maxZ},
-                {maxX, minZ},
-                {maxX, maxZ}
+    private static int sampleX(int index, int center, int minimum, int maximum) {
+        return switch (index) {
+            case 0 -> center;
+            case 1, 2 -> minimum;
+            case 3, 4 -> maximum;
+            default -> throw new IllegalArgumentException("Unknown sample column: " + index);
+        };
+    }
+
+    private static int sampleZ(int index, int center, int minimum, int maximum) {
+        return switch (index) {
+            case 0 -> center;
+            case 1, 3 -> minimum;
+            case 2, 4 -> maximum;
+            default -> throw new IllegalArgumentException("Unknown sample column: " + index);
         };
     }
 }
