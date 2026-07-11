@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "E": {
+      "item": "jurassicsaga:empty_syringe"
+    },
+    "P": {
+      "item": "jsrevise:anesthetic_potion"
+    }
+  },
+  "pattern": [
+    " E ",
+    "EPE",
+    " E "
+  ],
+  "result": {
+    "count": 4,
+    "id": "jsrevise:anesthetic_syringe"
+  }
+}

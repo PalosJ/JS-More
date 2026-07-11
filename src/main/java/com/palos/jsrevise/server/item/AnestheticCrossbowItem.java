@@ -1,8 +1,7 @@
 package com.palos.jsrevise.server.item;
 
-import com.palos.jsrevise.server.entity.projectile.AnestheticSyringeProjectile;
+import com.palos.jsrevise.server.entity.projectile.AnestheticDartEntity;
 import com.palos.jsrevise.server.registry.JSReviseItems;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 import net.minecraft.ChatFormatting;
@@ -26,10 +25,11 @@ import net.minecraft.world.level.Level;
 
 public final class AnestheticCrossbowItem extends CrossbowItem {
     private static final int FIRE_COOLDOWN_TICKS = 10;
-    private static final int MAX_LOADED_SYRINGES = 6;
-    private static final String LOADED_SYRINGES_TAG = "LoadedSyringes";
+    private static final int MAX_LOADED_DARTS = 6;
+    static final String LOADED_DARTS_TAG = "LoadedDarts";
+    static final String LEGACY_LOADED_SYRINGES_TAG = "LoadedSyringes";
     private static final Predicate<ItemStack> SUPPORTED_PROJECTILES =
-            stack -> stack.is(JSReviseItems.ANESTHETIC_SYRINGE.get());
+            stack -> stack.is(JSReviseItems.ANESTHETIC_DART.get());
 
     public AnestheticCrossbowItem() {
         super(new Properties().stacksTo(1).durability(465));
@@ -57,12 +57,13 @@ public final class AnestheticCrossbowItem extends CrossbowItem {
 
     @Override
     public ItemStack getDefaultCreativeAmmo(Player player, ItemStack projectileWeaponItem) {
-        return new ItemStack(JSReviseItems.ANESTHETIC_SYRINGE.get());
+        return new ItemStack(JSReviseItems.ANESTHETIC_DART.get());
     }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack weapon = player.getItemInHand(hand);
+        normalizeLoadedDarts(weapon);
         if (!this.canStartLoading(player, weapon)) {
             return InteractionResultHolder.fail(weapon);
         }
@@ -74,17 +75,17 @@ public final class AnestheticCrossbowItem extends CrossbowItem {
 
     @Override
     public void releaseUsing(ItemStack stack, Level level, LivingEntity entityLiving, int timeLeft) {
-        int currentLoadedSyringes = this.getLoadedSyringes(stack);
+        int currentLoadedDarts = normalizeLoadedDarts(stack);
         int usedTicks = this.getUseDuration(stack, entityLiving) - timeLeft;
         if (usedTicks < getChargeDuration(stack, entityLiving)) {
-            if (currentLoadedSyringes > 0) {
-                this.armNextSyringe(stack);
+            if (currentLoadedDarts > 0) {
+                this.armNextDart(stack);
             }
             return;
         }
 
-        int addedSyringes = this.loadMagazine(entityLiving, stack);
-        if (addedSyringes <= 0) {
+        int addedDarts = this.loadMagazine(entityLiving, stack);
+        if (addedDarts <= 0) {
             return;
         }
 
@@ -100,9 +101,13 @@ public final class AnestheticCrossbowItem extends CrossbowItem {
         );
     }
 
-    public boolean tryFireLoadedSyringe(Level level, Player player, InteractionHand hand) {
+    public boolean tryFireLoadedDart(Level level, Player player, InteractionHand hand) {
         ItemStack weapon = player.getItemInHand(hand);
-        if (weapon.getItem() != this || this.getLoadedSyringes(weapon) <= 0 || !isCharged(weapon) || this.isOnFireCooldown(player)) {
+        if (weapon.getItem() != this) {
+            return false;
+        }
+        int loadedDarts = normalizeLoadedDarts(weapon);
+        if (loadedDarts <= 0 || !hasArmedDart(weapon) || this.isOnFireCooldown(player)) {
             return false;
         }
 
@@ -111,12 +116,47 @@ public final class AnestheticCrossbowItem extends CrossbowItem {
         return true;
     }
 
-    public boolean hasLoadedSyringes(ItemStack weapon) {
-        return this.getLoadedSyringes(weapon) > 0;
+    /**
+     * @deprecated Use {@link #tryFireLoadedDart(Level, Player, InteractionHand)}.
+     */
+    @Deprecated(forRemoval = false)
+    public boolean tryFireLoadedSyringe(Level level, Player player, InteractionHand hand) {
+        return tryFireLoadedDart(level, player, hand);
     }
 
+    public boolean hasLoadedDarts(ItemStack weapon) {
+        return getLoadedDartCount(weapon) > 0;
+    }
+
+    public int getLoadedDartCount(ItemStack weapon) {
+        CustomData customData = weapon.get(DataComponents.CUSTOM_DATA);
+        if (customData == null) {
+            return 0;
+        }
+        CompoundTag tag = customData.copyTag();
+        if (tag.contains(LOADED_DARTS_TAG)) {
+            return sanitizeLoadedCount(tag.getInt(LOADED_DARTS_TAG));
+        }
+        if (tag.contains(LEGACY_LOADED_SYRINGES_TAG)) {
+            return sanitizeLoadedCount(tag.getInt(LEGACY_LOADED_SYRINGES_TAG));
+        }
+        return 0;
+    }
+
+    /**
+     * @deprecated This method now reports loaded darts. Use {@link #hasLoadedDarts(ItemStack)}.
+     */
+    @Deprecated(forRemoval = false)
+    public boolean hasLoadedSyringes(ItemStack weapon) {
+        return hasLoadedDarts(weapon);
+    }
+
+    /**
+     * @deprecated This method now reports loaded darts. Use {@link #getLoadedDartCount(ItemStack)}.
+     */
+    @Deprecated(forRemoval = false)
     public int getLoadedSyringeCount(ItemStack weapon) {
-        return this.getLoadedSyringes(weapon);
+        return getLoadedDartCount(weapon);
     }
 
     public boolean isOnFireCooldown(Player player) {
@@ -133,27 +173,25 @@ public final class AnestheticCrossbowItem extends CrossbowItem {
             float inaccuracy,
             LivingEntity target
     ) {
-        int loadedSyringes = this.getLoadedSyringes(weapon);
-        if (loadedSyringes <= 0) {
-            super.performShooting(level, shooter, hand, weapon, velocity, inaccuracy, target);
-            this.clearLoadedSyringes(weapon);
+        int loadedDarts = normalizeLoadedDarts(weapon);
+        if (loadedDarts <= 0 || !hasArmedDart(weapon)) {
+            clearLoadedDarts(weapon);
             return;
         }
 
         super.performShooting(level, shooter, hand, weapon, velocity, inaccuracy, target);
-        this.setLoadedSyringes(weapon, loadedSyringes - 1);
-        if (!weapon.isEmpty() && loadedSyringes > 1) {
-            this.armNextSyringe(weapon);
+        setLoadedDarts(weapon, loadedDarts - 1);
+        if (!weapon.isEmpty() && loadedDarts > 1) {
+            armNextDart(weapon);
         }
     }
 
     @Override
     protected Projectile createProjectile(Level level, LivingEntity shooter, ItemStack weapon, ItemStack ammo, boolean isCrit) {
-        AnestheticSyringeProjectile projectile = new AnestheticSyringeProjectile(level, shooter);
-        ItemStack projectileStack = ammo.copy();
-        projectileStack.setCount(1);
-        projectile.setItem(projectileStack);
-        return projectile;
+        ItemStack projectileStack = ammo.is(JSReviseItems.ANESTHETIC_DART.get())
+                ? ammo.copyWithCount(1)
+                : new ItemStack(JSReviseItems.ANESTHETIC_DART.get());
+        return new AnestheticDartEntity(level, shooter, projectileStack);
     }
 
     @Override
@@ -161,47 +199,60 @@ public final class AnestheticCrossbowItem extends CrossbowItem {
         tooltipComponents.add(
                 Component.translatable(
                         "item.jsrevise.anesthetic_crossbow.loaded",
-                        this.getLoadedSyringes(stack),
-                        MAX_LOADED_SYRINGES
+                        getLoadedDartCount(stack),
+                        MAX_LOADED_DARTS
                 ).withStyle(ChatFormatting.BLUE)
         );
     }
 
+    int normalizeLoadedDarts(ItemStack weapon) {
+        int loadedDarts = getLoadedDartCount(weapon);
+        if (loadedDarts <= 0) {
+            clearLoadedDarts(weapon);
+            return 0;
+        }
+
+        CustomData.update(DataComponents.CUSTOM_DATA, weapon, tag -> {
+            tag.putInt(LOADED_DARTS_TAG, loadedDarts);
+            tag.remove(LEGACY_LOADED_SYRINGES_TAG);
+        });
+        armNextDart(weapon);
+        return loadedDarts;
+    }
+
     private int loadMagazine(LivingEntity shooter, ItemStack weapon) {
-        int currentLoadedSyringes = this.getLoadedSyringes(weapon);
-        int remainingCapacity = MAX_LOADED_SYRINGES - currentLoadedSyringes;
+        int currentLoadedDarts = getLoadedDartCount(weapon);
+        int remainingCapacity = MAX_LOADED_DARTS - currentLoadedDarts;
         if (remainingCapacity <= 0) {
             return 0;
         }
 
-        int loadedSyringes = shooter instanceof Player player
-                ? this.consumePlayerAmmo(player, remainingCapacity)
+        int loadedDarts = shooter instanceof Player player
+                ? consumePlayerAmmo(player, remainingCapacity)
                 : 1;
-        if (loadedSyringes <= 0) {
+        if (loadedDarts <= 0) {
             return 0;
         }
 
-        this.setLoadedSyringes(weapon, currentLoadedSyringes + loadedSyringes);
-        this.armNextSyringe(weapon);
-        return loadedSyringes;
+        setLoadedDarts(weapon, currentLoadedDarts + loadedDarts);
+        armNextDart(weapon);
+        return loadedDarts;
     }
 
     private boolean canStartLoading(Player player, ItemStack weapon) {
-        int loadedSyringes = this.getLoadedSyringes(weapon);
-        if (loadedSyringes >= MAX_LOADED_SYRINGES) {
+        int loadedDarts = getLoadedDartCount(weapon);
+        if (loadedDarts >= MAX_LOADED_DARTS) {
             return false;
         }
-
-        return player.getAbilities().instabuild || this.hasAmmoToLoad(player);
+        return player.getAbilities().instabuild || hasAmmoToLoad(player);
     }
 
     private boolean hasAmmoToLoad(Player player) {
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
-            if (player.getInventory().getItem(slot).is(JSReviseItems.ANESTHETIC_SYRINGE.get())) {
+            if (player.getInventory().getItem(slot).is(JSReviseItems.ANESTHETIC_DART.get())) {
                 return true;
             }
         }
-
         return false;
     }
 
@@ -213,7 +264,7 @@ public final class AnestheticCrossbowItem extends CrossbowItem {
         int remaining = maxToLoad;
         for (int slot = 0; slot < player.getInventory().getContainerSize() && remaining > 0; slot++) {
             ItemStack inventoryStack = player.getInventory().getItem(slot);
-            if (!inventoryStack.is(JSReviseItems.ANESTHETIC_SYRINGE.get())) {
+            if (!inventoryStack.is(JSReviseItems.ANESTHETIC_DART.get())) {
                 continue;
             }
 
@@ -221,65 +272,58 @@ public final class AnestheticCrossbowItem extends CrossbowItem {
             inventoryStack.shrink(toRemove);
             remaining -= toRemove;
         }
-
         return maxToLoad - remaining;
     }
 
-    private void armNextSyringe(ItemStack weapon) {
-        weapon.set(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.of(this.createLoadedProjectileList(1)));
+    private void armNextDart(ItemStack weapon) {
+        weapon.set(
+                DataComponents.CHARGED_PROJECTILES,
+                ChargedProjectiles.of(new ItemStack(JSReviseItems.ANESTHETIC_DART.get()))
+        );
     }
 
     private void beginReload(ItemStack weapon) {
-        if (this.getLoadedSyringes(weapon) > 0) {
+        if (getLoadedDartCount(weapon) > 0) {
             weapon.remove(DataComponents.CHARGED_PROJECTILES);
         }
     }
 
-    private List<ItemStack> createLoadedProjectileList(int count) {
-        List<ItemStack> projectiles = new ArrayList<>(count);
-        for (int index = 0; index < count; index++) {
-            projectiles.add(new ItemStack(JSReviseItems.ANESTHETIC_SYRINGE.get()));
+    private boolean hasArmedDart(ItemStack weapon) {
+        ChargedProjectiles projectiles = weapon.get(DataComponents.CHARGED_PROJECTILES);
+        if (projectiles == null || projectiles.getItems().size() != 1) {
+            return false;
         }
-
-        return projectiles;
+        ItemStack projectile = projectiles.getItems().getFirst();
+        return projectile.getCount() == 1 && projectile.is(JSReviseItems.ANESTHETIC_DART.get());
     }
 
-    private int getLoadedSyringes(ItemStack weapon) {
-        CustomData customData = weapon.get(DataComponents.CUSTOM_DATA);
-        if (customData == null || !customData.contains(LOADED_SYRINGES_TAG)) {
-            return isCharged(weapon) ? 1 : 0;
-        }
-
-        CompoundTag tag = customData.copyTag();
-        return Mth.clamp(
-                Math.max(tag.getInt(LOADED_SYRINGES_TAG), isCharged(weapon) ? 1 : 0),
-                0,
-                MAX_LOADED_SYRINGES
-        );
-    }
-
-    private void setLoadedSyringes(ItemStack weapon, int loadedSyringes) {
-        if (loadedSyringes <= 0) {
-            this.clearLoadedSyringes(weapon);
+    private void setLoadedDarts(ItemStack weapon, int loadedDarts) {
+        int safeLoadedDarts = sanitizeLoadedCount(loadedDarts);
+        if (safeLoadedDarts <= 0) {
+            clearLoadedDarts(weapon);
             return;
         }
 
-        int safeLoadedSyringes = Mth.clamp(loadedSyringes, 0, MAX_LOADED_SYRINGES);
-        CustomData.update(
-                DataComponents.CUSTOM_DATA,
-                weapon,
-                tag -> tag.putInt(LOADED_SYRINGES_TAG, safeLoadedSyringes)
-        );
+        CustomData.update(DataComponents.CUSTOM_DATA, weapon, tag -> {
+            tag.putInt(LOADED_DARTS_TAG, safeLoadedDarts);
+            tag.remove(LEGACY_LOADED_SYRINGES_TAG);
+        });
     }
 
-    private void clearLoadedSyringes(ItemStack weapon) {
-        CustomData.update(DataComponents.CUSTOM_DATA, weapon, tag -> tag.remove(LOADED_SYRINGES_TAG));
-        if (weapon.has(DataComponents.CUSTOM_DATA)) {
-            CustomData customData = weapon.get(DataComponents.CUSTOM_DATA);
-            if (customData != null && customData.isEmpty()) {
-                weapon.remove(DataComponents.CUSTOM_DATA);
-            }
+    private void clearLoadedDarts(ItemStack weapon) {
+        CustomData.update(DataComponents.CUSTOM_DATA, weapon, tag -> {
+            tag.remove(LOADED_DARTS_TAG);
+            tag.remove(LEGACY_LOADED_SYRINGES_TAG);
+        });
+        CustomData customData = weapon.get(DataComponents.CUSTOM_DATA);
+        if (customData != null && customData.isEmpty()) {
+            weapon.remove(DataComponents.CUSTOM_DATA);
         }
+        weapon.remove(DataComponents.CHARGED_PROJECTILES);
+    }
+
+    private static int sanitizeLoadedCount(int count) {
+        return Mth.clamp(count, 0, MAX_LOADED_DARTS);
     }
 
     private static float getShootingPower() {

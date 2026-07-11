@@ -26,7 +26,8 @@ class ResourceReferenceIntegrityTest {
             "block/broken_dinosaur_capture_box_side_bars",
             "block/broken_dinosaur_capture_box_top",
             "block/broken_dinosaur_capture_box_bottom",
-            "block/broken_dinosaur_capture_box_debris_sheet"
+            "block/broken_dinosaur_capture_box_debris_sheet",
+            "entity/projectiles/anesthetic_dart"
     );
 
     @Test
@@ -62,6 +63,8 @@ class ResourceReferenceIntegrityTest {
                 "src/main/java/com/palos/jsrevise/client/render/DinosaurCaptureCageRenderer.java"
         )) + Files.readString(PROJECT_ROOT.resolve(
                 "src/main/java/com/palos/jsrevise/client/render/BrokenDinosaurCaptureBoxRenderer.java"
+        )) + Files.readString(PROJECT_ROOT.resolve(
+                "src/main/java/com/palos/jsrevise/client/render/AnestheticDartRenderer.java"
         ));
 
         for (String textureId : DYNAMIC_RENDERER_TEXTURES) {

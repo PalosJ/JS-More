@@ -35,6 +35,7 @@ public final class DinosaurAnestheticSystem {
     private static final String JURASSIC_SAGA_NAMESPACE = "jurassicsaga";
     private static final String LUDODACTYLUS_PATH = "ludodactylus";
     private static final String DILOPHOSAURUS_PATH = "dilophosaurus";
+    private static final String LEGACY_SLEEP_LEAF = "sleep";
     private static final String SLEEP_IN_LEAF = "sleep_in";
     private static final String SLEEP_LOOP_LEAF = "sleep_loop";
     private static final int SLEEP_STABILIZATION_TICKS = 3;
@@ -315,7 +316,7 @@ public final class DinosaurAnestheticSystem {
             return false;
         }
         for (String stageName : stageNames) {
-            if (isSleepEntryOrLoopAnimation(stageName)) {
+            if (isGuardedSleepAnimation(stageName)) {
                 return true;
             }
         }
@@ -542,15 +543,17 @@ public final class DinosaurAnestheticSystem {
 
     static boolean allowsSleepOrDeathAnimation(String animationName) {
         String leafName = animationLeafName(animationName);
-        return isSleepEntryOrLoopLeaf(leafName) || leafName.contains("death");
+        return isGuardedSleepLeaf(leafName) || leafName.contains("death");
     }
 
-    static boolean isSleepEntryOrLoopAnimation(String animationName) {
-        return isSleepEntryOrLoopLeaf(animationLeafName(animationName));
+    static boolean isGuardedSleepAnimation(String animationName) {
+        return isGuardedSleepLeaf(animationLeafName(animationName));
     }
 
-    private static boolean isSleepEntryOrLoopLeaf(String leafName) {
-        return leafName.equals(SLEEP_IN_LEAF) || leafName.equals(SLEEP_LOOP_LEAF);
+    private static boolean isGuardedSleepLeaf(String leafName) {
+        return leafName.equals(LEGACY_SLEEP_LEAF)
+                || leafName.equals(SLEEP_IN_LEAF)
+                || leafName.equals(SLEEP_LOOP_LEAF);
     }
 
     private static String animationLeafName(String animationName) {

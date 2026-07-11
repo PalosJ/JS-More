@@ -33,7 +33,7 @@ public record FireAnestheticCrossbowPayload(boolean mainHand) implements CustomP
         InteractionHand hand = payload.mainHand() ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
         ItemStack weapon = player.getItemInHand(hand);
         if (weapon.getItem() instanceof AnestheticCrossbowItem crossbow) {
-            crossbow.tryFireLoadedSyringe(player.level(), player, hand);
+            crossbow.tryFireLoadedDart(player.level(), player, hand);
         }
     }
 }

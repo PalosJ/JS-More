@@ -9,8 +9,11 @@ import com.palos.jsrevise.client.overlay.ClientCaptureCageObservationCache;
 import com.palos.jsrevise.client.overlay.ClientEggLayingProgressCache;
 import com.palos.jsrevise.client.overlay.DinoDoctorOverlayRenderer;
 import com.palos.jsrevise.client.render.BrokenDinosaurCaptureBoxRenderer;
+import com.palos.jsrevise.client.render.AnestheticDartModel;
+import com.palos.jsrevise.client.render.AnestheticDartRenderer;
 import com.palos.jsrevise.client.render.DinosaurCaptureCageRenderer;
 import com.palos.jsrevise.client.render.FloatingModelGeometryResolver;
+import com.palos.jsrevise.client.system.anesthetic.ClientAnestheticAnimationFallback;
 import com.palos.jsrevise.server.registry.JSReviseBlockEntityTypes;
 import com.palos.jsrevise.server.registry.JSReviseEntityTypes;
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
@@ -40,10 +43,12 @@ public final class JSReviseNeoClient {
     public JSReviseNeoClient(IEventBus eventBus, ModContainer container) {
         eventBus.addListener(JSReviseNeoClient::onClientSetup);
         eventBus.addListener(JSReviseNeoClient::registerEntityRenderers);
+        eventBus.addListener(JSReviseNeoClient::registerLayerDefinitions);
         eventBus.addListener(JSReviseNeoClient::registerGuiLayers);
         eventBus.addListener(JSReviseNeoClient::registerClientReloadListeners);
         NeoForge.EVENT_BUS.addListener(AnestheticCrossbowInputHandler::onInteractionKeyMappingTriggered);
         NeoForge.EVENT_BUS.addListener(ClientFloatingEffects::onEntityTickPost);
+        NeoForge.EVENT_BUS.addListener(ClientAnestheticAnimationFallback::onEntityTickPost);
         NeoForge.EVENT_BUS.addListener(JSReviseItemTooltipHandler::onItemTooltip);
         NeoForge.EVENT_BUS.addListener(JSReviseNeoClient::onClientLogout);
         NeoForge.EVENT_BUS.addListener(JSReviseNeoClient::onClientLevelUnload);
@@ -57,6 +62,7 @@ public final class JSReviseNeoClient {
 
     private static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(JSReviseEntityTypes.ANESTHETIC_SYRINGE_PROJECTILE.get(), ThrownItemRenderer::new);
+        event.registerEntityRenderer(JSReviseEntityTypes.ANESTHETIC_DART.get(), AnestheticDartRenderer::new);
         event.registerBlockEntityRenderer(
                 JSReviseBlockEntityTypes.DINOSAUR_CAPTURE_CAGE.get(),
                 DinosaurCaptureCageRenderer::new
@@ -67,14 +73,19 @@ public final class JSReviseNeoClient {
         );
     }
 
+    private static void registerLayerDefinitions(EntityRenderersEvent.RegisterLayerDefinitions event) {
+        event.registerLayerDefinition(AnestheticDartModel.LAYER_LOCATION, AnestheticDartModel::createLayer);
+    }
+
     private static void registerGuiLayers(RegisterGuiLayersEvent event) {
         event.registerAbove(VanillaGuiLayers.HOTBAR, JSRevise.id("dino_doctor_overlay"), DinoDoctorOverlayRenderer.OVERLAY);
     }
 
     private static void registerClientReloadListeners(RegisterClientReloadListenersEvent event) {
-        event.registerReloadListener((ResourceManagerReloadListener) resourceManager ->
-                FloatingModelGeometryResolver.clearCache()
-        );
+        event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> {
+            FloatingModelGeometryResolver.clearCache();
+            ClientAnestheticAnimationFallback.clearCache();
+        });
     }
 
     private static void onClientLogout(ClientPlayerNetworkEvent.LoggingOut event) {
@@ -91,6 +102,7 @@ public final class JSReviseNeoClient {
         if (event.getLevel().isClientSide() && event.getEntity() instanceof JSAnimalBase animal) {
             ClientFloatingEffects.invalidate(animal.getUUID());
             DinosaurAnestheticSystem.forgetClientSleepAnimationGuard(animal);
+            ClientAnestheticAnimationFallback.forget(animal);
             DinosaurObservationSystem.invalidate(animal.getUUID());
             ClientEggLayingProgressCache.invalidate(animal);
         }
@@ -100,6 +112,7 @@ public final class JSReviseNeoClient {
         DinoDoctorOverlayRenderer.clearCache();
         ClientFloatingEffects.clearCache();
         DinosaurAnestheticSystem.clearClientSleepAnimationGuards();
+        ClientAnestheticAnimationFallback.clearCache();
         FloatingModelGeometryResolver.clearCache();
         DinosaurObservationSystem.clearCache();
         ClientEggLayingProgressCache.clearCache();

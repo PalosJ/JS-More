@@ -2,6 +2,7 @@ package com.palos.jsrevise.mixin.client;
 
 import com.palos.jsrevise.client.render.FloatingModelExposureCalculator;
 import com.palos.jsrevise.client.render.FloatingModelGeometryResolver;
+import com.palos.jsrevise.client.system.anesthetic.ClientAnestheticAnimationFallback;
 import com.palos.jsrevise.server.system.anesthetic.AnestheticVisualState;
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
 import collinvht.travelers.client.azure.common.model.AzBone;
@@ -28,15 +29,22 @@ public abstract class TravelersAzureModelRendererMixin {
     @Shadow
     private boolean hasAnimator;
 
-    @Inject(method = "render", at = @At("HEAD"), require = 0)
+    @Inject(
+            method = "render(Lcollinvht/travelers/client/azure/common/render/AzRendererPipelineContext;Z)V",
+            at = @At("HEAD"),
+            require = 1
+    )
     private void jsrevise$clearSleepingProceduralFrame(
             AzRendererPipelineContext<UUID, SmartAnimalBase> context,
             boolean isReRender,
             CallbackInfo callbackInfo
     ) {
+        if (!(context.animatable() instanceof JSAnimalBase animal)) {
+            return;
+        }
+        ClientAnestheticAnimationFallback.applyAtRenderHead(animal);
         if (this.hasAnimator
                 && this.animalAnimator != null
-                && context.animatable() instanceof JSAnimalBase animal
                 && DinosaurAnestheticSystem.shouldSkipClientProceduralAnimation(animal)) {
             this.animalAnimator.remove(animal);
             this.animalAnimator.beginFrame();

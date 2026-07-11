@@ -10,6 +10,8 @@ import com.palos.jsrevise.server.registry.JSReviseBlocks;
 import com.palos.jsrevise.server.registry.JSReviseCreativeTabs;
 import com.palos.jsrevise.server.registry.JSReviseEntityTypes;
 import com.palos.jsrevise.server.registry.JSReviseItems;
+import com.palos.jsrevise.server.registry.JSReviseRecipeSerializers;
+import com.palos.jsrevise.server.recipe.AnestheticPotionBrewingRecipe;
 import com.palos.jsrevise.server.system.JSAnimalTickHandler;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureAnvilHandler;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureTickHandler;
@@ -33,6 +35,7 @@ public final class JSReviseNeo {
         JSReviseBlockEntityTypes.register(modEventBus);
         JSReviseItems.register(modEventBus);
         JSReviseEntityTypes.register(modEventBus);
+        JSReviseRecipeSerializers.register(modEventBus);
         JSReviseCreativeTabs.register(modEventBus);
         modEventBus.addListener(JSReviseNetworking::register);
         modContainer.registerConfig(ModConfig.Type.COMMON, JSReviseConfig.SPEC);
@@ -42,6 +45,7 @@ public final class JSReviseNeo {
         NeoForge.EVENT_BUS.addListener(DinosaurCaptureTickHandler::onEntityTickPost);
         NeoForge.EVENT_BUS.addListener(DinosaurCaptureTickHandler::onPlayerTickPost);
         NeoForge.EVENT_BUS.addListener(DinosaurCaptureTickHandler::onPlayerContainerOpen);
+        NeoForge.EVENT_BUS.addListener(AnestheticPotionBrewingRecipe::onRegisterRecipes);
         NeoForge.EVENT_BUS.addListener(JSReviseNeo::onServerStarted);
         NeoForge.EVENT_BUS.addListener(JSReviseNeo::onServerStopping);
     }

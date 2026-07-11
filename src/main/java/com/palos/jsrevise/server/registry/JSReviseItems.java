@@ -16,6 +16,10 @@ public final class JSReviseItems {
 
     public static final DeferredItem<Item> ANESTHETIC_SYRINGE =
             ITEMS.register("anesthetic_syringe", AnestheticSyringeItem::new);
+    public static final DeferredItem<Item> ANESTHETIC_POTION =
+            ITEMS.registerSimpleItem("anesthetic_potion", new Item.Properties().stacksTo(64));
+    public static final DeferredItem<Item> ANESTHETIC_DART =
+            ITEMS.registerSimpleItem("anesthetic_dart", new Item.Properties().stacksTo(64));
     public static final DeferredItem<Item> ANESTHETIC_CROSSBOW =
             ITEMS.register("anesthetic_crossbow", AnestheticCrossbowItem::new);
     public static final DeferredItem<Item> DINO_DOCTOR_GOGGLES =

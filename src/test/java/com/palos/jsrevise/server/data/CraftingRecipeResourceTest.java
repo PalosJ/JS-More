@@ -23,8 +23,8 @@ class CraftingRecipeResourceTest {
     private static final String RECIPE_ROOT = "/data/jsrevise/recipe/";
 
     @Test
-    void craftingRecipesUseSingularRecipePathAndCurrentResultShape() throws IOException {
-        for (RecipeExpectation recipe : expectedRecipes().values()) {
+    void shapedRecipesUseSingularRecipePathAndCurrentResultShape() throws IOException {
+        for (RecipeExpectation recipe : expectedShapedRecipes().values()) {
             String recipeText = readRecipeText(recipe.fileName());
             assertFalse(
                     recipeText.contains("jsrevise:dinosaur_capture_cage"),
@@ -36,7 +36,7 @@ class CraftingRecipeResourceTest {
 
             JsonObject result = root.getAsJsonObject("result");
             assertNotNull(result);
-            assertEquals(1, result.get("count").getAsInt());
+            assertEquals(recipe.resultCount(), result.get("count").getAsInt());
             assertEquals(recipe.resultId(), result.get("id").getAsString());
             assertFalse(result.has("item"), recipe.fileName() + " must not use the legacy result.item field");
 
@@ -48,8 +48,8 @@ class CraftingRecipeResourceTest {
     }
 
     @Test
-    void craftingRecipesMatchDecodedPatternsAndIngredients() throws IOException {
-        for (RecipeExpectation recipe : expectedRecipes().values()) {
+    void shapedRecipesMatchDecodedPatternsAndIngredients() throws IOException {
+        for (RecipeExpectation recipe : expectedShapedRecipes().values()) {
             JsonObject root = parseRecipe(readRecipeText(recipe.fileName()));
             assertPatternEquals(recipe.pattern(), root);
             assertKeyItemsEqual(recipe.keyItems(), root.getAsJsonObject("key"));
@@ -57,12 +57,29 @@ class CraftingRecipeResourceTest {
         }
     }
 
-    private static Map<String, RecipeExpectation> expectedRecipes() {
+    @Test
+    void anestheticDartUsesTheDirectionalSerializerBackedByJavaShapedMetadata() throws IOException {
+        String recipeText = readRecipeText("anesthetic_dart.json");
+        JsonObject root = parseRecipe(recipeText);
+
+        assertEquals("jsrevise:anesthetic_dart", root.get("type").getAsString());
+        assertEquals("misc", root.get("category").getAsString());
+        assertFalse(root.has("pattern"), "Directional matching and display metadata are constructed by the recipe class");
+        assertFalse(root.has("key"), "Directional matching and display metadata are constructed by the recipe class");
+        assertFalse(root.has("result"), "The shaped recipe superclass owns the anesthetic dart result");
+        assertNull(
+                CraftingRecipeResourceTest.class.getResource("/data/jsrevise/recipes/anesthetic_dart.json"),
+                "anesthetic_dart.json must stay under the 1.21.1 singular recipe path"
+        );
+    }
+
+    private static Map<String, RecipeExpectation> expectedShapedRecipes() {
         return Map.of(
                 "dino_doctor_goggles", new RecipeExpectation(
                         "dino_doctor_goggles.json",
                         "equipment",
                         "jsrevise:dino_doctor_goggles",
+                        1,
                         List.of(
                                 "N N",
                                 "GBG"
@@ -77,6 +94,7 @@ class CraftingRecipeResourceTest {
                         "dinosaur_capture_box.json",
                         "misc",
                         "jsrevise:dinosaur_capture_box",
+                        1,
                         List.of(
                                 "III",
                                 "IWD",
@@ -92,6 +110,7 @@ class CraftingRecipeResourceTest {
                         "anesthetic_crossbow.json",
                         "equipment",
                         "jsrevise:anesthetic_crossbow",
+                        1,
                         List.of(
                                 "III",
                                 "SHS",
@@ -101,6 +120,21 @@ class CraftingRecipeResourceTest {
                                 'H', "minecraft:tripwire_hook",
                                 'I', "minecraft:iron_ingot",
                                 'S', "minecraft:string"
+                        )
+                ),
+                "anesthetic_syringe", new RecipeExpectation(
+                        "anesthetic_syringe.json",
+                        "misc",
+                        "jsrevise:anesthetic_syringe",
+                        4,
+                        List.of(
+                                " E ",
+                                "EPE",
+                                " E "
+                        ),
+                        Map.of(
+                                'E', "jurassicsaga:empty_syringe",
+                                'P', "jsrevise:anesthetic_potion"
                         )
                 )
         );
@@ -167,6 +201,7 @@ class CraftingRecipeResourceTest {
             String fileName,
             String category,
             String resultId,
+            int resultCount,
             List<String> pattern,
             Map<Character, String> keyItems
     ) {

@@ -20,8 +20,10 @@ public final class JSReviseCreativeTabs {
                     .icon(() -> new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get()))
                     .displayItems((parameters, output) -> {
                         output.accept(JSReviseItems.DINO_DOCTOR_GOGGLES.get());
-                        output.accept(JSReviseItems.ANESTHETIC_CROSSBOW.get());
+                        output.accept(JSReviseItems.ANESTHETIC_POTION.get());
                         output.accept(JSReviseItems.ANESTHETIC_SYRINGE.get());
+                        output.accept(JSReviseItems.ANESTHETIC_DART.get());
+                        output.accept(JSReviseItems.ANESTHETIC_CROSSBOW.get());
                         output.accept(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
                         output.accept(JSReviseItems.BROKEN_DINOSAUR_CAPTURE_BOX.get());
                     })

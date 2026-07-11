@@ -2,7 +2,7 @@
 
 JS-revise 是面向 Minecraft 1.21.1 NeoForge 的 Jurassic Saga 附属模组。项目以服务端权威的数据、实体状态和真实运动为基础，提供麻醉、睡眠与漂浮、年龄画像、恐龙博士眼镜 HUD、群系生成控制和恐龙捕获箱等功能。
 
-本文档描述 `1.0.116` 候选源码。版本是否可发布仍以完整自动化、限时独立服务器和实际整合包验收记录为准；本文档不把候选版本等同于已发布或已完成实机验收。
+本文档描述 `1.0.121` 候选源码。版本是否可发布仍以完整自动化、限时独立服务器和实际整合包验收记录为准；本文档不把候选版本等同于已发布或已完成实机验收。
 
 ## 1. 支持矩阵
 
@@ -10,7 +10,7 @@ JS-revise 是面向 Minecraft 1.21.1 NeoForge 的 Jurassic Saga 附属模组。�
 | --- | --- | --- |
 | Mod ID | `jsrevise` | Java 包根为 `com.palos.jsrevise` |
 | 作者 | `Palos` | 显示名称为 `JS-revise` |
-| 候选版本 | `1.0.116` | `gradle.properties` 是版本单一来源，构建时展开到 metadata |
+| 候选版本 | `1.0.121` | `gradle.properties` 是版本单一来源，构建时展开到 metadata |
 | Minecraft | `1.21.1` | metadata 固定为 `[1.21.1]` |
 | NeoForge | `21.1.232` 及以上 | metadata 为 `[21.1.232,)` |
 | Java | `21` | Mixin compatibility level 与编译 toolchain 均为 Java 21 |
@@ -26,11 +26,14 @@ Travelers Lib 的 metadata 范围仍为 `[0.7.1,0.8.0)`，但服务端字节码�
 
 ## 2. 玩家功能
 
-### 麻醉针与麻醉弩
+### 麻醉药水、麻醉针、麻醉镖与麻醉弩
 
-- `jsrevise:anesthetic_syringe` 最大堆叠 64。命中 `JSAnimalBase` 时造成 1 点投射物伤害，并在服务端加入延迟生效的麻醉剂量；命中方块或其他实体后消失。
-- `jsrevise:anesthetic_crossbow` 耐久 465，只接受麻醉针，弹仓最多 6 发。拉弦、已装填、装填比例和剩余针数使用物品组件及模型状态显示。
-- 左键射击通过 `fire_anesthetic_crossbow` C2S 请求触发；服务端重新检查手、物品、装填状态和冷却后才生成投射物。每发间隔 10 tick，装填数量保存在 `CUSTOM_DATA.LoadedSyringes`。
+- `jsrevise:anesthetic_potion` 是不可饮用的普通物品，不属于原版药水体系。它只能在酿造台中由虞美人加粗制的药水制成，不能继续用红石粉、萤石粉、火药或龙息加工成长效、强效、喷溅或滞留版本。
+- 工作台中把麻醉药水放在九宫格中心，并在上、下、左、右各放一个 `jurassicsaga:empty_syringe`，会输出 4 个 `jsrevise:anesthetic_syringe`。麻醉针用于已放置捕获箱的注射和合成麻醉镖；旧 `anesthetic_syringe_projectile` 实体 ID 仅为已有世界中的历史实体保留兼容。
+- `jsrevise:anesthetic_dart` 由麻醉针与其右上方相邻的羽毛合成；两者可随合成网格整体平移，但不能镜像、交换或加入额外物品。该方向配方以标准 shaped 元数据公开，因此 JEI 等配方查看器可通过麻醉镖查看配方、通过麻醉针查看用途。麻醉镖物品侧视明确显示后法兰、窄尾杆和阶梯羽片；实体使用两张正交双面 cutout 羽片，不含黑色矩形外框或正体积交叠。飞行渲染以针尖为前方，不作为普通箭使用。
+- `jsrevise:anesthetic_crossbow` 耐久 465，只接受麻醉镖，弹仓最多 6 发。拉弦、已装填、装填比例和剩余镖数使用物品组件及模型状态显示；麻醉针不再是弩弹药。
+- 左键射击仍通过 `fire_anesthetic_crossbow` C2S 请求触发；服务端重新检查手、物品、装填状态和冷却后才生成投射物。每发间隔 10 tick，权威装填数量保存在 `CUSTOM_DATA.LoadedDarts`；只有显式存在旧 `LoadedSyringes` 的历史弩会迁移，伪造的 charged syringe 不会被当作有效弹药。
+- 麻醉镖命中方块后沿用原版箭的落地、1200 tick 消失、存档和拾取语义；生存玩家可拾回，创造玩家射出的镖按原版采用仅创造可拾取规则。命中任何实体后都会立即消失，不会留在生物体表；只有成功命中可麻醉 `JSAnimalBase` 时才额外造成 1 点伤害并施加麻醉。
 - 麻醉延迟和持续时间由运行时体型、食性、蛋型及陆生/水生/飞行类别推导。重复注射会缩短后续等待并叠加持续时间；pending 队列最多 64 项，时间运算有边界和饱和保护。
 
 ### 睡眠、AI 与真实漂浮
@@ -40,7 +43,8 @@ Travelers Lib 的 metadata 范围仍为 `[0.7.1,0.8.0)`，但服务端字节码�
 - 陆生、水生和飞行动物走各自的通用运动策略。水生动物保留 Jurassic Saga 的水生旅行链，飞行动物在受保护睡眠窗口中不能重新起飞；未来 `JSAnimalBase` 子类会先走运行时能力与安全回退，不以固定物种表作为功能开关。
 - 水面定位固定采样五列并检查流体、碰撞和搜索上界。大型生物按碰撞箱与模型几何获得更深水线；上浮、沉浮和释放均遵守真实碰撞。
 - 服务端在接近水面、首次破水和沉浮换向等事件发送有上限和冷却的水面粒子。客户端通用模型修正只允许向下校正非水生睡眠根骨骼，不能把模型抬离真实碰撞箱水线。
-- 当前没有海王龙专用 `TylosaurusAnimatorMixin`；海王龙等水生动物依靠通用水生运动、Jurassic Saga 自身动画链和当前通用兼容层运行。
+- 客户端按实际动画资源能力处理麻醉睡眠姿态：同时具有 `animation.sleep_in` 与 `animation.sleep_loop` 的资源不受干预；只有旧 `animation.sleep` 的资源在 guard 内本地循环该动画；没有任何睡眠动画的海王龙及同类资源则停止 base controller 中残留的游泳/待机循环。该分类不使用物种白名单，F3+T、退出或世界切换时会清理缓存。
+- 当前没有海王龙专用 `TylosaurusAnimatorMixin`；动画回退只修正客户端残留循环，不改变服务端权威浮力、碰撞、水流推动或真实实体运动。本轮海王龙、大/小型水生动物、昆虫和青蛙类仍需游戏内逐项验证，本文档不把自动化资源分类测试等同于实机动画验收。
 
 ### 年龄、成长与生物画像
 
@@ -77,9 +81,13 @@ Travelers Lib 的 metadata 范围仍为 `[0.7.1,0.8.0)`，但服务端字节码�
 
 | 产物 | 工作台配方 |
 | --- | --- |
+| 麻醉针 ×4 | 中心 1 个麻醉药水；上、下、左、右各 1 个 Jurassic Saga 空注射器 |
+| 麻醉镖 | 1 个麻醉针；其右上方相邻格 1 根羽毛；整体可平移但不可镜像或交换 |
 | 麻醉弩 | 上排 3 个铁锭；中排为线、绊线钩、线；下排中间 1 个铁锭 |
 | 恐龙博士眼镜 | 上排左右各 1 个铁粒；中排为玻璃板、Jurassic Saga 指南书、玻璃板 |
 | 恐龙捕获箱 | 7 个铁块包围中心黄色染料，中排右侧使用 1 个铁门 |
+
+麻醉药水不走工作台：只接受酿造台中的粗制的药水 + 虞美人，且没有任何后续药水变体。该酿造输入、原料和输出通过 NeoForge 标准 brewing recipe 暴露，JEI 可显示麻醉药水的酿造配方。
 
 `disable_jurassicsaga_biome_generation` 默认启用：它从 TerraBlender 注册入口阻止 Jurassic Saga 自定义主世界群系，并在噪声群系层保留已知原版回退；不删除生物、化石或结构。修改后需要重启游戏。
 
@@ -169,6 +177,8 @@ Jurassic Saga `0.2/0.2.1` 已确认卢多翼龙和双脊龙的 `sleep_in` 首段
 
 若未来 Jurassic Saga 修复相关动画资源/transition，或能用精确版本及资源探测区分受影响包，应删除或进一步收窄该表。旧 public 别名 `shouldRedirectLudodactylusSleepInToLoop(...)` 暂时保留，不能在没有兼容性评估时直接移除。
 
+与上述两个精确 `sleep_in` 重定向不同，客户端还会按当前 animation JSON 的实际能力选择麻醉姿态回退。标准 `sleep_in/sleep_loop` 资源保持上游行为；单一旧 `animation.sleep` 在本地 guard 中循环；无睡眠资源时每个 guard 停止一次 base controller 的旧循环。能力缓存按动画资源 ID 建立，并在资源重载、退出和世界卸载时清理；它不修改麻醉计时、服务端运动或网络协议。
+
 ### 可选集成与公开兼容桥
 
 - Curios 通过存在性检查隔离；缺失时只使用原版头部栏。Jade 是可选客户端回调，缺失时不进入必需路径。
@@ -198,7 +208,7 @@ Jurassic Saga `0.2/0.2.1` 已确认卢多翼龙和双脊龙的 `sleep_in` 首段
 | client | `CustomHeadLayerMixin` | Minecraft `CustomHeadLayer`；隐藏头部栏眼镜物品模型，HUD 功能不受影响 |
 | client | `LevelRendererDestroyProgressMixin` | Minecraft `LevelRenderer`；把完整/破损捕获箱的破坏进度镜像到全部 part，并在世界切换时清理 |
 | client | `TravelersClientAnimatorMixin` | Travelers 通用客户端 animator；睡眠 guard 中清 procedural bone cache 并跳过 `update/clientTick` |
-| client | `TravelersAzureModelRendererMixin` | Travelers 内置 Azure renderer；清睡眠 animator frame，并限制非水生漂浮根骨骼只向下校正 |
+| client | `TravelersAzureModelRendererMixin` | Travelers 内置 Azure renderer；按实际动画资源能力应用麻醉姿态回退、清睡眠 animator frame，并限制非水生漂浮根骨骼只向下校正 |
 | server | `TravelersHandler1211ServerMixin` | 字符串目标 Travelers `Handler1211`；作为 plugin 精确字节码补丁的 server-only marker |
 
 当前清单不包含 `TylosaurusAnimatorMixin`，也没有旧的 physics/canFace ThreadLocal 或 renderer 私有 root-lift resolver。更改 Mixin 时必须同步检查 JSON、plugin、目标 descriptor、分端加载、真实依赖 class bytes 和最终 JAR。
@@ -262,11 +272,11 @@ NeoForge COMMON 配置通过模组配置界面展示，并提供英文与简体�
 
 ## 6. 已验证基线
 
-### 1.0.116 候选自动化边界
+### 1.0.121 候选自动化边界
 
 当前候选实现已建立并运行单元测试、资源引用测试、独立捕获/麻醉运动 GameTest 和 `assemble` 基线；Travelers 补丁测试使用真实 `0.7.1` class bytes，并构造 patch、no-op 和多种 fail-fast 漂移样本。最终交付仍必须在 README 与版本收口后复跑完整命令，并核对 JAR metadata、Mixin 清单、依赖内容、资源和工作树。
 
-这些自动化结果不等于实际整合包验收。本文档不宣称 `1.0.116` 已通过游戏内视觉、完整捕获交互、可选依赖 A/B 或实际整合包验证，也不把未取得二进制的其他 Travelers `0.7.x` 标为已实测。限时 dedicated server 启动与实际整合包验收应分别留下明确记录。
+这些自动化结果不等于实际整合包验收。本文档不宣称 `1.0.121` 已通过游戏内视觉、完整捕获交互、可选依赖 A/B 或实际整合包验证，也不把未取得二进制的其他 Travelers `0.7.x` 标为已实测。限时 dedicated server 启动与实际整合包验收应分别留下明确记录。
 
 ### 1.0.115 历史实机基线
 
@@ -279,4 +289,4 @@ NeoForge COMMON 配置通过模组配置界面展示，并提供英文与简体�
 - 已确认 DNA 图标、动态主题色、85% HUD 整体缩放、等效 90% 字体和透明度在不同 GUI 缩放下表现符合预期。
 - 已通过独立服务器中的年龄、麻醉倒计时、漂浮阶段和粒子事件同步验证。
 
-这些结论只对应 `1.0.115` 发布前的当时整合包环境，不能证明 `1.0.116`、未来依赖版本或其他整合包已通过相同验收。任何功能、资源、Mixin、依赖或整合包变化后，都应重新执行相应的自动化、独立服务器和游戏内验证。
+这些结论只对应 `1.0.115` 发布前的当时整合包环境，不能证明 `1.0.121`、未来依赖版本或其他整合包已通过相同验收。任何功能、资源、Mixin、依赖或整合包变化后，都应重新执行相应的自动化、独立服务器和游戏内验证。

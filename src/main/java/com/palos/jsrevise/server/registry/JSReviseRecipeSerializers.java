@@ -1,0 +1,28 @@
+package com.palos.jsrevise.server.registry;
+
+import com.palos.jsrevise.JSRevise;
+import com.palos.jsrevise.server.recipe.AnestheticDartRecipe;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
+
+public final class JSReviseRecipeSerializers {
+    private static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
+            DeferredRegister.create(Registries.RECIPE_SERIALIZER, JSRevise.MOD_ID);
+
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<AnestheticDartRecipe>> ANESTHETIC_DART =
+            RECIPE_SERIALIZERS.register(
+                    "anesthetic_dart",
+                    () -> new SimpleCraftingRecipeSerializer<>(AnestheticDartRecipe::new)
+            );
+
+    private JSReviseRecipeSerializers() {
+    }
+
+    public static void register(IEventBus modEventBus) {
+        RECIPE_SERIALIZERS.register(modEventBus);
+    }
+}

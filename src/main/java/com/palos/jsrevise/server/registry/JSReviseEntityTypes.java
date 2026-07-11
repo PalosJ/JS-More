@@ -1,6 +1,7 @@
 package com.palos.jsrevise.server.registry;
 
 import com.palos.jsrevise.JSRevise;
+import com.palos.jsrevise.server.entity.projectile.AnestheticDartEntity;
 import com.palos.jsrevise.server.entity.projectile.AnestheticSyringeProjectile;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
@@ -20,6 +21,13 @@ public final class JSReviseEntityTypes {
                     .clientTrackingRange(4)
                     .updateInterval(1)
                     .build(JSRevise.id("anesthetic_syringe_projectile").toString()));
+    public static final DeferredHolder<EntityType<?>, EntityType<AnestheticDartEntity>> ANESTHETIC_DART =
+            ENTITY_TYPES.register("anesthetic_dart", () -> EntityType.Builder
+                    .<AnestheticDartEntity>of(AnestheticDartEntity::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F)
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build(JSRevise.id("anesthetic_dart").toString()));
 
     private JSReviseEntityTypes() {
     }

@@ -9,7 +9,7 @@ import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.Item;
 
 public final class AnestheticCrossbowItemProperties {
-    private static final float MAX_LOADED_SYRINGES = 6.0F;
+    private static final float MAX_LOADED_DARTS = 6.0F;
 
     private AnestheticCrossbowItemProperties() {
     }
@@ -52,7 +52,7 @@ public final class AnestheticCrossbowItemProperties {
                     }
 
                     return stack.getItem() instanceof AnestheticCrossbowItem anestheticCrossbow
-                            ? anestheticCrossbow.getLoadedSyringeCount(stack) / MAX_LOADED_SYRINGES
+                            ? anestheticCrossbow.getLoadedDartCount(stack) / MAX_LOADED_DARTS
                             : 0.0F;
                 }
         );

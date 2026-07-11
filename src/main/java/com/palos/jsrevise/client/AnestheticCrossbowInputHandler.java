@@ -31,7 +31,7 @@ public final class AnestheticCrossbowInputHandler {
         }
 
         HitResult hitResult = minecraft.hitResult;
-        if (!crossbow.hasLoadedSyringes(weapon)) {
+        if (!crossbow.hasLoadedDarts(weapon)) {
             if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
                 return;
             }

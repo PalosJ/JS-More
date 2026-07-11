@@ -23,6 +23,7 @@ class DinosaurAnestheticSystemTest {
 
     @Test
     void allowsOnlySleepTransitionAndDeathAnimationsThroughSleepGuard() {
+        assertTrue(DinosaurAnestheticSystem.allowsSleepOrDeathAnimation("animation.sleep"));
         assertTrue(DinosaurAnestheticSystem.allowsSleepOrDeathAnimation("animation.sleep_in"));
         assertTrue(DinosaurAnestheticSystem.allowsSleepOrDeathAnimation("animation.sleep_loop"));
         assertTrue(DinosaurAnestheticSystem.allowsSleepOrDeathAnimation("animation.death"));
@@ -36,6 +37,7 @@ class DinosaurAnestheticSystemTest {
         assertFalse(DinosaurAnestheticSystem.allowsSleepOrDeathAnimation("animation.walk"));
         assertFalse(DinosaurAnestheticSystem.allowsSleepOrDeathAnimation("animation.fly"));
         assertFalse(DinosaurAnestheticSystem.allowsSleepOrDeathAnimation("animation.sleeping_idle"));
+        assertFalse(DinosaurAnestheticSystem.allowsSleepOrDeathAnimation("animation.sleep_in_rest"));
         assertFalse(DinosaurAnestheticSystem.allowsSleepOrDeathAnimation(null));
         assertFalse(DinosaurAnestheticSystem.allowsSleepOrDeathAnimation(""));
     }
@@ -153,6 +155,7 @@ class DinosaurAnestheticSystemTest {
 
         assertTrue(DinosaurAnestheticSystem.shouldPrepareClientSleepStageGuard(List.of("animation.sleep_in")));
         assertTrue(DinosaurAnestheticSystem.shouldPrepareClientSleepStageGuard(List.of("animation.sleep_loop")));
+        assertTrue(DinosaurAnestheticSystem.shouldPrepareClientSleepStageGuard(List.of("animation.sleep")));
         assertTrue(DinosaurAnestheticSystem.shouldPrepareClientSleepStageGuard(
                 List.of("animation.sleep_in", "jurassicsaga:sleep_loop")
         ));

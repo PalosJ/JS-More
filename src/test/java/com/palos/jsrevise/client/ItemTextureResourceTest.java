@@ -14,7 +14,10 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -24,6 +27,43 @@ import org.junit.jupiter.api.Test;
 class ItemTextureResourceTest {
     private static final String ITEM_TEXTURE_ROOT = "/assets/jsrevise/textures/item/";
     private static final String BLOCK_TEXTURE_ROOT = "/assets/jsrevise/textures/block/";
+    private static final String ENTITY_TEXTURE_ROOT = "/assets/jsrevise/textures/entity/projectiles/";
+    private static final int ANESTHETIC_DARK_CYAN = 0xFF1987AB;
+    private static final int ANESTHETIC_MID_CYAN = 0xFF2F98BB;
+    private static final int ANESTHETIC_LIGHT_CYAN = 0xFF41ADD0;
+    private static final int ANESTHETIC_BRIGHT_CYAN = 0xFF58BEDD;
+    private static final String ANESTHETIC_DART_ENTITY_ARGB_GRID_SHA256 =
+            "bd44fe55aa50129ff8afffe1de2781809184fb1d7edc98181685d8ce924dc5af";
+    private static final Map<String, String> ANESTHETIC_DART_ITEM_ARGB_GRID_SHA256 = Map.ofEntries(
+            Map.entry("anesthetic_dart.png", "dfac88670534523c5829ca6dd167ea8adcd2c23c701b65c98a7fb514d2870f4b"),
+            Map.entry("crossbow_loaded_1.png", "ce92af0f6cc4794689368bb01d28101f188a902a6d28950f4ae9727776485051"),
+            Map.entry("crossbow_loaded_2.png", "01108387dfab15b88c322f1d991c41d5c2caa7b6fd777fc228c5f2849ff679d7"),
+            Map.entry("crossbow_loaded_3.png", "72940be76fcb586800e14b55949096542dca3a80612a249c4405b2be069eb024"),
+            Map.entry("crossbow_loaded_4.png", "640a7fab0d46afe787624c9c895d1ad9b6871d1d1389390d03bcd1fa781cf9a5"),
+            Map.entry("crossbow_loaded_5.png", "0ada3f457803c4aa506a8826f16eaeeb9762db1c40b328b89ea51e8e6cf3b66d"),
+            Map.entry("crossbow_loaded_6.png", "8ada06a2bd0bb0afcccf29965f790188a73b5b5acdf48ed23ba76f86dfc5bf18")
+    );
+    private static final List<ExpectedPixel> LOADED_DART_PIXELS = List.of(
+            new ExpectedPixel(3, 3, 0xFF939393),
+            new ExpectedPixel(4, 4, 0xFFE2E2E2),
+            new ExpectedPixel(5, 5, 0xFFF5F5F5),
+            new ExpectedPixel(6, 6, ANESTHETIC_BRIGHT_CYAN),
+            new ExpectedPixel(7, 6, ANESTHETIC_MID_CYAN),
+            new ExpectedPixel(7, 7, ANESTHETIC_LIGHT_CYAN),
+            new ExpectedPixel(8, 7, ANESTHETIC_BRIGHT_CYAN),
+            new ExpectedPixel(8, 8, 0xFFE2E2E2),
+            new ExpectedPixel(9, 8, 0xFF5D686E),
+            new ExpectedPixel(8, 9, 0xFFF5F5F5),
+            new ExpectedPixel(9, 9, 0xFF7D7D7D),
+            new ExpectedPixel(10, 9, 0xFF5D686E),
+            new ExpectedPixel(9, 10, 0xFFE2E2E2)
+    );
+    private static final List<ExpectedPixel> RESTORED_LOADED_CROSSBOW_PIXELS = List.of(
+            new ExpectedPixel(6, 5, 0xFF222B33),
+            new ExpectedPixel(5, 6, 0xFF222B33),
+            new ExpectedPixel(6, 7, 0xFF52606B),
+            new ExpectedPixel(7, 8, 0xFF52606B)
+    );
     private static final int CAPTURE_CAGE_OUTER_BORDER = 0xFF40474A;
     private static final int CAPTURE_CAGE_WINDOW_PANE = 0xFF232A2D;
     private static final int CAPTURE_CAGE_PANEL_SHADOW = 0xFF9DA4A1;
@@ -199,6 +239,264 @@ class ItemTextureResourceTest {
         assertNull(ItemTextureResourceTest.class.getResource(
                 "/assets/jsrevise/textures/item/crossbow_arrow.png"
         ));
+    }
+
+    @Test
+    void anestheticPotionAndDartResourcesKeepPixelArtAndMedicineIdentity() throws IOException {
+        String potionModel = readResourceText("/assets/jsrevise/models/item/anesthetic_potion.json");
+        String dartModel = readResourceText("/assets/jsrevise/models/item/anesthetic_dart.json");
+        assertGeneratedItemModelReferences(potionModel, "jsrevise:item/anesthetic_potion");
+        assertGeneratedItemModelReferences(dartModel, "jsrevise:item/anesthetic_dart");
+
+        BufferedImage potion = readTexture(ITEM_TEXTURE_ROOT + "anesthetic_potion.png");
+        BufferedImage dart = readTexture(ITEM_TEXTURE_ROOT + "anesthetic_dart.png");
+        BufferedImage entityDart = readTexture(ENTITY_TEXTURE_ROOT + "anesthetic_dart.png");
+
+        assertPixelArtTexture(potion, 16, 16);
+        assertPixelArtTexture(dart, 16, 16);
+        assertPixelArtTexture(entityDart, 32, 32);
+        assertMedicinePalette(potion);
+        assertMedicinePalette(entityDart);
+
+        assertTrue(countPixels(potion, ItemTextureResourceTest::isCyanMedicine) >= 24);
+        assertTrue(countPixels(potion, ItemTextureResourceTest::isContainerWhiteGray) >= 12);
+
+        assertEquals(13, countPixels(dart, ItemTextureResourceTest::isAnestheticDartItemCyanMedicine));
+        assertTrue(countPixels(dart, color -> color == ANESTHETIC_MID_CYAN) > 0);
+        assertTrue(countPixels(dart, color -> color == ANESTHETIC_LIGHT_CYAN) > 0);
+        assertTrue(countPixels(dart, color -> color == ANESTHETIC_BRIGHT_CYAN) > 0);
+        assertEquals(0, countPixels(dart, color -> color == ANESTHETIC_DARK_CYAN));
+        assertEquals(0, countPixels(dart, color -> color == 0xFF313131));
+        assertTrue(countPixels(dart, ItemTextureResourceTest::isContainerWhiteGray) >= 12);
+        assertAnestheticDartMatchesEntityModelProportions(dart);
+
+        assertTrue(countPixels(entityDart, ItemTextureResourceTest::isCyanMedicine) >= 40);
+        assertTrue(countPixels(entityDart, ItemTextureResourceTest::isContainerWhiteGray) >= 250);
+        assertEntityDartTailFeatherFacesExact(entityDart);
+    }
+
+    private static void assertAnestheticDartMatchesEntityModelProportions(BufferedImage dart) {
+        PixelBounds dartBounds = boundsOfPixels(dart, ItemTextureResourceTest::isOpaque);
+        assertEquals(1, dartBounds.minX());
+        assertEquals(1, dartBounds.minY());
+        assertEquals(14, dartBounds.maxX());
+        assertEquals(14, dartBounds.maxY());
+        assertEquals(49, dartBounds.count(), "The item dart should keep the approved side-profile silhouette");
+
+        int tailPixels = 0;
+        int middlePixels = 0;
+        int needlePixels = 0;
+        for (int y = 0; y < dart.getHeight(); y++) {
+            for (int x = 0; x < dart.getWidth(); x++) {
+                int d = x - y;
+                boolean actualOpaque = isOpaque(dart.getRGB(x, y));
+                if (!actualOpaque) {
+                    continue;
+                }
+                if (d <= -6) {
+                    tailPixels++;
+                } else if (d <= 7) {
+                    middlePixels++;
+                } else {
+                    needlePixels++;
+                    assertEquals(15, x + y, "The forward needle must stay one pixel wide on the dart axis");
+                }
+            }
+        }
+
+        assertEquals(15, tailPixels, "The rear flange, narrow rod, and feather should keep their approved weight");
+        assertEquals(31, middlePixels, "The cartridge and fittings should keep their approved visual weight");
+        assertEquals(3, needlePixels, "The shortened forward needle should occupy three diagonal positions");
+        assertEquals(List.of(-3, -1, 1, 3), opaqueDartCrossSection(dart, -6));
+        assertEquals(List.of(0), opaqueDartCrossSection(dart, -7));
+        assertEquals(List.of(-1, 1), opaqueDartCrossSection(dart, -8));
+        assertEquals(List.of(0), opaqueDartCrossSection(dart, -9));
+        assertEquals(List.of(-1, 1), opaqueDartCrossSection(dart, -10));
+        assertEquals(List.of(-2, 0, 2), opaqueDartCrossSection(dart, -11));
+        assertEquals(List.of(-1, 1), opaqueDartCrossSection(dart, -12));
+        assertEquals(0xFFF5F5F5, dart.getRGB(14, 1));
+        assertEquals(0xFFE2E2E2, dart.getRGB(13, 2));
+        assertEquals(0xFF939393, dart.getRGB(12, 3));
+        assertEquals(0, countEnclosedTransparentPixels(dart),
+                "The dart may have open edge notches but must not contain enclosed transparent holes");
+        assertEquals(0, countDartAxisAlphaMismatches(dart),
+                "The dart silhouette must stay symmetric around x+y=15");
+        assertSingleEightConnectedAlphaComponent(dart);
+    }
+
+    private static List<Integer> opaqueDartCrossSection(BufferedImage image, int targetQ) {
+        List<Integer> crossSection = new ArrayList<>();
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if (x - y == targetQ && isOpaque(image.getRGB(x, y))) {
+                    crossSection.add(x + y - 15);
+                }
+            }
+        }
+        return crossSection;
+    }
+
+    private static int countEnclosedTransparentPixels(BufferedImage image) {
+        boolean[][] exterior = new boolean[image.getHeight()][image.getWidth()];
+        int[] queueX = new int[image.getWidth() * image.getHeight()];
+        int[] queueY = new int[queueX.length];
+        int head = 0;
+        int tail = 0;
+
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                boolean boundary = x == 0 || y == 0 || x == image.getWidth() - 1 || y == image.getHeight() - 1;
+                if (boundary && isTransparent(image.getRGB(x, y)) && !exterior[y][x]) {
+                    exterior[y][x] = true;
+                    queueX[tail] = x;
+                    queueY[tail++] = y;
+                }
+            }
+        }
+
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        while (head < tail) {
+            int x = queueX[head];
+            int y = queueY[head++];
+            for (int[] direction : directions) {
+                int nextX = x + direction[0];
+                int nextY = y + direction[1];
+                if (nextX < 0 || nextX >= image.getWidth()
+                        || nextY < 0 || nextY >= image.getHeight()
+                        || exterior[nextY][nextX]
+                        || isOpaque(image.getRGB(nextX, nextY))) {
+                    continue;
+                }
+                exterior[nextY][nextX] = true;
+                queueX[tail] = nextX;
+                queueY[tail++] = nextY;
+            }
+        }
+
+        int enclosed = 0;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if (isTransparent(image.getRGB(x, y)) && !exterior[y][x]) {
+                    enclosed++;
+                }
+            }
+        }
+        return enclosed;
+    }
+
+    private static int countDartAxisAlphaMismatches(BufferedImage image) {
+        assertEquals(image.getWidth(), image.getHeight());
+        int mismatches = 0;
+        int axisMax = image.getWidth() - 1;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if (isOpaque(image.getRGB(x, y))
+                        != isOpaque(image.getRGB(axisMax - y, axisMax - x))) {
+                    mismatches++;
+                }
+            }
+        }
+        return mismatches;
+    }
+
+    private static void assertEntityDartTailFeatherFacesExact(BufferedImage entityDart) {
+        List<String> expectedFace = List.of(".LL.", "LHHL", "LHHL", "LHHL", "LHHL", ".LL.");
+        for (int y = 24; y < 32; y++) {
+            for (int x = 0; x < 32; x++) {
+                int expected = 0x00000000;
+                if (x < 16 && y < 30) {
+                    char symbol = expectedFace.get(y - 24).charAt(x % 4);
+                    if (symbol == 'L') {
+                        expected = 0xFFE2E2E2;
+                    } else if (symbol == 'H') {
+                        expected = 0xFFF5F5F5;
+                    }
+                }
+                assertEquals(expected, entityDart.getRGB(x, y),
+                        "Unexpected entity tail atlas pixel at (" + x + ", " + y + ")");
+            }
+        }
+        assertEquals(0, countPixelsInRegion(entityDart, 0, 24, 32, 8, color -> color == 0xFF313131));
+        assertEquals(0, countPixelsInRegion(entityDart, 0, 24, 32, 8, color -> color == 0xFF5D686E));
+    }
+
+    private static void assertSingleEightConnectedAlphaComponent(BufferedImage image) {
+        boolean[][] visited = new boolean[image.getHeight()][image.getWidth()];
+        int[] queueX = new int[image.getWidth() * image.getHeight()];
+        int[] queueY = new int[queueX.length];
+        int head = 0;
+        int tail = 0;
+        findStart:
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if (isOpaque(image.getRGB(x, y))) {
+                    queueX[tail] = x;
+                    queueY[tail++] = y;
+                    visited[y][x] = true;
+                    break findStart;
+                }
+            }
+        }
+        assertTrue(tail > 0, "The dart silhouette must contain opaque pixels");
+        int connectedPixels = 0;
+
+        while (head < tail) {
+            int x = queueX[head];
+            int y = queueY[head++];
+            connectedPixels++;
+            for (int offsetY = -1; offsetY <= 1; offsetY++) {
+                for (int offsetX = -1; offsetX <= 1; offsetX++) {
+                    int nextX = x + offsetX;
+                    int nextY = y + offsetY;
+                    if ((offsetX == 0 && offsetY == 0)
+                            || nextX < 0 || nextX >= image.getWidth()
+                            || nextY < 0 || nextY >= image.getHeight()
+                            || visited[nextY][nextX]
+                            || !isOpaque(image.getRGB(nextX, nextY))) {
+                        continue;
+                    }
+                    visited[nextY][nextX] = true;
+                    queueX[tail] = nextX;
+                    queueY[tail++] = nextY;
+                }
+            }
+        }
+
+        assertEquals(countOpaquePixels(image), connectedPixels, "The dart silhouette must form one 8-connected component");
+    }
+
+    @Test
+    void loadedCrossbowFramesUseTheExactSharedDartMaskAndRestoredBowPixels() throws IOException {
+        for (int loaded = 1; loaded <= 6; loaded++) {
+            BufferedImage frame = readTexture(ITEM_TEXTURE_ROOT + "crossbow_loaded_" + loaded + ".png");
+            assertPixelArtTexture(frame, 16, 16);
+            assertExpectedPixels(frame, LOADED_DART_PIXELS, "Loaded frame " + loaded + " dart mask");
+            assertExpectedPixels(
+                    frame,
+                    RESTORED_LOADED_CROSSBOW_PIXELS,
+                    "Loaded frame " + loaded + " restored crossbow body"
+            );
+        }
+    }
+
+    @Test
+    void anestheticDartItemEntityAndLoadedFramesKeepApprovedArgbPixelGrids() throws IOException {
+        for (Map.Entry<String, String> entry : ANESTHETIC_DART_ITEM_ARGB_GRID_SHA256.entrySet()) {
+            BufferedImage texture = readTexture(ITEM_TEXTURE_ROOT + entry.getKey());
+            assertPixelArtTexture(texture, 16, 16);
+            assertEquals(
+                    entry.getValue(),
+                    sha256ArgbGrid(texture),
+                    entry.getKey() + " must keep all 256 approved ARGB pixels"
+            );
+        }
+        BufferedImage entityTexture = readTexture(ENTITY_TEXTURE_ROOT + "anesthetic_dart.png");
+        assertPixelArtTexture(entityTexture, 32, 32);
+        assertEquals(
+                ANESTHETIC_DART_ENTITY_ARGB_GRID_SHA256,
+                sha256ArgbGrid(entityTexture),
+                "anesthetic_dart entity texture must keep all 1024 approved ARGB pixels"
+        );
     }
 
     @Test
@@ -432,7 +730,7 @@ class ItemTextureResourceTest {
         }
 
         assertEquals(
-                List.of(8, 16, 11, 15, 4),
+                List.of(4, 12, 9, 15, 4),
                 adjacentDifferenceCounts,
                 "Loaded crossbow string frames should keep the approved six-step progression"
         );
@@ -474,7 +772,7 @@ class ItemTextureResourceTest {
     }
 
     @Test
-    void crossbowKeepsVanillaTopDownAnimationAndCompactForwardFacingSyringe() throws IOException {
+    void crossbowKeepsVanillaTopDownAnimationAndCompactForwardFacingDart() throws IOException {
         BufferedImage standby = readTexture(ITEM_TEXTURE_ROOT + "crossbow_standby.png");
         BufferedImage charged = readTexture(ITEM_TEXTURE_ROOT + "crossbow_loaded_6.png");
         double vanillaOverlap = alphaIntersectionOverUnion(standby, VANILLA_CROSSBOW_STANDBY_ALPHA);
@@ -482,7 +780,7 @@ class ItemTextureResourceTest {
         assertTrue(vanillaOverlap >= 0.72D && vanillaOverlap <= 0.90D);
         assertTrue(isTransparent(charged.getRGB(3, 2)));
         assertTrue(isTransparent(charged.getRGB(2, 3)));
-        assertTrue(isCyanMedicine(charged.getRGB(6, 6)));
+        assertTrue(isAnestheticDartItemCyanMedicine(charged.getRGB(6, 6)));
         assertTrue(!isCyanMedicine(charged.getRGB(9, 9)));
     }
 
@@ -495,6 +793,24 @@ class ItemTextureResourceTest {
         }
     }
 
+    private static String sha256ArgbGrid(BufferedImage image) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            for (int y = 0; y < image.getHeight(); y++) {
+                for (int x = 0; x < image.getWidth(); x++) {
+                    int argb = image.getRGB(x, y);
+                    digest.update((byte) (argb >>> 24));
+                    digest.update((byte) (argb >>> 16));
+                    digest.update((byte) (argb >>> 8));
+                    digest.update((byte) argb);
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException exception) {
+            throw new AssertionError("SHA-256 must be available", exception);
+        }
+    }
+
     private static String readResourceText(String path) throws IOException {
         try (InputStream stream = ItemTextureResourceTest.class.getResourceAsStream(path)) {
             assertNotNull(stream, "Missing resource: " + path);
@@ -504,6 +820,38 @@ class ItemTextureResourceTest {
 
     private static JsonObject parseResourceJson(String resourceText) {
         return JsonParser.parseString(resourceText).getAsJsonObject();
+    }
+
+    private static void assertGeneratedItemModelReferences(String model, String textureId) {
+        JsonObject modelJson = parseResourceJson(model);
+        assertEquals("minecraft:item/generated", modelJson.get("parent").getAsString());
+        assertEquals(textureId, modelJson.getAsJsonObject("textures").get("layer0").getAsString());
+    }
+
+    private static void assertPixelArtTexture(BufferedImage image, int expectedWidth, int expectedHeight) {
+        assertEquals(expectedWidth, image.getWidth());
+        assertEquals(expectedHeight, image.getHeight());
+        assertEquals(0, countPartialAlphaPixels(image), "Pixel-art textures must use binary alpha");
+    }
+
+    private static void assertMedicinePalette(BufferedImage image) {
+        assertTrue(countPixels(image, color -> color == ANESTHETIC_DARK_CYAN) > 0);
+        assertTrue(countPixels(image, color -> color == ANESTHETIC_MID_CYAN) > 0);
+        assertTrue(countPixels(image, color -> color == ANESTHETIC_LIGHT_CYAN) > 0);
+    }
+
+    private static void assertExpectedPixels(
+            BufferedImage image,
+            List<ExpectedPixel> expectedPixels,
+            String messagePrefix
+    ) {
+        for (ExpectedPixel expected : expectedPixels) {
+            assertEquals(
+                    expected.argb(),
+                    image.getRGB(expected.x(), expected.y()),
+                    messagePrefix + " at (" + expected.x() + ", " + expected.y() + ")"
+            );
+        }
     }
 
     private static void assertBerPlaceholderModel(String modelName, String model) {
@@ -1560,6 +1908,12 @@ class ItemTextureResourceTest {
         return alpha != 0 && red <= 80 && green >= 120 && blue >= 160;
     }
 
+    private static boolean isAnestheticDartItemCyanMedicine(int color) {
+        return color == ANESTHETIC_MID_CYAN
+                || color == ANESTHETIC_LIGHT_CYAN
+                || color == ANESTHETIC_BRIGHT_CYAN;
+    }
+
     private static boolean isContainerWhiteGray(int color) {
         int alpha = (color >>> 24) & 0xFF;
         int red = (color >>> 16) & 0xFF;
@@ -1667,6 +2021,9 @@ class ItemTextureResourceTest {
         double centerY() {
             return (double) sumY / count;
         }
+    }
+
+    private record ExpectedPixel(int x, int y, int argb) {
     }
 
     @FunctionalInterface
