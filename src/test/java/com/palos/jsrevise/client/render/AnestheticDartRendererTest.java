@@ -10,6 +10,11 @@ class AnestheticDartRendererTest {
     private static final float EPSILON = 1.0E-5F;
 
     @Test
+    void entityModelUsesRequestedUniformScale() {
+        assertEquals(0.585F, AnestheticDartRenderer.MODEL_SCALE, EPSILON);
+    }
+
+    @Test
     void localNeedleAxisTracksCardinalProjectileYaw() {
         assertForwardDirection(0.0F, 0.0F, 0.0F, 0.0F, 1.0F);
         assertForwardDirection(90.0F, 0.0F, 1.0F, 0.0F, 0.0F);

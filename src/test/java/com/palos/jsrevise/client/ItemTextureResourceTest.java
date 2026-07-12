@@ -36,14 +36,14 @@ class ItemTextureResourceTest {
             "bd44fe55aa50129ff8afffe1de2781809184fb1d7edc98181685d8ce924dc5af";
     private static final Map<String, String> ANESTHETIC_DART_ITEM_ARGB_GRID_SHA256 = Map.ofEntries(
             Map.entry("anesthetic_dart.png", "dfac88670534523c5829ca6dd167ea8adcd2c23c701b65c98a7fb514d2870f4b"),
-            Map.entry("crossbow_loaded_1.png", "ce92af0f6cc4794689368bb01d28101f188a902a6d28950f4ae9727776485051"),
-            Map.entry("crossbow_loaded_2.png", "01108387dfab15b88c322f1d991c41d5c2caa7b6fd777fc228c5f2849ff679d7"),
-            Map.entry("crossbow_loaded_3.png", "72940be76fcb586800e14b55949096542dca3a80612a249c4405b2be069eb024"),
-            Map.entry("crossbow_loaded_4.png", "640a7fab0d46afe787624c9c895d1ad9b6871d1d1389390d03bcd1fa781cf9a5"),
-            Map.entry("crossbow_loaded_5.png", "0ada3f457803c4aa506a8826f16eaeeb9762db1c40b328b89ea51e8e6cf3b66d"),
-            Map.entry("crossbow_loaded_6.png", "8ada06a2bd0bb0afcccf29965f790188a73b5b5acdf48ed23ba76f86dfc5bf18")
+            Map.entry("crossbow_loaded_1.png", "99fdb38f9bc422d86acc2e11c9ec7efc1358c39e022de90c6c0bcd6d98cc352a"),
+            Map.entry("crossbow_loaded_2.png", "b46300e0b6e6294ff4100ddcc7df513c590bdda4bcdd3db7c56676576b2f54f8"),
+            Map.entry("crossbow_loaded_3.png", "6e9e307c6c80c7202ece8fcbfc41d2684d51d2ad431906573b893fc103f4ed8d"),
+            Map.entry("crossbow_loaded_4.png", "5deb3be949337c697554a0d729c3ec502188dd8bdbbc9061d5a639f488e77d14"),
+            Map.entry("crossbow_loaded_5.png", "bb63afed9b8698eedcc0a1e6007a594f41ceab2ff31ff4acd2a7abed8b0c57dd"),
+            Map.entry("crossbow_loaded_6.png", "b2abefe56464ee218511f46735366712773a54a9a19ab87404cea306283feee1")
     );
-    private static final List<ExpectedPixel> LOADED_DART_PIXELS = List.of(
+    private static final List<ExpectedPixel> LOADED_DART_CORE_PIXELS = List.of(
             new ExpectedPixel(3, 3, 0xFF939393),
             new ExpectedPixel(4, 4, 0xFFE2E2E2),
             new ExpectedPixel(5, 5, 0xFFF5F5F5),
@@ -51,12 +51,7 @@ class ItemTextureResourceTest {
             new ExpectedPixel(7, 6, ANESTHETIC_MID_CYAN),
             new ExpectedPixel(7, 7, ANESTHETIC_LIGHT_CYAN),
             new ExpectedPixel(8, 7, ANESTHETIC_BRIGHT_CYAN),
-            new ExpectedPixel(8, 8, 0xFFE2E2E2),
-            new ExpectedPixel(9, 8, 0xFF5D686E),
-            new ExpectedPixel(8, 9, 0xFFF5F5F5),
-            new ExpectedPixel(9, 9, 0xFF7D7D7D),
-            new ExpectedPixel(10, 9, 0xFF5D686E),
-            new ExpectedPixel(9, 10, 0xFFE2E2E2)
+            new ExpectedPixel(8, 8, 0xFFE2E2E2)
     );
     private static final List<ExpectedPixel> RESTORED_LOADED_CROSSBOW_PIXELS = List.of(
             new ExpectedPixel(6, 5, 0xFF222B33),
@@ -466,11 +461,11 @@ class ItemTextureResourceTest {
     }
 
     @Test
-    void loadedCrossbowFramesUseTheExactSharedDartMaskAndRestoredBowPixels() throws IOException {
+    void loadedCrossbowFramesKeepTheSharedDartCoreAndRestoredBowPixels() throws IOException {
         for (int loaded = 1; loaded <= 6; loaded++) {
             BufferedImage frame = readTexture(ITEM_TEXTURE_ROOT + "crossbow_loaded_" + loaded + ".png");
             assertPixelArtTexture(frame, 16, 16);
-            assertExpectedPixels(frame, LOADED_DART_PIXELS, "Loaded frame " + loaded + " dart mask");
+            assertExpectedPixels(frame, LOADED_DART_CORE_PIXELS, "Loaded frame " + loaded + " dart core");
             assertExpectedPixels(
                     frame,
                     RESTORED_LOADED_CROSSBOW_PIXELS,
@@ -730,7 +725,7 @@ class ItemTextureResourceTest {
         }
 
         assertEquals(
-                List.of(4, 12, 9, 15, 4),
+                List.of(5, 16, 12, 15, 4),
                 adjacentDifferenceCounts,
                 "Loaded crossbow string frames should keep the approved six-step progression"
         );

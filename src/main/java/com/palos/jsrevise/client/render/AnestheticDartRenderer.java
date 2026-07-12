@@ -13,6 +13,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 public final class AnestheticDartRenderer extends EntityRenderer<AnestheticDartEntity> {
+    static final float MODEL_SCALE = 0.65F * 0.90F;
     public static final ResourceLocation TEXTURE =
             JSRevise.id("textures/entity/projectiles/anesthetic_dart.png");
     private final AnestheticDartModel model;
@@ -41,7 +42,7 @@ public final class AnestheticDartRenderer extends EntityRenderer<AnestheticDartE
         if (shake > 0.0F) {
             poseStack.mulPose(Axis.ZP.rotationDegrees(-Mth.sin(shake * 3.0F) * shake));
         }
-        poseStack.scale(0.65F, 0.65F, 0.65F);
+        poseStack.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
         VertexConsumer vertices = buffer.getBuffer(model.renderType(TEXTURE));
         model.renderToBuffer(poseStack, vertices, packedLight, OverlayTexture.NO_OVERLAY);
         poseStack.popPose();
