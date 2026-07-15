@@ -17,7 +17,8 @@ class AnestheticProtectionIntervalsTest {
         CapturedDinosaurData data = data(100L, pendingDose(300L, 100));
 
         assertEquals(300L, AnestheticProtectionIntervals.unprotectedTicks(data, 500L));
-        assertEquals(85, DinosaurCaptureItemData.projectedDurability(data, 500L));
+        assertEquals(CapturedDinosaurData.MAX_DURABILITY - 15,
+                DinosaurCaptureItemData.projectedDurability(data, 500L));
     }
 
     @Test
@@ -71,7 +72,8 @@ class AnestheticProtectionIntervalsTest {
     void durabilityRemainderCarriesAcrossSettlementBoundaries() {
         CapturedDinosaurData first = data(new CompoundTag(), 19);
 
-        assertEquals(99, DinosaurCaptureItemData.projectedDurability(first, 1L));
+        assertEquals(CapturedDinosaurData.MAX_DURABILITY - 1,
+                DinosaurCaptureItemData.projectedDurability(first, 1L));
         assertEquals(0, DinosaurCaptureItemData.durabilityRemainderTicksForSettlement(first, 1L));
     }
 

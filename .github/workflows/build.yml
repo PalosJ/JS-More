@@ -26,5 +26,11 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Build with Gradle
+      - name: Build default profile with Gradle
         run: ./gradlew test runGameTestServer assemble --rerun-tasks --warning-mode all --console=plain
+
+      - name: Build exact Aeronautics profile with Gradle
+        run: ./gradlew test runGameTestServer assemble -PwithAeronautics=true --rerun-tasks --warning-mode all --console=plain
+
+      - name: Build Aeronautics pack-interoperability profile with Gradle
+        run: ./gradlew test runGameTestServer assemble -PwithAeronauticsPackInterop=true --rerun-tasks --warning-mode all --console=plain

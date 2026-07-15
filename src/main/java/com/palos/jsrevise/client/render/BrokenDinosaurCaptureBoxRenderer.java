@@ -3,6 +3,7 @@ package com.palos.jsrevise.client.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.palos.jsrevise.JSRevise;
+import com.palos.jsrevise.compat.aeronautics.CaptureBoxWorldContext;
 import com.palos.jsrevise.server.block.BrokenDinosaurCaptureBoxBlock;
 import com.palos.jsrevise.server.block.entity.BrokenDinosaurCaptureBoxBlockEntity;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -119,7 +120,9 @@ public final class BrokenDinosaurCaptureBoxRenderer implements BlockEntityRender
                 BOTTOM_TEXTURE,
                 BOX_INSET
         );
-        renderDebris(poseStack, bufferSource, packedLight, packedOverlay, facing);
+        if (shouldRenderDebris(blockEntity)) {
+            renderDebris(poseStack, bufferSource, packedLight, packedOverlay, facing);
+        }
     }
 
     @Override
@@ -135,11 +138,18 @@ public final class BrokenDinosaurCaptureBoxRenderer implements BlockEntityRender
     @Override
     public AABB getRenderBoundingBox(BrokenDinosaurCaptureBoxBlockEntity blockEntity) {
         Direction facing = facing(blockEntity.getBlockState());
+        return renderBoundingBox(blockEntity.getBlockPos(), facing, shouldRenderDebris(blockEntity));
+    }
+
+    static AABB renderBoundingBox(BlockPos controllerPos, Direction facing, boolean debrisVisible) {
         AABB boxBounds = DinosaurCaptureCageRenderer.renderBoundingBox(
-                blockEntity.getBlockPos(),
+                controllerPos,
                 facing
         );
-        AABB debrisBounds = debrisRenderBoundingBox(blockEntity.getBlockPos(), facing);
+        if (!debrisVisible) {
+            return boxBounds;
+        }
+        AABB debrisBounds = debrisRenderBoundingBox(controllerPos, facing);
         return new AABB(
                 Math.min(boxBounds.minX, debrisBounds.minX),
                 Math.min(boxBounds.minY, debrisBounds.minY),
@@ -147,6 +157,20 @@ public final class BrokenDinosaurCaptureBoxRenderer implements BlockEntityRender
                 Math.max(boxBounds.maxX, debrisBounds.maxX),
                 Math.max(boxBounds.maxY, debrisBounds.maxY),
                 Math.max(boxBounds.maxZ, debrisBounds.maxZ)
+        );
+    }
+
+    static boolean shouldRenderDebris(boolean metadataVisible, boolean sublevelOrUncertain) {
+        return metadataVisible && !sublevelOrUncertain;
+    }
+
+    private static boolean shouldRenderDebris(BrokenDinosaurCaptureBoxBlockEntity blockEntity) {
+        if (blockEntity == null || blockEntity.getLevel() == null) {
+            return false;
+        }
+        return shouldRenderDebris(
+                blockEntity.shouldRenderDebris(),
+                CaptureBoxWorldContext.isSublevelOrUncertain(blockEntity.getLevel(), blockEntity.getBlockPos())
         );
     }
 

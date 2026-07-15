@@ -98,13 +98,6 @@ class ItemTextureResourceTest {
             Map.entry("broken_dinosaur_capture_box_bottom.png", new int[]{32, 64, 0}),
             Map.entry("broken_dinosaur_capture_box_debris_sheet.png", new int[]{64, 64, 2914})
     );
-    private static final List<Double> VANILLA_MODEL_ROTATION_ANGLES = List.of(
-            -45.0D,
-            -22.5D,
-            0.0D,
-            22.5D,
-            45.0D
-    );
     private static final List<String> DINOSAUR_CAPTURE_CAGE_BLOCK_MODELS = List.of(
             "dinosaur_capture_box_x0_y0_z0",
             "dinosaur_capture_box_x1_y0_z0",
@@ -692,16 +685,37 @@ class ItemTextureResourceTest {
         String zhCn = readResourceText("/assets/jsrevise/lang/zh_cn.json");
         assertTrue(zhCn.contains("\"block.jsrevise.dinosaur_capture_box\": \"恐龙捕获箱\""));
         assertTrue(zhCn.contains("\"item.jsrevise.dinosaur_capture_box\": \"恐龙捕获箱\""));
-        assertTrue(zhCn.contains("\"tooltip.jsrevise.dinosaur_capture_box.durability\": \"箱体耐久：%s/%s\""));
+        assertTrue(zhCn.contains("\"tooltip.jsrevise.dinosaur_capture_box.durability\": \"箱体耐久：%s\""));
+        assertTrue(zhCn.contains("\"tooltip.jsrevise.dinosaur_capture_box.captured_duration\": \"捕获时长：%s\""));
+        assertTrue(zhCn.contains("\"overlay.jsrevise.capture_box.duration\": \"捕获时长：\""));
         assertTrue(zhCn.contains("\"block.jsrevise.broken_dinosaur_capture_box\": \"破损的恐龙捕获箱\""));
         assertTrue(zhCn.contains("\"item.jsrevise.broken_dinosaur_capture_box\": \"破损的恐龙捕获箱\""));
 
         String enUs = readResourceText("/assets/jsrevise/lang/en_us.json");
         assertTrue(enUs.contains("\"block.jsrevise.dinosaur_capture_box\": \"Dinosaur Capture Box\""));
         assertTrue(enUs.contains("\"item.jsrevise.dinosaur_capture_box\": \"Dinosaur Capture Box\""));
-        assertTrue(enUs.contains("\"tooltip.jsrevise.dinosaur_capture_box.durability\": \"Box Durability: %s/%s\""));
+        assertTrue(enUs.contains("\"tooltip.jsrevise.dinosaur_capture_box.durability\": \"Box Durability: %s\""));
+        assertTrue(enUs.contains("\"tooltip.jsrevise.dinosaur_capture_box.captured_duration\": \"Capture Duration: %s\""));
+        assertTrue(enUs.contains("\"overlay.jsrevise.capture_box.duration\": \"Capture Duration: \""));
         assertTrue(enUs.contains("\"block.jsrevise.broken_dinosaur_capture_box\": \"Broken Dinosaur Capture Box\""));
         assertTrue(enUs.contains("\"item.jsrevise.broken_dinosaur_capture_box\": \"Broken Dinosaur Capture Box\""));
+
+        for (String key : List.of(
+                "tooltip.jsrevise.dinosaur_capture_box.supplies_unreadable",
+                "tooltip.jsrevise.dinosaur_capture_box.anesthetic_reserve",
+                "tooltip.jsrevise.dinosaur_capture_box.carnivore_reserve",
+                "tooltip.jsrevise.dinosaur_capture_box.herbivore_reserve",
+                "overlay.jsrevise.capture_box.title",
+                "overlay.jsrevise.capture_box.anesthetic_reserve",
+                "overlay.jsrevise.capture_box.carnivore_reserve",
+                "overlay.jsrevise.capture_box.herbivore_reserve",
+                "format.jsrevise.duration.seconds",
+                "format.jsrevise.duration.minutes",
+                "format.jsrevise.duration.hours"
+        )) {
+            assertTrue(zhCn.contains("\"" + key + "\""), "Missing zh_cn key " + key);
+            assertTrue(enUs.contains("\"" + key + "\""), "Missing en_us key " + key);
+        }
     }
 
     @Test
@@ -907,48 +921,49 @@ class ItemTextureResourceTest {
         assertTrue(model.contains("\"display\""));
         assertTrue(model.contains("\"gui\""));
         assertTrue(model.contains("\"faces\""));
-        assertTrue(Pattern.compile("\"from\"\\s*:\\s*\\[\\s*4\\s*,\\s*4\\s*,\\s*0\\s*]")
-                .matcher(model)
-                .find());
-        assertTrue(Pattern.compile("\"to\"\\s*:\\s*\\[\\s*12\\s*,\\s*12\\s*,\\s*16\\s*]")
-                .matcher(model)
-                .find());
-
-        for (String texture : List.of(
-                "broken_dinosaur_capture_box_front",
-                "broken_dinosaur_capture_box_back",
-                "broken_dinosaur_capture_box_side_badge",
-                "broken_dinosaur_capture_box_side_bars",
-                "broken_dinosaur_capture_box_top",
-                "broken_dinosaur_capture_box_bottom",
-                "broken_dinosaur_capture_box_debris_sheet"
-        )) {
-            assertTrue(
-                    model.contains("jsrevise:block/" + texture),
-                    "Broken capture box block model should reuse block texture " + texture
-            );
-        }
-        assertEquals(
-                7,
-                countElementsUsingTexture(modelJson, "#debris"),
-                "Broken capture box item model should keep one baked debris element per renderer debris piece"
+        JsonObject textures = modelJson.getAsJsonObject("textures");
+        assertEquals(7, textures.size(), "Broken capture box item model should only keep body textures");
+        assertFalse(textures.has("debris"), "World-only debris must not be baked into the item model");
+        Map<String, String> expectedTextures = Map.ofEntries(
+                Map.entry("particle", "jsrevise:block/broken_dinosaur_capture_box_side_badge"),
+                Map.entry("front", "jsrevise:block/broken_dinosaur_capture_box_front"),
+                Map.entry("back", "jsrevise:block/broken_dinosaur_capture_box_back"),
+                Map.entry("side_badge", "jsrevise:block/broken_dinosaur_capture_box_side_badge"),
+                Map.entry("side_bars", "jsrevise:block/broken_dinosaur_capture_box_side_bars"),
+                Map.entry("top", "jsrevise:block/broken_dinosaur_capture_box_top"),
+                Map.entry("bottom", "jsrevise:block/broken_dinosaur_capture_box_bottom")
         );
-        assertGuiScaleMatchesCaptureBox(modelJson, captureBoxModelJson);
-        assertBrokenCaptureBoxItemModelUsesRendererDerivedDebris(modelJson);
-        for (String debrisUv : List.of(
-                "\"uv\": [0, 0, 4.25, 3.75]",
-                "\"uv\": [5.5, 0, 10, 4.75]",
-                "\"uv\": [10.5, 0, 15.75, 5.25]",
-                "\"uv\": [0, 6.5, 4, 10.5]",
-                "\"uv\": [4.5, 11, 9, 14.5]",
-                "\"uv\": [5.5, 7.75, 10.25, 10.5]",
-                "\"uv\": [10.75, 8, 14.75, 12.75]"
-        )) {
-            assertTrue(
-                    model.contains(debrisUv),
-                    "Broken capture box item debris should keep renderer debris-sheet UV island " + debrisUv
-            );
+        for (Map.Entry<String, String> texture : expectedTextures.entrySet()) {
+            assertEquals(texture.getValue(), textures.get(texture.getKey()).getAsString());
         }
+
+        JsonArray elements = modelJson.getAsJsonArray("elements");
+        assertEquals(1, elements.size(), "Broken capture box item model should contain only the box body");
+        JsonObject body = elements.get(0).getAsJsonObject();
+        assertJsonArrayEquals(new double[]{4.0D, 4.0D, 0.0D}, body.getAsJsonArray("from"));
+        assertJsonArrayEquals(new double[]{12.0D, 12.0D, 16.0D}, body.getAsJsonArray("to"));
+
+        JsonObject faces = body.getAsJsonObject("faces");
+        Map<String, String> expectedFaces = Map.of(
+                "north", "#front",
+                "south", "#back",
+                "west", "#side_badge",
+                "east", "#side_bars",
+                "up", "#top",
+                "down", "#bottom"
+        );
+        assertEquals(expectedFaces.size(), faces.size());
+        for (Map.Entry<String, String> face : expectedFaces.entrySet()) {
+            JsonObject faceJson = faces.getAsJsonObject(face.getKey());
+            assertEquals(face.getValue(), faceJson.get("texture").getAsString());
+            assertJsonArrayEquals(new double[]{0.0D, 0.0D, 16.0D, 16.0D}, faceJson.getAsJsonArray("uv"));
+        }
+        assertFalse(model.contains("#debris"), "Broken capture box item elements must not reference world debris");
+        assertEquals(
+                captureBoxModelJson.getAsJsonObject("display"),
+                modelJson.getAsJsonObject("display"),
+                "Broken and complete capture boxes should keep identical item display transforms"
+        );
     }
 
     private static void assertTagContains(String tagJson, String blockId) {
@@ -974,143 +989,6 @@ class ItemTextureResourceTest {
             return value.getAsJsonObject().get("id").getAsString();
         }
         return value.getAsString();
-    }
-
-    private static void assertBrokenCaptureBoxItemModelUsesRendererDerivedDebris(JsonObject model) {
-        JsonArray elements = model.getAsJsonArray("elements");
-        assertEquals(
-                8,
-                elements.size(),
-                "Broken capture box item model should include one box and seven debris elements"
-        );
-        assertModelElementsUseFiniteCoordinatesAndSafeRotations(elements);
-        assertModelElement(elements.get(1).getAsJsonObject(),
-                new double[]{4.0D, 4.13D, -5.3D},
-                new double[]{7.5D, 4.23D, -2.4D},
-                new double[]{5.8D, 4.13D, -3.8D},
-                22.5D);
-        assertFrontDebrisSitsBeforeDoorFace(elements.get(1).getAsJsonObject(), "front_left_door_shard");
-        assertModelElement(elements.get(2).getAsJsonObject(),
-                new double[]{8.5D, 4.18D, -6.0D},
-                new double[]{11.8D, 4.28D, -2.6D},
-                new double[]{10.0D, 4.18D, -4.2D},
-                -22.5D);
-        assertFrontDebrisSitsBeforeDoorFace(elements.get(2).getAsJsonObject(), "front_right_latch_shard");
-        assertModelElement(elements.get(3).getAsJsonObject(),
-                new double[]{-0.9D, 4.08D, 5.7D},
-                new double[]{2.8D, 4.18D, 9.2D},
-                new double[]{1.0D, 4.08D, 7.5D},
-                -45.0D);
-        assertModelElement(elements.get(4).getAsJsonObject(),
-                new double[]{13.4D, 4.12D, 5.4D},
-                new double[]{17.3D, 4.22D, 8.8D},
-                new double[]{15.4D, 4.12D, 7.1D},
-                22.5D);
-        assertModelElement(elements.get(5).getAsJsonObject(),
-                new double[]{13.7D, 4.11D, 8.9D},
-                new double[]{17.1D, 4.21D, 11.6D},
-                new double[]{15.2D, 4.11D, 10.2D},
-                -22.5D);
-        assertModelElement(elements.get(6).getAsJsonObject(),
-                new double[]{5.2D, 12.23D, 12.0D},
-                new double[]{8.8D, 12.33D, 15.4D},
-                new double[]{7.0D, 12.23D, 13.7D},
-                22.5D);
-        assertModelElement(elements.get(7).getAsJsonObject(),
-                new double[]{9.5D, 12.28D, 6.0D},
-                new double[]{12.8D, 12.38D, 9.6D},
-                new double[]{11.2D, 12.28D, 7.8D},
-                -22.5D);
-    }
-
-    private static void assertFrontDebrisSitsBeforeDoorFace(JsonObject element, String name) {
-        double fromZ = element.getAsJsonArray("from").get(2).getAsDouble();
-        double toZ = element.getAsJsonArray("to").get(2).getAsDouble();
-        assertTrue(fromZ < 0.0D, name + " should sit in front of the north/front item face");
-        assertTrue(toZ <= 0.0D, name + " should stay on the front-door side of the item model");
-        assertFalse(fromZ > 16.0D || toZ > 16.0D, name + " should not remain behind the box at z > 16");
-    }
-
-    private static void assertModelElementsUseFiniteCoordinatesAndSafeRotations(JsonArray elements) {
-        for (JsonElement element : elements) {
-            JsonObject elementObject = element.getAsJsonObject();
-            JsonArray from = elementObject.getAsJsonArray("from");
-            JsonArray to = elementObject.getAsJsonArray("to");
-            for (int coordinate = 0; coordinate < 3; coordinate++) {
-                double fromCoordinate = from.get(coordinate).getAsDouble();
-                double toCoordinate = to.get(coordinate).getAsDouble();
-                assertTrue(Double.isFinite(fromCoordinate),
-                        "Broken capture box item model from coordinate should be finite");
-                assertTrue(Double.isFinite(toCoordinate),
-                        "Broken capture box item model to coordinate should be finite");
-                assertTrue(fromCoordinate >= -16.0D && fromCoordinate <= 32.0D,
-                        "Broken capture box item model from coordinate should stay within vanilla model range -16..32");
-                assertTrue(toCoordinate >= -16.0D && toCoordinate <= 32.0D,
-                        "Broken capture box item model to coordinate should stay within vanilla model range -16..32");
-                assertTrue(fromCoordinate <= toCoordinate,
-                        "Broken capture box item model from coordinate should not exceed to coordinate");
-            }
-            if (elementObject.has("rotation")) {
-                JsonObject rotation = elementObject.getAsJsonObject("rotation");
-                assertEquals("y", rotation.get("axis").getAsString());
-                double angle = rotation.get("angle").getAsDouble();
-                assertTrue(
-                        VANILLA_MODEL_ROTATION_ANGLES.contains(angle),
-                        "Broken capture box item model should only use vanilla-safe rotation angles"
-                );
-            }
-        }
-    }
-
-    private static int countElementsUsingTexture(JsonObject model, String textureReference) {
-        int count = 0;
-        for (JsonElement element : model.getAsJsonArray("elements")) {
-            if (elementUsesTexture(element.getAsJsonObject(), textureReference)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private static boolean elementUsesTexture(JsonObject element, String textureReference) {
-        JsonObject faces = element.getAsJsonObject("faces");
-        for (Map.Entry<String, JsonElement> faceEntry : faces.entrySet()) {
-            JsonObject face = faceEntry.getValue().getAsJsonObject();
-            if (face.has("texture") && textureReference.equals(face.get("texture").getAsString())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static void assertModelElement(
-            JsonObject element,
-            double[] expectedFrom,
-            double[] expectedTo,
-            double[] expectedOrigin,
-            double expectedAngle
-    ) {
-        assertJsonArrayEquals(expectedFrom, element.getAsJsonArray("from"));
-        assertJsonArrayEquals(expectedTo, element.getAsJsonArray("to"));
-        JsonObject rotation = element.getAsJsonObject("rotation");
-        assertJsonArrayEquals(expectedOrigin, rotation.getAsJsonArray("origin"));
-        assertEquals("y", rotation.get("axis").getAsString());
-        assertEquals(expectedAngle, rotation.get("angle").getAsDouble(), 1.0E-6D);
-        assertFalse(rotation.get("rescale").getAsBoolean());
-    }
-
-    private static void assertGuiScaleMatchesCaptureBox(JsonObject brokenModel, JsonObject captureBoxModel) {
-        assertJsonArrayEquals(
-                captureBoxModel.getAsJsonObject("display").getAsJsonObject("gui").getAsJsonArray("scale"),
-                brokenModel.getAsJsonObject("display").getAsJsonObject("gui").getAsJsonArray("scale")
-        );
-    }
-
-    private static void assertJsonArrayEquals(JsonArray expected, JsonArray actual) {
-        assertEquals(expected.size(), actual.size());
-        for (int index = 0; index < expected.size(); index++) {
-            assertEquals(expected.get(index).getAsDouble(), actual.get(index).getAsDouble(), 1.0E-6D);
-        }
     }
 
     private static void assertJsonArrayEquals(double[] expected, JsonArray actual) {

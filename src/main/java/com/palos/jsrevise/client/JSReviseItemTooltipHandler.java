@@ -1,17 +1,23 @@
 package com.palos.jsrevise.client;
 
+import com.palos.jsrevise.client.overlay.CaptureBoxDurabilityFormatter;
+import com.palos.jsrevise.client.overlay.CaptureDurationFormatter;
+import com.palos.jsrevise.client.overlay.CaptureSupplyTooltipLines;
 import com.palos.jsrevise.server.item.AnestheticCrossbowItem;
 import com.palos.jsrevise.server.item.AnestheticSyringeItem;
 import com.palos.jsrevise.server.item.DinoDoctorGogglesItem;
 import com.palos.jsrevise.server.item.DinosaurCaptureCageItem;
 import com.palos.jsrevise.server.system.capture.CapturedDinosaurData;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureItemData;
+import com.palos.jsrevise.server.system.capture.DinosaurCaptureSupplies;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 
 public final class JSReviseItemTooltipHandler {
@@ -44,23 +50,59 @@ public final class JSReviseItemTooltipHandler {
     }
 
     private static void addCaptureCageRuntimeTooltip(ItemTooltipEvent event) {
-        DinosaurCaptureItemData.get(event.getItemStack()).ifPresent(data -> {
-            long currentGameTime = currentTooltipGameTime(data);
-            List<Component> tooltip = event.getToolTip();
-            tooltip.add(Component.translatable(
+        ItemStack stack = event.getItemStack();
+        DinosaurCaptureItemData.ContentsInspection contents = DinosaurCaptureItemData.inspectContents(stack);
+        long currentGameTime = contents.capture().validData()
+                .map(JSReviseItemTooltipHandler::currentTooltipGameTime)
+                .orElse(0L);
+        event.getToolTip().addAll(createCaptureCageRuntimeTooltip(stack, currentGameTime));
+    }
+
+    static List<Component> createCaptureCageRuntimeTooltip(ItemStack stack, long currentGameTime) {
+        List<Component> lines = new ArrayList<>(createCaptureSupplyTooltip(stack));
+        DinosaurCaptureItemData.ContentsInspection contents = DinosaurCaptureItemData.inspectContents(stack);
+        if (contents.isUnreadable()) {
+            return List.copyOf(lines);
+        }
+        contents.capture().validData().ifPresent(data -> {
+            lines.add(Component.translatable(
                     "tooltip.jsrevise.dinosaur_capture_box.durability",
-                    DinosaurCaptureItemData.projectedDurability(data, currentGameTime),
-                    CapturedDinosaurData.MAX_DURABILITY
+                    CaptureBoxDurabilityFormatter.format(
+                            DinosaurCaptureItemData.projectedDurability(data, currentGameTime)
+                    )
             ).withStyle(ChatFormatting.DARK_GREEN));
-            tooltip.add(Component.translatable(
+            lines.add(Component.translatable(
                     "tooltip.jsrevise.dinosaur_capture_box.anesthetic_remaining",
                     DinosaurCaptureCageItem.formatTicks(data.remainingAnestheticTicks(currentGameTime))
             ).withStyle(ChatFormatting.DARK_AQUA));
-            tooltip.add(Component.translatable(
+            lines.add(Component.translatable(
                     "tooltip.jsrevise.dinosaur_capture_box.captured_duration",
-                    DinosaurCaptureCageItem.formatTicks(data.capturedDurationTicks(currentGameTime))
+                    CaptureDurationFormatter.format(data.capturedDurationTicks(currentGameTime))
             ).withStyle(ChatFormatting.DARK_AQUA));
         });
+        return List.copyOf(lines);
+    }
+
+    static List<Component> createCaptureSupplyTooltip(ItemStack stack) {
+        DinosaurCaptureItemData.SupplyInspection supplyInspection =
+                DinosaurCaptureItemData.inspectSupplies(stack);
+        DinosaurCaptureSupplies supplies = supplyInspection.supplies();
+        List<Component> supplyLines = CaptureSupplyTooltipLines.create(
+                supplies.anesthetic(),
+                supplies.water(),
+                supplies.carnivore(),
+                supplies.herbivore(),
+                supplyInspection.state() == DinosaurCaptureItemData.SupplyInspectionState.UNREADABLE
+        );
+        if (supplyInspection.state() == DinosaurCaptureItemData.SupplyInspectionState.UNREADABLE) {
+            return List.of(supplyLines.getFirst().copy().withStyle(ChatFormatting.RED));
+        }
+        return List.of(
+                supplyLines.get(0).copy().withStyle(ChatFormatting.DARK_AQUA),
+                supplyLines.get(1).copy().withStyle(ChatFormatting.BLUE),
+                supplyLines.get(2).copy().withStyle(ChatFormatting.DARK_RED),
+                supplyLines.get(3).copy().withStyle(ChatFormatting.DARK_GREEN)
+        );
     }
 
     private static long currentTooltipGameTime(CapturedDinosaurData data) {

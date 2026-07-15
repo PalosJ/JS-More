@@ -2,6 +2,7 @@ package com.palos.jsrevise.server.item;
 
 import com.palos.jsrevise.server.system.anesthetic.DinosaurAnestheticSystem;
 import com.palos.jsrevise.server.system.capture.CapturedDinosaurData;
+import com.palos.jsrevise.server.system.capture.CaptureBoxAuthority;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureItemData;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureService;
 import java.util.List;
@@ -31,8 +32,8 @@ public final class DinosaurCaptureCageItem extends BlockItem {
     @Override
     public InteractionResult useOn(UseOnContext context) {
         ItemStack stack = context.getItemInHand();
-        if (DinosaurCaptureItemData.inspect(stack).state()
-                == DinosaurCaptureItemData.InspectionState.UNREADABLE) {
+        boolean recoveryCarrier = CaptureBoxAuthority.isProtectedRecoveryCarrier(stack);
+        if (!recoveryCarrier && DinosaurCaptureItemData.inspectContents(stack).isUnreadable()) {
             return InteractionResult.FAIL;
         }
         if (DinosaurCaptureItemData.hasCapturedDinosaur(stack) && context.getPlayer() != null && context.getPlayer().isShiftKeyDown()) {
@@ -53,8 +54,10 @@ public final class DinosaurCaptureCageItem extends BlockItem {
             LivingEntity interactionTarget,
             InteractionHand usedHand
     ) {
-        if (DinosaurCaptureItemData.inspect(stack).state()
-                == DinosaurCaptureItemData.InspectionState.UNREADABLE) {
+        if (CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)) {
+            return InteractionResult.FAIL;
+        }
+        if (DinosaurCaptureItemData.inspectContents(stack).isUnreadable()) {
             return InteractionResult.FAIL;
         }
         if (!(interactionTarget instanceof JSAnimalBase animal)) {
@@ -74,6 +77,11 @@ public final class DinosaurCaptureCageItem extends BlockItem {
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        if (CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)) {
+            tooltip.add(Component.translatable("tooltip.jsrevise.dinosaur_capture_box.unreadable")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
         DinosaurCaptureItemData.Inspection inspection = DinosaurCaptureItemData.inspect(stack);
         if (inspection.state() == DinosaurCaptureItemData.InspectionState.UNREADABLE) {
             tooltip.add(Component.translatable("tooltip.jsrevise.dinosaur_capture_box.unreadable")

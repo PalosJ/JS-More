@@ -32,7 +32,7 @@ public final class AnestheticCrossbowItem extends CrossbowItem {
             stack -> stack.is(JSReviseItems.ANESTHETIC_DART.get());
 
     public AnestheticCrossbowItem() {
-        super(new Properties().stacksTo(1).durability(465));
+        super(new Properties().stacksTo(1).durability(650));
     }
 
     @Override

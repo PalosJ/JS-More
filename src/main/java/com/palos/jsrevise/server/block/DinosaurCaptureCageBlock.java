@@ -1,20 +1,20 @@
 package com.palos.jsrevise.server.block;
 
 import com.mojang.serialization.MapCodec;
+import com.palos.jsrevise.compat.aeronautics.CaptureBoxRelocationState;
 import com.palos.jsrevise.server.block.entity.DinosaurCaptureCageBlockEntity;
-import com.palos.jsrevise.server.registry.JSReviseBlocks;
 import com.palos.jsrevise.server.registry.JSReviseBlockEntityTypes;
 import com.palos.jsrevise.server.registry.JSReviseItems;
 import com.palos.jsrevise.server.system.capture.CapturedDinosaurData;
+import com.palos.jsrevise.server.system.capture.CaptureBoxAccess;
+import com.palos.jsrevise.server.system.capture.CaptureBoxRemovalGuard;
+import com.palos.jsrevise.server.system.capture.CaptureBoxStructure;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureItemData;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureService;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -48,17 +48,16 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class DinosaurCaptureCageBlock extends Block implements EntityBlock {
-    public static final int WIDTH = 2;
-    public static final int LENGTH = 4;
-    public static final int HEIGHT = 2;
-    public static final int PART_COUNT = WIDTH * LENGTH * HEIGHT;
+    public static final int WIDTH = CaptureBoxStructure.WIDTH;
+    public static final int LENGTH = CaptureBoxStructure.LENGTH;
+    public static final int HEIGHT = CaptureBoxStructure.HEIGHT;
+    public static final int PART_COUNT = CaptureBoxStructure.PART_COUNT;
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final IntegerProperty OFFSET_X = IntegerProperty.create("offset_x", 0, WIDTH - 1);
     public static final IntegerProperty OFFSET_Y = IntegerProperty.create("offset_y", 0, HEIGHT - 1);
     public static final IntegerProperty OFFSET_Z = IntegerProperty.create("offset_z", 0, LENGTH - 1);
     public static final BooleanProperty CONTROLLER = BooleanProperty.create("controller");
     private static final MapCodec<DinosaurCaptureCageBlock> CODEC = simpleCodec(DinosaurCaptureCageBlock::new);
-    private static final ThreadLocal<Set<BlockPos>> REMOVING_CONTROLLERS = ThreadLocal.withInitial(HashSet::new);
     private static final ThreadLocal<Map<BlockPos, Long>> PLAYER_REMOVING_CONTROLLERS = ThreadLocal.withInitial(HashMap::new);
     private static final long PLAYER_REMOVAL_MARKER_TTL_TICKS = 0L;
 
@@ -78,38 +77,29 @@ public final class DinosaurCaptureCageBlock extends Block implements EntityBlock
     }
 
     public BlockState partState(Direction facing, int offsetX, int offsetY, int offsetZ) {
-        return defaultBlockState()
-                .setValue(FACING, facing)
-                .setValue(OFFSET_X, offsetX)
-                .setValue(OFFSET_Y, offsetY)
-                .setValue(OFFSET_Z, offsetZ)
-                .setValue(CONTROLLER, offsetX == 0 && offsetY == 0 && offsetZ == 0);
+        return CaptureBoxStructure.canonicalState(
+                defaultBlockState(),
+                CaptureBoxStructure.Kind.COMPLETE,
+                facing,
+                offsetX,
+                offsetY,
+                offsetZ
+        );
     }
 
     public static List<PartPlacement> placements(BlockPos controllerPos, Direction facing) {
-        List<PartPlacement> placements = new ArrayList<>(PART_COUNT);
-        for (int offsetY = 0; offsetY < HEIGHT; offsetY++) {
-            for (int offsetZ = 0; offsetZ < LENGTH; offsetZ++) {
-                for (int offsetX = 0; offsetX < WIDTH; offsetX++) {
-                    placements.add(new PartPlacement(
-                            partPos(controllerPos, facing, offsetX, offsetY, offsetZ),
-                            offsetX,
-                            offsetY,
-                            offsetZ
-                    ));
-                }
-            }
-        }
-        return placements;
+        return CaptureBoxStructure.placements(controllerPos, facing).stream()
+                .map(placement -> new PartPlacement(
+                        placement.pos(),
+                        placement.offsetX(),
+                        placement.offsetY(),
+                        placement.offsetZ()
+                ))
+                .toList();
     }
 
     public static BlockPos controllerPos(BlockPos partPos, BlockState state) {
-        Direction facing = state.getValue(FACING);
-        Direction right = facing.getClockWise();
-        return partPos
-                .relative(right, -state.getValue(OFFSET_X))
-                .relative(facing, -state.getValue(OFFSET_Z))
-                .below(state.getValue(OFFSET_Y));
+        return CaptureBoxStructure.controllerPos(partPos, state, CaptureBoxStructure.Kind.COMPLETE);
     }
 
     public static Direction frontFacingForPlayerDirection(Direction playerDirection) {
@@ -193,42 +183,27 @@ public final class DinosaurCaptureCageBlock extends Block implements EntityBlock
             InteractionHand hand,
             BlockHitResult hitResult
     ) {
-        BlockEntity blockEntity = level.getBlockEntity(controllerPos(pos, state));
-        if (!(blockEntity instanceof DinosaurCaptureCageBlockEntity cage)) {
+        DinosaurCaptureService.SupplyInputClassification supplyInput =
+                DinosaurCaptureService.classifySupplyInput(stack);
+        if (!supplyInput.isRecognized()) {
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
-        if (stack.is(JSReviseItems.ANESTHETIC_SYRINGE.get())) {
-            if (!level.isClientSide && DinosaurCaptureService.injectPlacedCage(cage)) {
-                if (!player.getAbilities().instabuild) {
+        if (level.isClientSide) {
+            return ItemInteractionResult.SUCCESS;
+        }
+        CaptureBoxAccess.Resolved resolved = CaptureBoxAccess.resolve(level, pos).orElse(null);
+        if (resolved != null && resolved.controllerBlockEntity() instanceof DinosaurCaptureCageBlockEntity cage) {
+            DinosaurCaptureService.SupplyDepositResult deposit =
+                    DinosaurCaptureService.depositPlacedCage(cage, stack);
+            if (deposit == DinosaurCaptureService.SupplyDepositResult.ADDED) {
+                if (supplyInput == DinosaurCaptureService.SupplyInputClassification.WATER) {
+                    consumeWaterBucket(player, hand, stack);
+                } else if (!player.getAbilities().instabuild) {
                     stack.shrink(1);
                 }
-                return ItemInteractionResult.SUCCESS;
             }
-            return level.isClientSide && cage.hasCapturedDinosaur()
-                    ? ItemInteractionResult.SUCCESS
-                    : ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
-        if (stack.is(Items.WATER_BUCKET)) {
-            if (!level.isClientSide && DinosaurCaptureService.waterPlacedCage(cage)) {
-                consumeWaterBucket(player, hand, stack);
-                return ItemInteractionResult.SUCCESS;
-            }
-            return level.isClientSide && cage.hasCapturedDinosaur()
-                    ? ItemInteractionResult.SUCCESS
-                    : ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        }
-        if (!stack.isEmpty()) {
-            if (!level.isClientSide && DinosaurCaptureService.feedPlacedCage(cage, stack)) {
-                if (!player.getAbilities().instabuild) {
-                    stack.shrink(1);
-                }
-                return ItemInteractionResult.SUCCESS;
-            }
-            return level.isClientSide && cage.hasCapturedDinosaur()
-                    ? ItemInteractionResult.SUCCESS
-                    : ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        }
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return ItemInteractionResult.CONSUME;
     }
 
     @Override
@@ -255,13 +230,25 @@ public final class DinosaurCaptureCageBlock extends Block implements EntityBlock
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
-            BlockPos controllerPos = controllerPos(pos, state);
-            boolean removingWholeCage = REMOVING_CONTROLLERS.get().contains(controllerPos);
-            boolean playerRemovalHandled = consumePlayerRemovalMarker(controllerPos, level.getGameTime());
-            if (shouldDropOnNonPlayerRemove(level.isClientSide, removingWholeCage, playerRemovalHandled)) {
-                dropCageItem(level, controllerPos, false);
-            }
-            destroyWholeCage(state, level, pos);
+            CaptureBoxAccess.identityForState(level, pos, state).ifPresent(identity -> {
+                if (CaptureBoxRemovalGuard.isActive(identity)) {
+                    return;
+                }
+                CaptureBoxAccess.resolveForRemoval(level, pos, state).ifPresent(resolved -> {
+                    CaptureBoxRelocationState.State relocation = CaptureBoxRelocationState.query(level, identity);
+                    boolean playerRemovalHandled = consumePlayerRemovalMarker(
+                            resolved.controller(),
+                            level.getGameTime()
+                    );
+                    if (!relocation.suppressDrops()
+                            && shouldDropOnNonPlayerRemove(level.isClientSide, false, playerRemovalHandled)) {
+                        dropCageItem(level, resolved.controller(), false);
+                    }
+                    if (!relocation.suppressRemoval()) {
+                        removeResolvedCage(level, resolved, pos);
+                    }
+                });
+            });
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }
@@ -269,15 +256,24 @@ public final class DinosaurCaptureCageBlock extends Block implements EntityBlock
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         if (!level.isClientSide) {
-            BlockPos controllerPos = controllerPos(pos, state);
-            long gameTime = level.getGameTime();
-            markPlayerRemoval(controllerPos, gameTime);
-            schedulePlayerRemovalMarkerCleanup(level, controllerPos, gameTime);
-            if (player.getAbilities().instabuild) {
-                dropCageItem(level, controllerPos, false);
-            } else {
-                dropCageItem(level, controllerPos, player.hasCorrectToolForDrops(state, level, pos));
-            }
+            CaptureBoxAccess.resolve(level, pos).ifPresent(resolved -> {
+                CaptureBoxRelocationState.State relocation =
+                        CaptureBoxRelocationState.query(level, resolved.identity());
+                long gameTime = level.getGameTime();
+                markPlayerRemoval(resolved.controller(), gameTime);
+                schedulePlayerRemovalMarkerCleanup(level, resolved.controller(), gameTime);
+                if (!relocation.suppressDrops()) {
+                    if (player.getAbilities().instabuild) {
+                        dropCageItem(level, resolved.controller(), false);
+                    } else {
+                        dropCageItem(
+                                level,
+                                resolved.controller(),
+                                player.hasCorrectToolForDrops(state, level, pos)
+                        );
+                    }
+                }
+            });
         }
         return super.playerWillDestroy(level, pos, state, player);
     }
@@ -285,13 +281,6 @@ public final class DinosaurCaptureCageBlock extends Block implements EntityBlock
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING, OFFSET_X, OFFSET_Y, OFFSET_Z, CONTROLLER);
-    }
-
-    private static BlockPos partPos(BlockPos controllerPos, Direction facing, int offsetX, int offsetY, int offsetZ) {
-        return controllerPos
-                .relative(facing.getClockWise(), offsetX)
-                .relative(facing, offsetZ)
-                .above(offsetY);
     }
 
     private static boolean isController(BlockState state) {
@@ -333,43 +322,45 @@ public final class DinosaurCaptureCageBlock extends Block implements EntityBlock
     }
 
     public static void removeWholeCageWithoutDrops(Level level, BlockPos controllerPos, Direction facing) {
-        removeWholeCage(level, controllerPos, facing, null);
-    }
-
-    private void destroyWholeCage(BlockState state, Level level, BlockPos pos) {
-        BlockPos controllerPos = controllerPos(pos, state);
-        removeWholeCage(level, controllerPos, state.getValue(FACING), pos);
-    }
-
-    private static void removeWholeCage(
-            Level level,
-            BlockPos controllerPos,
-            Direction facing,
-            @Nullable BlockPos skipPos
-    ) {
         if (level == null || level.isClientSide || controllerPos == null || facing == null) {
             return;
         }
-        Set<BlockPos> removingControllers = REMOVING_CONTROLLERS.get();
-        if (removingControllers.contains(controllerPos)) {
-            return;
-        }
-        removingControllers.add(controllerPos);
-        try {
-            for (PartPlacement placement : placements(controllerPos, facing)) {
-                if (!placement.pos().equals(skipPos)
-                        && level.getBlockState(placement.pos()).is(JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get())) {
-                    level.setBlock(
-                            placement.pos(),
-                            Blocks.AIR.defaultBlockState(),
-                            Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS
-                    );
-                }
+        CaptureBoxAccess.resolve(level, controllerPos)
+                .filter(resolved -> resolved.kind() == CaptureBoxStructure.Kind.COMPLETE
+                        && resolved.controller().equals(controllerPos)
+                        && resolved.facing() == facing)
+                .ifPresent(resolved -> removeResolvedCage(level, resolved, null));
+    }
+
+    private static void removeResolvedCage(
+            Level level,
+            CaptureBoxAccess.Resolved resolved,
+            @Nullable BlockPos skipPos
+    ) {
+        try (CaptureBoxRemovalGuard.Scope guard = CaptureBoxRemovalGuard.open(resolved.identity())) {
+            if (!guard.ownsGuard()) {
+                return;
             }
-        } finally {
-            removingControllers.remove(controllerPos);
-            if (removingControllers.isEmpty()) {
-                REMOVING_CONTROLLERS.remove();
+            CaptureBoxAccess.invalidateCapabilities(level, resolved.placements());
+            try {
+                for (CaptureBoxStructure.Placement placement : resolved.placements()) {
+                    BlockState expected = CaptureBoxStructure.Kind.COMPLETE.canonicalState(
+                            resolved.facing(),
+                            placement.offsetX(),
+                            placement.offsetY(),
+                            placement.offsetZ()
+                    );
+                    if (!placement.pos().equals(skipPos)
+                            && level.getBlockState(placement.pos()).equals(expected)) {
+                        level.setBlock(
+                                placement.pos(),
+                                Blocks.AIR.defaultBlockState(),
+                                Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS
+                        );
+                    }
+                }
+            } finally {
+                CaptureBoxAccess.invalidateCapabilities(level, resolved.placements());
             }
         }
     }
@@ -403,14 +394,24 @@ public final class DinosaurCaptureCageBlock extends Block implements EntityBlock
         BlockEntity blockEntity = level.getBlockEntity(controllerPos);
         if (blockEntity instanceof DinosaurCaptureCageBlockEntity cage) {
             CapturedDinosaurData captured = cage.getCapturedDinosaur();
-            if (captured != null) {
-                if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
-                    stack = DinosaurCaptureService.cageStackForDrop(serverLevel, captured);
-                } else {
-                    DinosaurCaptureItemData.set(stack, captured);
+            if (cage.hasUnreadableContents()) {
+                net.minecraft.nbt.Tag preservedCapture = cage.getUnreadableCapturedDinosaur();
+                if (preservedCapture == null && captured != null) {
+                    preservedCapture = captured.serializeNBT();
                 }
-            } else if (cage.hasUnreadableCapturedDinosaur()) {
-                stack = DinosaurCaptureService.cageStackForUnreadableDrop(cage.getUnreadableCapturedDinosaur());
+                stack = DinosaurCaptureService.cageStackForUnreadableDrop(
+                        preservedCapture,
+                        cage.getUnreadableSupplies(),
+                        cage.getSupplies()
+                );
+            } else if (captured != null) {
+                if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+                    stack = DinosaurCaptureService.cageStackForDrop(serverLevel, captured, cage.getSupplies());
+                } else {
+                    DinosaurCaptureItemData.setContents(stack, captured, cage.getSupplies());
+                }
+            } else if (!cage.getSupplies().isEmpty()) {
+                DinosaurCaptureItemData.setSupplies(stack, cage.getSupplies());
             } else if (!dropEmpty) {
                 return;
             }

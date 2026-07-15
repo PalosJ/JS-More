@@ -72,7 +72,7 @@ class DinosaurCaptureItemDataTest {
 
         assertEquals(Integer.valueOf(CapturedDinosaurData.MAX_DURABILITY), stack.get(DataComponents.MAX_DAMAGE));
         assertEquals(Integer.valueOf(10), stack.get(DataComponents.DAMAGE));
-        assertEquals(12, stack.getBarWidth());
+        assertEquals(7, stack.getBarWidth());
         assertEquals(customBefore, stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag());
         assertFalse(DinosaurCaptureItemData.syncDamageMirror(stack, data, 210L));
     }
@@ -93,7 +93,7 @@ class DinosaurCaptureItemDataTest {
         assertEquals(damageBefore, stack.get(DataComponents.DAMAGE));
         assertEquals(maxDamageBefore, stack.get(DataComponents.MAX_DAMAGE));
         assertEquals(customBefore, stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag());
-        assertEquals(12, stack.getBarWidth());
+        assertEquals(7, stack.getBarWidth());
     }
 
     @Test
@@ -102,13 +102,13 @@ class DinosaurCaptureItemDataTest {
         DinosaurCaptureItemData.set(stack, data(CapturedDinosaurData.MAX_DURABILITY));
 
         DinosaurCaptureItemData.cacheProjectedDurabilityIfStale(stack, 219L);
-        assertEquals(90, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
+        assertEquals(10, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
 
         DinosaurCaptureItemData.cacheProjectedDurabilityIfStale(stack, 220L);
-        assertEquals(90, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
+        assertEquals(10, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
 
         DinosaurCaptureItemData.cacheProjectedDurabilityIfStale(stack, 239L);
-        assertEquals(89, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
+        assertEquals(9, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
     }
 
     @Test
@@ -242,6 +242,85 @@ class DinosaurCaptureItemDataTest {
         ListTag expected = new ListTag();
         expected.add(IntTag.valueOf(2));
         assertEquals(expected, DinosaurCaptureItemData.inspect(stack).rawTag());
+    }
+
+    @Test
+    void structurallyUnknownCaptureCompoundStaysUnreadableAndRoundTripsExactly() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        CompoundTag raw = data(CapturedDinosaurData.MAX_DURABILITY).serializeNBT();
+        raw.getCompound("Vitals").putInt("FutureField", 7);
+        DinosaurCaptureItemData.setRawCaptureTag(stack, raw);
+
+        CompoundTag exposed = (CompoundTag) DinosaurCaptureItemData.inspect(stack).rawTag();
+        exposed.putInt("Mutated", 1);
+
+        assertEquals(DinosaurCaptureItemData.InspectionState.UNREADABLE,
+                DinosaurCaptureItemData.inspect(stack).state());
+        assertEquals(raw, DinosaurCaptureItemData.inspect(stack).rawTag());
+    }
+
+    @Test
+    void suppliesAreIndependentFromCaptureAndCaptureClearPreservesThem() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        DinosaurCaptureSupplies supplies = new DinosaurCaptureSupplies(4, 5, 6);
+        DinosaurCaptureItemData.setSupplies(stack, supplies);
+        DinosaurCaptureItemData.set(stack, data(CapturedDinosaurData.MAX_DURABILITY));
+
+        DinosaurCaptureItemData.clear(stack);
+
+        assertEquals(DinosaurCaptureItemData.InspectionState.EMPTY, DinosaurCaptureItemData.inspect(stack).state());
+        assertEquals(DinosaurCaptureItemData.SupplyInspectionState.VALID,
+                DinosaurCaptureItemData.inspectSupplies(stack).state());
+        assertEquals(supplies, DinosaurCaptureItemData.getSupplies(stack));
+        assertTrue(stack.has(DataComponents.CUSTOM_DATA));
+    }
+
+    @Test
+    void unreadableSupplyBlocksComprehensiveContentsAndUsesDefensiveCopies() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        ListTag raw = new ListTag();
+        raw.add(IntTag.valueOf(7));
+        DinosaurCaptureItemData.setRawSuppliesTag(stack, raw);
+
+        ListTag exposed = (ListTag) DinosaurCaptureItemData.inspectSupplies(stack).rawTag();
+        exposed.add(IntTag.valueOf(8));
+
+        assertEquals(DinosaurCaptureItemData.SupplyInspectionState.UNREADABLE,
+                DinosaurCaptureItemData.inspectSupplies(stack).state());
+        assertEquals(raw, DinosaurCaptureItemData.inspectSupplies(stack).rawTag());
+        assertTrue(DinosaurCaptureItemData.inspectContents(stack).isUnreadable());
+        assertTrue(DinosaurCaptureItemData.hasRawContentsKey(stack));
+    }
+
+    @Test
+    void unreadableSupplyPreventsCaptureClearOverwriteAndDamageMirrorChanges() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        CapturedDinosaurData captured = data(CapturedDinosaurData.MAX_DURABILITY);
+        DinosaurCaptureItemData.set(stack, captured);
+        DinosaurCaptureItemData.setRawSuppliesTag(stack, IntTag.valueOf(9));
+        CompoundTag before = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        Integer damageBefore = stack.get(DataComponents.DAMAGE);
+
+        DinosaurCaptureItemData.clear(stack);
+        DinosaurCaptureItemData.set(stack, data(CapturedDinosaurData.MAX_DURABILITY / 2));
+        assertFalse(DinosaurCaptureItemData.syncDamageMirror(stack, 500L));
+
+        assertEquals(before, stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag());
+        assertEquals(damageBefore, stack.get(DataComponents.DAMAGE));
+        assertEquals(captured, DinosaurCaptureItemData.get(stack).orElseThrow());
+    }
+
+    @Test
+    void atomicContentsWriteStoresCaptureAndSuppliesTogether() {
+        ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        CapturedDinosaurData captured = data(CapturedDinosaurData.MAX_DURABILITY);
+        DinosaurCaptureSupplies supplies = new DinosaurCaptureSupplies(1, 2, 3);
+
+        assertTrue(DinosaurCaptureItemData.setContents(stack, captured, supplies));
+
+        assertEquals(captured, DinosaurCaptureItemData.get(stack).orElseThrow());
+        assertEquals(supplies, DinosaurCaptureItemData.getSupplies(stack));
+        assertEquals(Integer.valueOf(CapturedDinosaurData.MAX_DURABILITY), stack.get(DataComponents.MAX_DAMAGE));
     }
 
     private static CapturedDinosaurData data(int durability) {

@@ -10,7 +10,7 @@ import jp.jurassicsaga.server.animal.entity.obj.info.AnimalDietType;
 import net.minecraft.util.Mth;
 
 final class AnestheticStateService {
-    private static final int BASE_DURATION_TICKS = 20 * 60;
+    private static final int BASE_DURATION_TICKS = 20 * 120;
 
     private AnestheticStateService() {
     }
@@ -67,6 +67,15 @@ final class AnestheticStateService {
     static long queuedTicks(JSAnimalBase animal) {
         AnestheticData data = animal.getExistingDataOrNull(JSReviseAttachments.ANESTHETIC);
         return data == null ? 0L : data.queuedDurationTicks(animal.level().getGameTime());
+    }
+
+    static int pendingDoseCount(JSAnimalBase animal) {
+        AnestheticData data = animal.getExistingDataOrNull(JSReviseAttachments.ANESTHETIC);
+        return data == null ? 0 : data.pendingDoseCount();
+    }
+
+    static int baseDurationTicks() {
+        return BASE_DURATION_TICKS;
     }
 
     private static int resolveDelayTicks(JSAnimalBase animal) {

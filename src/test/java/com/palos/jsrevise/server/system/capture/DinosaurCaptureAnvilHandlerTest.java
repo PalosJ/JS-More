@@ -34,6 +34,33 @@ class DinosaurCaptureAnvilHandlerTest {
         assertTrue(DinosaurCaptureAnvilHandler.shouldCancel(new ItemStack(Items.STICK), rawBook));
     }
 
+    @Test
+    void rejectsSupplyTransferOrMergingSuppliedCaptureBoxes() {
+        ItemStack supplied = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        DinosaurCaptureItemData.setSupplies(supplied, new DinosaurCaptureSupplies(1, 0, 0));
+
+        assertTrue(DinosaurCaptureAnvilHandler.shouldCancel(new ItemStack(Items.STICK), supplied));
+        assertTrue(DinosaurCaptureAnvilHandler.shouldCancel(
+                supplied,
+                new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get())
+        ));
+        assertFalse(DinosaurCaptureAnvilHandler.shouldCancel(supplied, new ItemStack(Items.ENCHANTED_BOOK)));
+    }
+
+    @Test
+    void rejectsProtectedRelocationRecoveryCarrierOnEitherSide() {
+        ItemStack recovery = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        CustomData.update(DataComponents.CUSTOM_DATA, recovery, tag -> tag.put(
+                "JSReviseRelocationRecovery",
+                new CompoundTag()
+        ));
+
+        assertTrue(CaptureBoxAuthority.isProtectedRecoveryCarrier(recovery));
+        assertTrue(DinosaurCaptureAnvilHandler.shouldCancel(recovery, ItemStack.EMPTY));
+        assertTrue(DinosaurCaptureAnvilHandler.shouldCancel(new ItemStack(Items.STICK), recovery));
+        assertTrue(DinosaurCaptureAnvilHandler.shouldCancel(recovery, new ItemStack(Items.ENCHANTED_BOOK)));
+    }
+
     private static ItemStack capturedCage() {
         ItemStack stack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
         UUID uuid = UUID.randomUUID();

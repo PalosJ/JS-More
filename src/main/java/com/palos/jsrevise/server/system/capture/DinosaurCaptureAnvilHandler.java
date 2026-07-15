@@ -15,10 +15,14 @@ public final class DinosaurCaptureAnvilHandler {
     }
 
     static boolean shouldCancel(ItemStack left, ItemStack right) {
-        if (DinosaurCaptureItemData.hasRawCaptureKey(right)) {
+        if (CaptureBoxAuthority.isProtectedRecoveryCarrier(left)
+                || CaptureBoxAuthority.isProtectedRecoveryCarrier(right)) {
             return true;
         }
-        return DinosaurCaptureItemData.hasRawCaptureKey(left)
+        if (DinosaurCaptureItemData.hasRawContentsKey(right)) {
+            return true;
+        }
+        return DinosaurCaptureItemData.hasRawContentsKey(left)
                 && right.is(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
     }
 }

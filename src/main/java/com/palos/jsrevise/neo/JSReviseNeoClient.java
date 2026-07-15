@@ -7,6 +7,7 @@ import com.palos.jsrevise.client.ClientFloatingEffects;
 import com.palos.jsrevise.client.JSReviseItemTooltipHandler;
 import com.palos.jsrevise.client.overlay.ClientCaptureCageObservationCache;
 import com.palos.jsrevise.client.overlay.ClientEggLayingProgressCache;
+import com.palos.jsrevise.client.overlay.ClientOverlaySessionClock;
 import com.palos.jsrevise.client.overlay.DinoDoctorOverlayRenderer;
 import com.palos.jsrevise.client.render.BrokenDinosaurCaptureBoxRenderer;
 import com.palos.jsrevise.client.render.AnestheticDartModel;
@@ -50,6 +51,7 @@ public final class JSReviseNeoClient {
         NeoForge.EVENT_BUS.addListener(ClientFloatingEffects::onEntityTickPost);
         NeoForge.EVENT_BUS.addListener(ClientAnestheticAnimationFallback::onEntityTickPost);
         NeoForge.EVENT_BUS.addListener(JSReviseItemTooltipHandler::onItemTooltip);
+        NeoForge.EVENT_BUS.addListener(ClientOverlaySessionClock::onPostTick);
         NeoForge.EVENT_BUS.addListener(JSReviseNeoClient::onClientLogout);
         NeoForge.EVENT_BUS.addListener(JSReviseNeoClient::onClientLevelUnload);
         NeoForge.EVENT_BUS.addListener(JSReviseNeoClient::onEntityLeaveLevel);
@@ -117,5 +119,6 @@ public final class JSReviseNeoClient {
         DinosaurObservationSystem.clearCache();
         ClientEggLayingProgressCache.clearCache();
         ClientCaptureCageObservationCache.clearCache();
+        ClientOverlaySessionClock.clear();
     }
 }

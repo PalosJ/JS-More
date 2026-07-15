@@ -78,6 +78,28 @@ class DinosaurCaptureCageRendererTest {
     }
 
     @Test
+    void brokenRendererHidesDebrisForDetachedOrSublevelControllersAndShrinksBoundsToBody() {
+        BlockPos controllerPos = new BlockPos(10, 64, 10);
+        AABB body = DinosaurCaptureCageRenderer.renderBoundingBox(controllerPos, Direction.NORTH);
+        AABB visible = BrokenDinosaurCaptureBoxRenderer.renderBoundingBox(
+                controllerPos,
+                Direction.NORTH,
+                true
+        );
+        AABB hidden = BrokenDinosaurCaptureBoxRenderer.renderBoundingBox(
+                controllerPos,
+                Direction.NORTH,
+                false
+        );
+
+        assertTrue(BrokenDinosaurCaptureBoxRenderer.shouldRenderDebris(true, false));
+        assertFalse(BrokenDinosaurCaptureBoxRenderer.shouldRenderDebris(false, false));
+        assertFalse(BrokenDinosaurCaptureBoxRenderer.shouldRenderDebris(true, true));
+        assertEquals(body, hidden);
+        assertFalse(body.equals(visible));
+    }
+
+    @Test
     void brokenDebrisPiecesStayOutsideMainBoxForEveryHorizontalFacing() {
         BlockPos controllerPos = new BlockPos(10, 64, 10);
         for (Direction facing : HORIZONTAL_FACINGS) {

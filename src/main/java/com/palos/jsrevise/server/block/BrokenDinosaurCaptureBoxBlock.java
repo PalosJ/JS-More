@@ -1,12 +1,12 @@
 package com.palos.jsrevise.server.block;
 
 import com.mojang.serialization.MapCodec;
+import com.palos.jsrevise.compat.aeronautics.CaptureBoxRelocationState;
 import com.palos.jsrevise.server.block.entity.BrokenDinosaurCaptureBoxBlockEntity;
-import com.palos.jsrevise.server.registry.JSReviseBlocks;
-import java.util.ArrayList;
-import java.util.HashSet;
+import com.palos.jsrevise.server.system.capture.CaptureBoxAccess;
+import com.palos.jsrevise.server.system.capture.CaptureBoxRemovalGuard;
+import com.palos.jsrevise.server.system.capture.CaptureBoxStructure;
 import java.util.List;
-import java.util.Set;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -30,10 +30,10 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class BrokenDinosaurCaptureBoxBlock extends Block implements EntityBlock {
-    public static final int WIDTH = DinosaurCaptureCageBlock.WIDTH;
-    public static final int LENGTH = DinosaurCaptureCageBlock.LENGTH;
-    public static final int HEIGHT = DinosaurCaptureCageBlock.HEIGHT;
-    public static final int PART_COUNT = WIDTH * LENGTH * HEIGHT;
+    public static final int WIDTH = CaptureBoxStructure.WIDTH;
+    public static final int LENGTH = CaptureBoxStructure.LENGTH;
+    public static final int HEIGHT = CaptureBoxStructure.HEIGHT;
+    public static final int PART_COUNT = CaptureBoxStructure.PART_COUNT;
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final IntegerProperty OFFSET_X = IntegerProperty.create("offset_x", 0, WIDTH - 1);
     public static final IntegerProperty OFFSET_Y = IntegerProperty.create("offset_y", 0, HEIGHT - 1);
@@ -41,7 +41,6 @@ public final class BrokenDinosaurCaptureBoxBlock extends Block implements Entity
     public static final BooleanProperty CONTROLLER = BooleanProperty.create("controller");
     private static final MapCodec<BrokenDinosaurCaptureBoxBlock> CODEC =
             simpleCodec(BrokenDinosaurCaptureBoxBlock::new);
-    private static final ThreadLocal<Set<BlockPos>> REMOVING_CONTROLLERS = ThreadLocal.withInitial(HashSet::new);
 
     public BrokenDinosaurCaptureBoxBlock(BlockBehaviour.Properties properties) {
         super(properties);
@@ -59,38 +58,29 @@ public final class BrokenDinosaurCaptureBoxBlock extends Block implements Entity
     }
 
     public BlockState partState(Direction facing, int offsetX, int offsetY, int offsetZ) {
-        return defaultBlockState()
-                .setValue(FACING, facing)
-                .setValue(OFFSET_X, offsetX)
-                .setValue(OFFSET_Y, offsetY)
-                .setValue(OFFSET_Z, offsetZ)
-                .setValue(CONTROLLER, offsetX == 0 && offsetY == 0 && offsetZ == 0);
+        return CaptureBoxStructure.canonicalState(
+                defaultBlockState(),
+                CaptureBoxStructure.Kind.BROKEN,
+                facing,
+                offsetX,
+                offsetY,
+                offsetZ
+        );
     }
 
     public static List<PartPlacement> placements(BlockPos controllerPos, Direction facing) {
-        List<PartPlacement> placements = new ArrayList<>(PART_COUNT);
-        for (int offsetY = 0; offsetY < HEIGHT; offsetY++) {
-            for (int offsetZ = 0; offsetZ < LENGTH; offsetZ++) {
-                for (int offsetX = 0; offsetX < WIDTH; offsetX++) {
-                    placements.add(new PartPlacement(
-                            partPos(controllerPos, facing, offsetX, offsetY, offsetZ),
-                            offsetX,
-                            offsetY,
-                            offsetZ
-                    ));
-                }
-            }
-        }
-        return placements;
+        return CaptureBoxStructure.placements(controllerPos, facing).stream()
+                .map(placement -> new PartPlacement(
+                        placement.pos(),
+                        placement.offsetX(),
+                        placement.offsetY(),
+                        placement.offsetZ()
+                ))
+                .toList();
     }
 
     public static BlockPos controllerPos(BlockPos partPos, BlockState state) {
-        Direction facing = state.getValue(FACING);
-        Direction right = facing.getClockWise();
-        return partPos
-                .relative(right, -state.getValue(OFFSET_X))
-                .relative(facing, -state.getValue(OFFSET_Z))
-                .below(state.getValue(OFFSET_Y));
+        return CaptureBoxStructure.controllerPos(partPos, state, CaptureBoxStructure.Kind.BROKEN);
     }
 
     @Nullable
@@ -117,7 +107,17 @@ public final class BrokenDinosaurCaptureBoxBlock extends Block implements Entity
 
     @Override
     protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return Shapes.empty();
+        return BrokenDinosaurCaptureBoxCollisionShapes.get(
+                state.getValue(FACING),
+                state.getValue(OFFSET_X),
+                state.getValue(OFFSET_Y),
+                state.getValue(OFFSET_Z)
+        );
+    }
+
+    @Override
+    protected VoxelShape getBlockSupportShape(BlockState state, BlockGetter level, BlockPos pos) {
+        return Shapes.block();
     }
 
     @Override
@@ -161,7 +161,17 @@ public final class BrokenDinosaurCaptureBoxBlock extends Block implements Entity
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
-            destroyWholeBox(state, level, pos);
+            CaptureBoxAccess.identityForState(level, pos, state).ifPresent(identity -> {
+                if (CaptureBoxRemovalGuard.isActive(identity)) {
+                    return;
+                }
+                CaptureBoxAccess.resolveForRemoval(level, pos, state).ifPresent(resolved -> {
+                    CaptureBoxRelocationState.State relocation = CaptureBoxRelocationState.query(level, identity);
+                    if (!relocation.suppressRemoval()) {
+                        removeResolvedBox(level, resolved, pos);
+                    }
+                });
+            });
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }
@@ -172,52 +182,47 @@ public final class BrokenDinosaurCaptureBoxBlock extends Block implements Entity
     }
 
     public static void removeWholeBoxWithoutDrops(Level level, BlockPos controllerPos, Direction facing) {
-        removeWholeBox(level, controllerPos, facing, null);
-    }
-
-    private void destroyWholeBox(BlockState state, Level level, BlockPos pos) {
-        BlockPos controllerPos = controllerPos(pos, state);
-        removeWholeBox(level, controllerPos, state.getValue(FACING), pos);
-    }
-
-    private static void removeWholeBox(
-            Level level,
-            BlockPos controllerPos,
-            Direction facing,
-            @Nullable BlockPos skipPos
-    ) {
         if (level == null || level.isClientSide || controllerPos == null || facing == null) {
             return;
         }
-        Set<BlockPos> removingControllers = REMOVING_CONTROLLERS.get();
-        if (removingControllers.contains(controllerPos)) {
-            return;
-        }
-        removingControllers.add(controllerPos);
-        try {
-            for (PartPlacement placement : placements(controllerPos, facing)) {
-                if (!placement.pos().equals(skipPos)
-                        && level.getBlockState(placement.pos()).is(JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get())) {
-                    level.setBlock(
-                            placement.pos(),
-                            Blocks.AIR.defaultBlockState(),
-                            Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS
-                    );
-                }
-            }
-        } finally {
-            removingControllers.remove(controllerPos);
-            if (removingControllers.isEmpty()) {
-                REMOVING_CONTROLLERS.remove();
-            }
-        }
+        CaptureBoxAccess.resolve(level, controllerPos)
+                .filter(resolved -> resolved.kind() == CaptureBoxStructure.Kind.BROKEN
+                        && resolved.controller().equals(controllerPos)
+                        && resolved.facing() == facing)
+                .ifPresent(resolved -> removeResolvedBox(level, resolved, null));
     }
 
-    private static BlockPos partPos(BlockPos controllerPos, Direction facing, int offsetX, int offsetY, int offsetZ) {
-        return controllerPos
-                .relative(facing.getClockWise(), offsetX)
-                .relative(facing, offsetZ)
-                .above(offsetY);
+    private static void removeResolvedBox(
+            Level level,
+            CaptureBoxAccess.Resolved resolved,
+            @Nullable BlockPos skipPos
+    ) {
+        try (CaptureBoxRemovalGuard.Scope guard = CaptureBoxRemovalGuard.open(resolved.identity())) {
+            if (!guard.ownsGuard()) {
+                return;
+            }
+            CaptureBoxAccess.invalidateCapabilities(level, resolved.placements());
+            try {
+                for (CaptureBoxStructure.Placement placement : resolved.placements()) {
+                    BlockState expected = CaptureBoxStructure.Kind.BROKEN.canonicalState(
+                            resolved.facing(),
+                            placement.offsetX(),
+                            placement.offsetY(),
+                            placement.offsetZ()
+                    );
+                    if (!placement.pos().equals(skipPos)
+                            && level.getBlockState(placement.pos()).equals(expected)) {
+                        level.setBlock(
+                                placement.pos(),
+                                Blocks.AIR.defaultBlockState(),
+                                Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS
+                        );
+                    }
+                }
+            } finally {
+                CaptureBoxAccess.invalidateCapabilities(level, resolved.placements());
+            }
+        }
     }
 
     private static boolean isController(BlockState state) {

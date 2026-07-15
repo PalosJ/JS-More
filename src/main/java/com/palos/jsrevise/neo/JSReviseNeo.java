@@ -1,10 +1,13 @@
 package com.palos.jsrevise.neo;
 
 import com.palos.jsrevise.JSRevise;
+import com.palos.jsrevise.compat.aeronautics.AeronauticsCompatibilityBootstrap;
+import com.palos.jsrevise.compat.aeronautics.CaptureBoxRelocationState;
 import com.palos.jsrevise.config.JSReviseConfig;
 import com.palos.jsrevise.network.JSReviseNetworking;
 import com.palos.jsrevise.network.ServerRequestRateLimiters;
 import com.palos.jsrevise.server.registry.JSReviseAttachments;
+import com.palos.jsrevise.server.registry.JSReviseBlockCapabilities;
 import com.palos.jsrevise.server.registry.JSReviseBlockEntityTypes;
 import com.palos.jsrevise.server.registry.JSReviseBlocks;
 import com.palos.jsrevise.server.registry.JSReviseCreativeTabs;
@@ -33,6 +36,7 @@ public final class JSReviseNeo {
         JSReviseAttachments.register(modEventBus);
         JSReviseBlocks.register(modEventBus);
         JSReviseBlockEntityTypes.register(modEventBus);
+        modEventBus.addListener(JSReviseBlockCapabilities::register);
         JSReviseItems.register(modEventBus);
         JSReviseEntityTypes.register(modEventBus);
         JSReviseRecipeSerializers.register(modEventBus);
@@ -51,10 +55,12 @@ public final class JSReviseNeo {
     }
 
     private static void onServerStarted(ServerStartedEvent event) {
+        AeronauticsCompatibilityBootstrap.initialize();
         DinosaurProfileResolver.auditRegisteredAnimals(event.getServer().overworld());
     }
 
     private static void onServerStopping(ServerStoppingEvent event) {
+        CaptureBoxRelocationState.clearAll();
         ServerRequestRateLimiters.clearAll();
         DinosaurObservationSystem.clearCache();
         JurassicSagaBiomeGenerationController.clearCache(event.getServer());

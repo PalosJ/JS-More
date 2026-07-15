@@ -31,7 +31,6 @@ public final class JSReviseBlocks {
                             .requiresCorrectToolForDrops()
                             .sound(SoundType.METAL)
                             .pushReaction(PushReaction.BLOCK)
-                            .noCollission()
                             .noOcclusion()
             );
 

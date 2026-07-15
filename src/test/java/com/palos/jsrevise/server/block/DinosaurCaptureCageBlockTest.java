@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -160,19 +161,43 @@ class DinosaurCaptureCageBlockTest {
     }
 
     @Test
-    void brokenCaptureBoxIsVisualOnlyAndHasNoCollisionShape() {
+    void brokenCaptureBoxProvidesDetailedCollisionAndFullFaceSupportForEveryPart() {
         BrokenDinosaurCaptureBoxBlock block = JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get();
         BlockState capture = JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get().defaultBlockState();
-        Direction facing = Direction.SOUTH;
         BlockPos controller = new BlockPos(2, 70, 5);
 
-        for (BrokenDinosaurCaptureBoxBlock.PartPlacement placement :
-                BrokenDinosaurCaptureBoxBlock.placements(controller, facing)) {
-            BlockState state = block.partState(facing, placement.offsetX(), placement.offsetY(), placement.offsetZ());
+        for (Direction facing : Direction.Plane.HORIZONTAL) {
+            for (BrokenDinosaurCaptureBoxBlock.PartPlacement placement :
+                    BrokenDinosaurCaptureBoxBlock.placements(controller, facing)) {
+                BlockState state = block.partState(facing, placement.offsetX(), placement.offsetY(), placement.offsetZ());
+                VoxelShape support = state.getBlockSupportShape(EmptyBlockGetter.INSTANCE, placement.pos());
 
-            assertTrue(state.getCollisionShape(EmptyBlockGetter.INSTANCE, placement.pos(), CollisionContext.empty()).isEmpty());
+                assertFalse(state.getCollisionShape(
+                        EmptyBlockGetter.INSTANCE,
+                        placement.pos(),
+                        CollisionContext.empty()
+                ).isEmpty());
+                assertFalse(state.canOcclude());
+                assertFalse(support.isEmpty());
+                for (Direction face : Direction.values()) {
+                    assertFalse(support.getFaceShape(face).isEmpty());
+                }
+            }
         }
         assertFalse(capture.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, CollisionContext.empty()).isEmpty());
+    }
+
+    @Test
+    void orphanBrokenCaptureBoxPartStillProvidesSupport() {
+        BrokenDinosaurCaptureBoxBlock block = JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get();
+        BlockState orphan = block.partState(Direction.WEST, 1, 1, 3);
+
+        VoxelShape support = orphan.getBlockSupportShape(EmptyBlockGetter.INSTANCE, new BlockPos(40, 90, -20));
+
+        assertFalse(support.isEmpty());
+        for (Direction face : Direction.values()) {
+            assertFalse(support.getFaceShape(face).isEmpty());
+        }
     }
 
     @Test

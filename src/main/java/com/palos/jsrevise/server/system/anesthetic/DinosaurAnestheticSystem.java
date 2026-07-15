@@ -751,6 +751,10 @@ public final class DinosaurAnestheticSystem {
         return AnestheticStateService.queuedTicks(animal);
     }
 
+    public static int getPendingAnestheticDoseCount(JSAnimalBase animal) {
+        return AnestheticStateService.pendingDoseCount(animal);
+    }
+
     public static void tickServer(JSAnimalBase animal) {
         if (!isUsable(animal) || animal.level().isClientSide) {
             return;

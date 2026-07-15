@@ -1,5 +1,6 @@
 package com.palos.jsrevise.compat.jade;
 
+import com.palos.jsrevise.compat.curios.DinoDoctorGogglesWearResolver;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -16,8 +17,13 @@ public final class JSReviseJadeTooltipFilter {
     }
 
     public static void filterAnimalTooltip(IBoxElement rootElement, Accessor<?> accessor) {
-        if (!(accessor instanceof EntityAccessor entityAccessor)
-                || !(entityAccessor.getEntity() instanceof JSAnimalBase)) {
+        boolean jurassicSagaAnimal = accessor instanceof EntityAccessor entityAccessor
+                && entityAccessor.getEntity() instanceof JSAnimalBase;
+        if (!jurassicSagaAnimal || accessor.getPlayer() == null
+                || !JadeAnimalTooltipPolicy.shouldFilter(
+                true,
+                DinoDoctorGogglesWearResolver.isWearing(accessor.getPlayer())
+        )) {
             return;
         }
         ITooltip tooltip = rootElement.getTooltip();

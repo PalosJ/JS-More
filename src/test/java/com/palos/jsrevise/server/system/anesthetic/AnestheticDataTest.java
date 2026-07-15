@@ -15,6 +15,19 @@ import org.junit.jupiter.api.Test;
 
 class AnestheticDataTest {
     @Test
+    void newInjectionBaseIsTwoMinutesWithoutRewritingStoredDurations() {
+        assertEquals(2_400, AnestheticStateService.baseDurationTicks());
+
+        CompoundTag stored = new CompoundTag();
+        stored.putLong("ActiveRemainingTicks", 1_200L);
+        stored.put("PendingDoses", new ListTag());
+        AnestheticData data = new AnestheticData();
+        data.deserializeRelativeNBT(null, stored, 100L, 100L);
+
+        assertEquals(1_200L, data.remainingTicks(100L));
+    }
+
+    @Test
     void preservesAbsoluteWorldTimeWhenExtending() {
         AnestheticData data = new AnestheticData();
         data.extend(10_000_000L, 1_200L);

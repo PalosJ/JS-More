@@ -19,6 +19,7 @@ final class AnestheticCrossbowItemTest {
 
     @Test
     void supportsOnlyAnestheticDarts() {
+        assertEquals(650, new ItemStack(crossbow).getMaxDamage());
         assertTrue(crossbow.getAllSupportedProjectiles().test(new ItemStack(JSReviseItems.ANESTHETIC_DART.get())));
         assertFalse(crossbow.getAllSupportedProjectiles().test(new ItemStack(JSReviseItems.ANESTHETIC_SYRINGE.get())));
         assertFalse(crossbow.getAllSupportedProjectiles().test(new ItemStack(Items.ARROW)));

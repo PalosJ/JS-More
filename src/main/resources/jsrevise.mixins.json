@@ -16,7 +16,9 @@
     "MultiNoiseBiomeSourceMixin",
     "TravelersAnimationDefinitionMixin",
     "TravelersAnimalAnimationModuleAccessor",
-    "TravelersSmartAnimalBaseMixin"
+    "TravelersSmartAnimalBaseMixin",
+    "aeronautics.SableSubLevelAssemblyHelperMixin",
+    "aeronautics.SimAssemblyContraptionMixin"
   ],
   "client": [
     "client.AzEntityDispatchCommandPacketMixin",

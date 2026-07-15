@@ -238,12 +238,117 @@ class CapturedDinosaurDataTest {
         assertEquals(19, decoded.durabilityRemainderTicks());
     }
 
+    @Test
+    void legacyDurabilityMigrationProjectsThroughEstablishedFiveHundredCapacityState() {
+        CapturedDinosaurData.DecodeResult decoded = decodeLegacyDurability(75);
+        CompoundTag explicitLegacy = storedDataTag(new CompoundTag());
+        explicitLegacy.getCompound("EntityNbt").putFloat("Health", 20.0F);
+        explicitLegacy.putInt("Durability", 75);
+        explicitLegacy.putInt("DurabilityCapacity", 100);
+        CapturedDinosaurData.DecodeResult explicit = CapturedDinosaurData.decodeNBT(explicitLegacy).orElseThrow();
+
+        assertEquals(20, decodeLegacyDurability(100).data().durability());
+        assertEquals(19, decoded.data().durability());
+        assertEquals(19, explicit.data().durability());
+        assertEquals(17, decodeLegacyDurability(1).data().durability());
+        assertEquals(0, decodeLegacyDurability(0).data().durability());
+        assertTrue(decoded.needsRewrite());
+        assertTrue(explicit.needsRewrite());
+        assertEquals(20, decoded.data().serializeNBT().getInt("DurabilityCapacity"));
+    }
+
+    @Test
+    void explicitCurrentCapacityDoesNotMigratePreviousCapacityDoesAndUnknownIsUnreadable() {
+        CompoundTag current = storedDataTag(new CompoundTag());
+        current.getCompound("EntityNbt").putFloat("Health", 20.0F);
+        current.putInt("Durability", 15);
+        current.putInt("DurabilityCapacity", 20);
+        CapturedDinosaurData.DecodeResult decoded = CapturedDinosaurData.decodeNBT(current).orElseThrow();
+        assertEquals(15, decoded.data().durability());
+        assertFalse(decoded.needsRewrite());
+
+        current.putInt("Durability", 375);
+        current.putInt("DurabilityCapacity", 500);
+        CapturedDinosaurData.DecodeResult previous = CapturedDinosaurData.decodeNBT(current).orElseThrow();
+        assertEquals(15, previous.data().durability());
+        assertTrue(previous.needsRewrite());
+
+        current.putInt("Durability", 1);
+        CapturedDinosaurData.DecodeResult nearlyBrokenPrevious = CapturedDinosaurData.decodeNBT(current).orElseThrow();
+        assertEquals(1, nearlyBrokenPrevious.data().durability());
+
+        current.putInt("DurabilityCapacity", 250);
+        assertTrue(CapturedDinosaurData.decodeNBT(current).isEmpty());
+    }
+
+    @Test
+    void strictCaptureStructureRejectsUnknownAndWronglyTypedKnownFields() {
+        CompoundTag unknownTopLevel = validStoredDataTag();
+        unknownTopLevel.putInt("FutureField", 1);
+        assertTrue(CapturedDinosaurData.decodeNBT(unknownTopLevel).isEmpty());
+
+        CompoundTag wrongTimeType = validStoredDataTag();
+        wrongTimeType.putString("CapturedGameTime", "bad");
+        assertTrue(CapturedDinosaurData.decodeNBT(wrongTimeType).isEmpty());
+
+        CompoundTag unknownRelative = validStoredDataTag();
+        CompoundTag relative = new CompoundTag();
+        relative.putLong("ActiveRemainingTicks", 20L);
+        relative.putInt("FutureField", 1);
+        unknownRelative.put("RelativeAnesthetic", relative);
+        assertTrue(CapturedDinosaurData.decodeNBT(unknownRelative).isEmpty());
+
+        CompoundTag wrongVitals = validStoredDataTag();
+        CompoundTag vitals = new CompoundTag();
+        vitals.putString("HungerPoints", "bad");
+        wrongVitals.put("Vitals", vitals);
+        assertTrue(CapturedDinosaurData.decodeNBT(wrongVitals).isEmpty());
+    }
+
+    @Test
+    void relativeAnestheticAcceptsSixtyFourPendingEntriesAndRejectsSixtyFive() {
+        CompoundTag maximum = validStoredDataTag();
+        maximum.put("RelativeAnesthetic", relativeWithPendingCount(64));
+        assertTrue(CapturedDinosaurData.decodeNBT(maximum).isPresent());
+
+        CompoundTag oversized = validStoredDataTag();
+        oversized.put("RelativeAnesthetic", relativeWithPendingCount(65));
+        assertTrue(CapturedDinosaurData.decodeNBT(oversized).isEmpty());
+    }
+
     private static CompoundTag storedDataTag(CompoundTag entityNbt) {
         CompoundTag stored = new CompoundTag();
         stored.putString("EntityType", "minecraft:pig");
         stored.putUUID("OriginalUuid", UUID.randomUUID());
         stored.put("EntityNbt", entityNbt);
         return stored;
+    }
+
+    private static CompoundTag validStoredDataTag() {
+        CompoundTag tag = storedDataTag(new CompoundTag());
+        tag.getCompound("EntityNbt").putFloat("Health", 20.0F);
+        return tag;
+    }
+
+    private static CompoundTag relativeWithPendingCount(int count) {
+        CompoundTag relative = new CompoundTag();
+        relative.putLong("ActiveRemainingTicks", 0L);
+        ListTag pending = new ListTag();
+        for (int index = 0; index < count; index++) {
+            CompoundTag dose = new CompoundTag();
+            dose.putLong("DelayTicks", index + 1L);
+            dose.putInt("DurationTicks", 200);
+            pending.add(dose);
+        }
+        relative.put("PendingDoses", pending);
+        return relative;
+    }
+
+    private static CapturedDinosaurData.DecodeResult decodeLegacyDurability(int durability) {
+        CompoundTag legacy = storedDataTag(new CompoundTag());
+        legacy.getCompound("EntityNbt").putFloat("Health", 20.0F);
+        legacy.putInt("Durability", durability);
+        return CapturedDinosaurData.decodeNBT(legacy).orElseThrow();
     }
 
     private static CompoundTag largestIdentityFreeEntityNbtWithinLimit() {

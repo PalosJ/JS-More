@@ -13,6 +13,7 @@ import net.minecraft.world.item.component.CustomData;
 
 public final class DinosaurCaptureItemData {
     public static final String CAPTURE_TAG = "DinosaurCapture";
+    public static final String SUPPLIES_TAG = "DinosaurCaptureSupplies";
     private static final int PROJECTED_DURABILITY_CACHE_REFRESH_INTERVAL_TICKS = 20;
     private static final Map<ItemStack, ProjectedDurabilityCacheEntry> PROJECTED_DURABILITY_CACHE =
             Collections.synchronizedMap(new WeakHashMap<>());
@@ -21,6 +22,12 @@ public final class DinosaurCaptureItemData {
     }
 
     public enum InspectionState {
+        EMPTY,
+        VALID,
+        UNREADABLE
+    }
+
+    public enum SupplyInspectionState {
         EMPTY,
         VALID,
         UNREADABLE
@@ -38,6 +45,33 @@ public final class DinosaurCaptureItemData {
 
         public Optional<CapturedDinosaurData> validData() {
             return this.state == InspectionState.VALID ? Optional.of(this.data) : Optional.empty();
+        }
+    }
+
+    public record SupplyInspection(
+            SupplyInspectionState state,
+            DinosaurCaptureSupplies supplies,
+            Tag rawTag
+    ) {
+        public SupplyInspection {
+            supplies = supplies == null ? DinosaurCaptureSupplies.EMPTY : supplies;
+            rawTag = rawTag == null ? null : rawTag.copy();
+        }
+
+        @Override
+        public Tag rawTag() {
+            return this.rawTag == null ? null : this.rawTag.copy();
+        }
+
+        public Optional<DinosaurCaptureSupplies> validSupplies() {
+            return this.state == SupplyInspectionState.VALID ? Optional.of(this.supplies) : Optional.empty();
+        }
+    }
+
+    public record ContentsInspection(Inspection capture, SupplyInspection supplies) {
+        public boolean isUnreadable() {
+            return this.capture.state() == InspectionState.UNREADABLE
+                    || this.supplies.state() == SupplyInspectionState.UNREADABLE;
         }
     }
 
@@ -59,8 +93,40 @@ public final class DinosaurCaptureItemData {
         return new Inspection(InspectionState.UNREADABLE, null, rawTag);
     }
 
+    public static SupplyInspection inspectSupplies(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return new SupplyInspection(SupplyInspectionState.EMPTY, DinosaurCaptureSupplies.EMPTY, null);
+        }
+        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+        if (customData == null || !customData.contains(SUPPLIES_TAG)) {
+            return new SupplyInspection(SupplyInspectionState.EMPTY, DinosaurCaptureSupplies.EMPTY, null);
+        }
+        Tag rawTag = customData.copyTag().get(SUPPLIES_TAG);
+        if (rawTag instanceof CompoundTag compoundTag) {
+            Optional<DinosaurCaptureSupplies> parsed = DinosaurCaptureSupplies.deserializeNBT(compoundTag);
+            if (parsed.isPresent()) {
+                return new SupplyInspection(SupplyInspectionState.VALID, parsed.get(), null);
+            }
+        }
+        return new SupplyInspection(SupplyInspectionState.UNREADABLE, DinosaurCaptureSupplies.EMPTY, rawTag);
+    }
+
+    public static ContentsInspection inspectContents(ItemStack stack) {
+        if (CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)) {
+            return new ContentsInspection(
+                    new Inspection(InspectionState.UNREADABLE, null, null),
+                    new SupplyInspection(SupplyInspectionState.EMPTY, DinosaurCaptureSupplies.EMPTY, null)
+            );
+        }
+        return new ContentsInspection(inspect(stack), inspectSupplies(stack));
+    }
+
     public static Optional<CapturedDinosaurData> get(ItemStack stack) {
         return inspect(stack).validData();
+    }
+
+    public static DinosaurCaptureSupplies getSupplies(ItemStack stack) {
+        return inspectSupplies(stack).validSupplies().orElse(DinosaurCaptureSupplies.EMPTY);
     }
 
     public static boolean hasCapturedDinosaur(ItemStack stack) {
@@ -69,6 +135,27 @@ public final class DinosaurCaptureItemData {
 
     public static boolean hasRawCaptureKey(ItemStack stack) {
         return inspect(stack).state() != InspectionState.EMPTY;
+    }
+
+    public static boolean hasRawSuppliesKey(ItemStack stack) {
+        return inspectSupplies(stack).state() != SupplyInspectionState.EMPTY;
+    }
+
+    public static boolean hasRawContentsKey(ItemStack stack) {
+        return hasRawCaptureKey(stack) || hasRawSuppliesKey(stack);
+    }
+
+    public static boolean requiresDurabilityRewrite(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+        if (customData == null) {
+            return false;
+        }
+        Tag rawTag = customData.copyTag().get(CAPTURE_TAG);
+        return rawTag instanceof CompoundTag compoundTag
+                && CapturedDinosaurData.decodeNBT(compoundTag).map(CapturedDinosaurData.DecodeResult::needsRewrite).orElse(false);
     }
 
     public static int projectedDurability(CapturedDinosaurData data, long currentGameTime) {
@@ -94,23 +181,70 @@ public final class DinosaurCaptureItemData {
     }
 
     public static void set(ItemStack stack, CapturedDinosaurData data) {
-        if (stack == null || stack.isEmpty() || data == null) {
+        if (stack == null
+                || stack.isEmpty()
+                || data == null
+                || CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)) {
             return;
         }
-        if (inspect(stack).state() == InspectionState.UNREADABLE) {
+        ContentsInspection contents = inspectContents(stack);
+        if (contents.isUnreadable()) {
             return;
         }
-        CustomData.update(
-                DataComponents.CUSTOM_DATA,
-                stack,
-                tag -> tag.put(CAPTURE_TAG, data.serializeNBT())
-        );
-        syncDamageMirror(stack, data, data.lastSettledGameTime());
+        setContents(stack, data, contents.supplies().supplies());
+    }
+
+    public static void setSupplies(ItemStack stack, DinosaurCaptureSupplies supplies) {
+        if (stack == null
+                || stack.isEmpty()
+                || supplies == null
+                || CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)
+                || inspectContents(stack).isUnreadable()) {
+            return;
+        }
+        Inspection captured = inspect(stack);
+        setContents(stack, captured.data(), supplies);
+    }
+
+    public static boolean setContents(
+            ItemStack stack,
+            CapturedDinosaurData captured,
+            DinosaurCaptureSupplies supplies
+    ) {
+        if (stack == null
+                || stack.isEmpty()
+                || supplies == null
+                || CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)
+                || inspectContents(stack).isUnreadable()) {
+            return false;
+        }
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
+            if (captured == null) {
+                tag.remove(CAPTURE_TAG);
+            } else {
+                tag.put(CAPTURE_TAG, captured.serializeNBT());
+            }
+            if (supplies.isEmpty()) {
+                tag.remove(SUPPLIES_TAG);
+            } else {
+                tag.put(SUPPLIES_TAG, supplies.serializeNBT());
+            }
+        });
+        removeEmptyCustomData(stack);
+        if (captured == null) {
+            clearDamageMirror(stack);
+        } else {
+            syncDamageMirrorUnchecked(stack, captured, captured.lastSettledGameTime());
+        }
         PROJECTED_DURABILITY_CACHE.remove(stack);
+        return true;
     }
 
     public static void setRawCaptureTag(ItemStack stack, Tag rawTag) {
-        if (stack == null || stack.isEmpty() || rawTag == null) {
+        if (stack == null
+                || stack.isEmpty()
+                || rawTag == null
+                || CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)) {
             return;
         }
         CustomData.update(
@@ -121,11 +255,54 @@ public final class DinosaurCaptureItemData {
         PROJECTED_DURABILITY_CACHE.remove(stack);
     }
 
-    public static void clear(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
+    public static void setRawSuppliesTag(ItemStack stack, Tag rawTag) {
+        if (stack == null
+                || stack.isEmpty()
+                || rawTag == null
+                || CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)) {
             return;
         }
-        if (inspect(stack).state() == InspectionState.UNREADABLE) {
+        CustomData.update(
+                DataComponents.CUSTOM_DATA,
+                stack,
+                tag -> tag.put(SUPPLIES_TAG, rawTag.copy())
+        );
+        PROJECTED_DURABILITY_CACHE.remove(stack);
+    }
+
+    public static void setRawContents(
+            ItemStack stack,
+            Tag rawCaptureTag,
+            Tag rawSuppliesTag,
+            DinosaurCaptureSupplies supplies
+    ) {
+        if (stack == null || stack.isEmpty() || CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)) {
+            return;
+        }
+        DinosaurCaptureSupplies safeSupplies = supplies == null ? DinosaurCaptureSupplies.EMPTY : supplies;
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
+            if (rawCaptureTag == null) {
+                tag.remove(CAPTURE_TAG);
+            } else {
+                tag.put(CAPTURE_TAG, rawCaptureTag.copy());
+            }
+            if (rawSuppliesTag != null) {
+                tag.put(SUPPLIES_TAG, rawSuppliesTag.copy());
+            } else if (safeSupplies.isEmpty()) {
+                tag.remove(SUPPLIES_TAG);
+            } else {
+                tag.put(SUPPLIES_TAG, safeSupplies.serializeNBT());
+            }
+        });
+        removeEmptyCustomData(stack);
+        PROJECTED_DURABILITY_CACHE.remove(stack);
+    }
+
+    public static void clear(ItemStack stack) {
+        if (stack == null || stack.isEmpty() || CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)) {
+            return;
+        }
+        if (inspectContents(stack).isUnreadable()) {
             return;
         }
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(CAPTURE_TAG));
@@ -134,15 +311,27 @@ public final class DinosaurCaptureItemData {
         PROJECTED_DURABILITY_CACHE.remove(stack);
     }
 
+    public static void clearSupplies(ItemStack stack) {
+        if (stack == null
+                || stack.isEmpty()
+                || CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)
+                || inspectContents(stack).isUnreadable()) {
+            return;
+        }
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(SUPPLIES_TAG));
+        removeEmptyCustomData(stack);
+        PROJECTED_DURABILITY_CACHE.remove(stack);
+    }
+
     public static boolean syncDamageMirror(ItemStack stack, long currentGameTime) {
-        if (stack == null || stack.isEmpty()) {
+        if (stack == null || stack.isEmpty() || CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)) {
             return false;
         }
-        Inspection inspection = inspect(stack);
-        if (inspection.state() == InspectionState.UNREADABLE) {
+        ContentsInspection contents = inspectContents(stack);
+        if (contents.isUnreadable()) {
             return false;
         }
-        Optional<CapturedDinosaurData> captured = inspection.validData();
+        Optional<CapturedDinosaurData> captured = contents.capture().validData();
         if (captured.isEmpty()) {
             return clearDamageMirror(stack);
         }
@@ -150,12 +339,19 @@ public final class DinosaurCaptureItemData {
     }
 
     public static boolean syncDamageMirror(ItemStack stack, CapturedDinosaurData data, long currentGameTime) {
-        if (stack == null || stack.isEmpty() || data == null) {
+        if (stack == null
+                || stack.isEmpty()
+                || data == null
+                || CaptureBoxAuthority.isProtectedRecoveryCarrier(stack)) {
             return false;
         }
-        if (inspect(stack).state() == InspectionState.UNREADABLE) {
+        if (inspectContents(stack).isUnreadable()) {
             return false;
         }
+        return syncDamageMirrorUnchecked(stack, data, currentGameTime);
+    }
+
+    private static boolean syncDamageMirrorUnchecked(ItemStack stack, CapturedDinosaurData data, long currentGameTime) {
         int maxDamage = CapturedDinosaurData.MAX_DURABILITY;
         int projectedDurability = projectedDurability(data, currentGameTime);
         int damage = maxDamage - clamp(projectedDurability, 0, maxDamage);

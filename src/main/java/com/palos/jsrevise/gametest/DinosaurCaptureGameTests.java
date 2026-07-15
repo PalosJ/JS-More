@@ -12,6 +12,7 @@ import com.palos.jsrevise.server.system.capture.CapturedDinosaurData;
 import com.palos.jsrevise.server.system.capture.CapturedDinosaurVitals;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureItemData;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureService;
+import com.palos.jsrevise.server.system.capture.DinosaurCaptureSupplies;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -320,7 +321,8 @@ public final class DinosaurCaptureGameTests {
                 CapturedDinosaurVitals.deserializeNBT(new CompoundTag()),
                 19
         );
-        if (DinosaurCaptureItemData.projectedDurability(gapData, 501L) != 84) {
+        if (DinosaurCaptureItemData.projectedDurability(gapData, 501L)
+                != CapturedDinosaurData.MAX_DURABILITY - 16) {
             helper.fail("Anesthetic gap or durability remainder was treated as protected time");
             return;
         }
@@ -709,7 +711,7 @@ public final class DinosaurCaptureGameTests {
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 200)
-    public static void manualReleaseWithNoCollisionFreeCandidatePreservesTheCarrier(GameTestHelper helper) {
+    public static void manualReleaseWithNoCollisionFreeCandidateUsesRelaxedNearbyPosition(GameTestHelper helper) {
         JSAnimalBase sourceAnimal = createSmallNonAquaticAnimal(helper);
         CapturedDinosaurData captured = sourceAnimal == null
                 ? null
@@ -724,16 +726,6 @@ public final class DinosaurCaptureGameTests {
         }
         ItemStack carrier = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
         DinosaurCaptureItemData.set(carrier, captured);
-        carrier.set(DataComponents.CUSTOM_NAME, Component.literal("Preserved capture carrier"));
-        carrier.enchant(
-                helper.getLevel()
-                        .registryAccess()
-                        .lookupOrThrow(Registries.ENCHANTMENT)
-                        .getOrThrow(Enchantments.UNBREAKING),
-                1
-        );
-        ItemStack carrierBefore = carrier.copy();
-        int countBefore = carrierBefore.getCount();
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
 
         InteractionResult result = DinosaurCaptureService.releaseFromStack(
@@ -743,23 +735,55 @@ public final class DinosaurCaptureGameTests {
                 Direction.UP
         );
 
+        Entity released = helper.getLevel().getEntity(captured.originalUuid());
+        if (!result.consumesAction()
+                || !(released instanceof JSAnimalBase)
+                || DinosaurCaptureItemData.hasRawCaptureKey(carrier)) {
+            helper.fail("Collision-only manual release did not use the deterministic relaxed candidate");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void duplicateLoadedUuidRejectsReleaseAndPreservesCarrierAuthority(GameTestHelper helper) {
+        JSAnimalBase existing = createSmallNonAquaticAnimal(helper);
+        CapturedDinosaurData captured = existing == null
+                ? null
+                : CapturedDinosaurData.capture(existing).orElse(null);
+        if (existing == null || captured == null || !helper.getLevel().addFreshEntity(existing)) {
+            helper.fail("Could not create the duplicate-UUID release fixture");
+            return;
+        }
+        ItemStack carrier = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        DinosaurCaptureItemData.set(carrier, captured);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        InteractionResult result = DinosaurCaptureService.releaseFromStack(
+                carrier,
+                player,
+                helper.absolutePos(new BlockPos(8, 2, 8)),
+                Direction.UP
+        );
+
         if (result != InteractionResult.FAIL
-                || helper.getLevel().getEntity(captured.originalUuid()) != null
-                || carrier.getCount() != countBefore
-                || !ItemStack.matches(carrierBefore, carrier)) {
-            helper.fail("No-candidate manual release changed the item, any component, count, or world entities");
+                || !DinosaurCaptureItemData.hasRawCaptureKey(carrier)
+                || helper.getLevel().getEntity(captured.originalUuid()) != existing) {
+            helper.fail("Duplicate loaded UUID did not preserve the single existing world authority");
             return;
         }
         helper.succeed();
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 120)
-    public static void zeroDurabilityStackRetriesSafeReleaseAfterTwentyTicks(GameTestHelper helper) {
-        JSAnimalBase sourceAnimal = createSmallNonAquaticAnimal(helper);
+    public static void zeroDurabilityStackReleasesNearbyEvenWhenSearchIsFullyBlocked(GameTestHelper helper) {
+        JSAnimalBase sourceAnimal = createSmallNonAquaticAnimalWithIncompatibleSupply(helper);
+        CapturedDinosaurVitals sourceVitals = sourceAnimal == null
+                ? null
+                : CapturedDinosaurVitals.capture(sourceAnimal, 0);
         CapturedDinosaurData captured = sourceAnimal == null
                 ? null
                 : CapturedDinosaurData.capture(sourceAnimal).orElse(null);
-        if (sourceAnimal == null || captured == null) {
+        if (sourceAnimal == null || sourceVitals == null || captured == null) {
             helper.fail("Could not create the zero-durability stack retry fixture");
             return;
         }
@@ -769,10 +793,11 @@ public final class DinosaurCaptureGameTests {
                 initialTime,
                 0,
                 0,
-                CapturedDinosaurVitals.capture(sourceAnimal, 0)
+                sourceVitals
         );
         ItemStack carrier = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
-        DinosaurCaptureItemData.set(carrier, zeroDurability);
+        DinosaurCaptureSupplies supplies = incompatibleFoodSupplies(sourceVitals);
+        DinosaurCaptureItemData.setContents(carrier, zeroDurability, supplies);
         BlockPos base = helper.absolutePos(new BlockPos(8, 4, 8));
         for (BlockPos pos : BlockPos.betweenClosed(base.offset(-7, -2, -7), base.offset(7, 3, 7))) {
             helper.getLevel().setBlockAndUpdate(pos, Blocks.STONE.defaultBlockState());
@@ -785,41 +810,11 @@ public final class DinosaurCaptureGameTests {
                     Vec3.atBottomCenterOf(base),
                     0.0F
             );
-            CapturedDinosaurData retryData = DinosaurCaptureItemData.get(carrier).orElse(null);
-            if (result != DinosaurCaptureService.StackSettlementResult.PERSISTED
-                    || retryData == null
-                    || retryData.durability() != 0
-                    || retryData.lastSettledGameTime() <= initialTime
-                    || helper.getLevel().getEntity(captured.originalUuid()) != null) {
-                helper.fail("No-candidate zero-durability stack release did not retain and advance its VALID payload");
-                return;
-            }
-            clearReleaseFixture(helper, base, sourceAnimal);
-            fillCandidateFloor(helper, sourceAnimal, base, Blocks.STONE.defaultBlockState());
-        });
-        helper.runAfterDelay(39, () -> {
-            DinosaurCaptureService.StackSettlementResult result = DinosaurCaptureService.settleCapturedStack(
-                    carrier,
-                    helper.getLevel(),
-                    Vec3.atBottomCenterOf(base),
-                    0.0F
-            );
-            if (result != DinosaurCaptureService.StackSettlementResult.UNCHANGED
-                    || helper.getLevel().getEntity(captured.originalUuid()) != null) {
-                helper.fail("Zero-durability stack retried before the 20-tick settlement interval");
-            }
-        });
-        helper.runAfterDelay(40, () -> {
-            DinosaurCaptureService.StackSettlementResult result = DinosaurCaptureService.settleCapturedStack(
-                    carrier,
-                    helper.getLevel(),
-                    Vec3.atBottomCenterOf(base),
-                    0.0F
-            );
             if (result != DinosaurCaptureService.StackSettlementResult.BROKEN
                     || DinosaurCaptureItemData.hasRawCaptureKey(carrier)
+                    || !DinosaurCaptureItemData.getSupplies(carrier).isEmpty()
                     || !(helper.getLevel().getEntity(captured.originalUuid()) instanceof JSAnimalBase)) {
-                helper.fail("Zero-durability stack did not release at the first safe 20-tick retry");
+                helper.fail("Fully blocked zero-durability stack did not release at its nearby fallback");
                 return;
             }
             helper.succeed();
@@ -827,72 +822,55 @@ public final class DinosaurCaptureGameTests {
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 120)
-    public static void zeroDurabilityPlacedBoxRetainsThenRetriesWithinTwentyTicks(GameTestHelper helper) {
-        JSAnimalBase sourceAnimal = createSmallNonAquaticAnimal(helper);
+    public static void zeroDurabilityPlacedBoxReleasesNearbyOnFirstSettlement(GameTestHelper helper) {
+        JSAnimalBase sourceAnimal = createSmallNonAquaticAnimalWithIncompatibleSupply(helper);
+        CapturedDinosaurVitals sourceVitals = sourceAnimal == null
+                ? null
+                : CapturedDinosaurVitals.capture(sourceAnimal, 0);
         CapturedDinosaurData captured = sourceAnimal == null
                 ? null
                 : CapturedDinosaurData.capture(sourceAnimal).orElse(null);
         BlockPos controllerPos = helper.absolutePos(new BlockPos(10, 4, 12));
         DinosaurCaptureCageBlockEntity cage = placeCompleteCage(helper, controllerPos, Direction.NORTH);
-        if (sourceAnimal == null || captured == null || cage == null) {
+        if (sourceAnimal == null || sourceVitals == null || captured == null || cage == null) {
             helper.fail("Could not create the zero-durability placed-box retry fixture");
             return;
         }
         long initialTime = helper.getLevel().getGameTime();
-        cage.setCapturedDinosaur(capturedDataWithRuntime(
+        DinosaurCaptureSupplies supplies = incompatibleFoodSupplies(sourceVitals);
+        cage.setContents(capturedDataWithRuntime(
                 captured,
                 initialTime,
                 0,
                 0,
-                CapturedDinosaurVitals.capture(sourceAnimal, 0)
-        ));
+                sourceVitals
+        ), supplies);
         fillCageReleaseSearchWithCollision(helper, controllerPos, Direction.NORTH);
-        BlockPos safeCandidate = controllerPos.east(4);
-        boolean[] safePrepared = {false};
-        long[] failedAt = {-1L};
 
         helper.onEachTick(() -> {
             Entity released = helper.getLevel().getEntity(captured.originalUuid());
-            if (!safePrepared[0]) {
-                if (!(helper.getLevel().getBlockEntity(controllerPos) instanceof DinosaurCaptureCageBlockEntity current)
-                        || current.getCapturedDinosaur() == null
-                        || released != null) {
-                    helper.fail("No-candidate placed release lost its VALID payload or released unsafely");
-                    return;
-                }
-                if (current.getCapturedDinosaur().lastSettledGameTime() > initialTime) {
-                    failedAt[0] = helper.getLevel().getGameTime();
-                    safePrepared[0] = true;
-                    fillCandidateBody(helper, sourceAnimal, safeCandidate, Blocks.AIR.defaultBlockState());
-                    fillCandidateFloor(helper, sourceAnimal, safeCandidate, Blocks.STONE.defaultBlockState());
-                }
-                return;
-            }
-            long elapsed = helper.getLevel().getGameTime() - failedAt[0];
-            if (elapsed < 20L) {
-                if (released != null
-                        || !helper.getLevel().getBlockState(controllerPos)
-                                .is(JSReviseBlocks.DINOSAUR_CAPTURE_CAGE.get())
-                        || !(helper.getLevel().getBlockEntity(controllerPos)
-                                instanceof DinosaurCaptureCageBlockEntity current)
-                        || current.getCapturedDinosaur() == null
-                        || !captured.originalUuid().equals(current.getCapturedDinosaur().originalUuid())) {
-                    helper.fail("Placed box retried before 20 ticks or lost its retained VALID payload");
-                }
-                return;
-            }
             if (released instanceof JSAnimalBase) {
-                if (elapsed != 20L
-                        || !helper.getLevel().getBlockState(controllerPos)
-                                .is(JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get())) {
-                    helper.fail("Placed box release did not first retry as a safe broken-box transition at tick 20");
+                if (!helper.getLevel().getBlockState(controllerPos)
+                                .is(JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get())
+                        || helper.getLevel().getEntitiesOfClass(
+                                ItemEntity.class,
+                                new AABB(controllerPos).inflate(4.0D),
+                                item -> !DinosaurCaptureItemData.getSupplies(item.getItem()).isEmpty()
+                        ).size() > 0) {
+                    helper.fail("Fully blocked placed box did not release and become an empty broken box");
                     return;
                 }
                 helper.succeed();
                 return;
             }
-            if (elapsed > 20L) {
-                helper.fail("Placed box did not retry zero-durability release within 20 ticks");
+            if (helper.getLevel().getGameTime() - initialTime > 20L) {
+                helper.fail("Placed box did not release on its first settlement pass");
+                return;
+            }
+            if (!(helper.getLevel().getBlockEntity(controllerPos) instanceof DinosaurCaptureCageBlockEntity current)
+                    || current.getCapturedDinosaur() == null
+                    || !supplies.equals(current.getSupplies())) {
+                helper.fail("Placed box lost authority before the entity was accepted by the world");
             }
         });
     }
@@ -1490,6 +1468,32 @@ public final class DinosaurCaptureGameTests {
             }
         }
         return null;
+    }
+
+    private static JSAnimalBase createSmallNonAquaticAnimalWithIncompatibleSupply(GameTestHelper helper) {
+        for (JSAnimal<?> registeredAnimal : JSAnimals.getAnimals()) {
+            Entity entity = registeredAnimal.getEntityType().get().create(helper.getLevel());
+            if (entity instanceof JSAnimalBase animal
+                    && !(animal instanceof JSAquaticBase)
+                    && animal.getBbWidth() <= 2.0F
+                    && animal.getBbHeight() <= 2.0F) {
+                CapturedDinosaurVitals vitals = CapturedDinosaurVitals.capture(animal, 0);
+                if (vitals.hasHungerProjection()
+                        && vitals.reserveDiet() != CapturedDinosaurVitals.ReserveDiet.OMNIVORE) {
+                    return animal;
+                }
+            }
+            if (entity != null) {
+                entity.discard();
+            }
+        }
+        return null;
+    }
+
+    private static DinosaurCaptureSupplies incompatibleFoodSupplies(CapturedDinosaurVitals vitals) {
+        return vitals.reserveDiet() == CapturedDinosaurVitals.ReserveDiet.HERBIVORE
+                ? new DinosaurCaptureSupplies(0, 4, 0)
+                : new DinosaurCaptureSupplies(0, 0, 3);
     }
 
     private static void prepareDryCaptureArea(GameTestHelper helper, BlockPos anchor) {
