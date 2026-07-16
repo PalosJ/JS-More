@@ -4,16 +4,20 @@ import com.palos.jsrevise.JSRevise;
 import com.palos.jsrevise.server.system.capture.CaptureBoxAccess;
 import com.palos.jsrevise.server.system.capture.CaptureBoxAuthority;
 import com.palos.jsrevise.server.system.capture.CaptureBoxStructure;
+import dev.ryanhcode.sable.companion.SableCompanion;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -23,6 +27,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -84,7 +90,27 @@ public final class CaptureBoxRelocationCoordinator {
                 if (!resolved.placements().stream().allMatch(placement -> moved.contains(placement.pos()))) {
                     throw new IllegalStateException("Sable relocation omitted part of a capture-box domain");
                 }
-                transactions.add(Transaction.prepare(sourceLevel, targetLevel, transform, access, resolved));
+                Optional<Transaction> prepared = Transaction.prepare(
+                        sourceLevel,
+                        targetLevel,
+                        transform,
+                        access,
+                        resolved
+                );
+                if (prepared.isEmpty()) {
+                    closeTransactions(transactions);
+                    JSRevise.LOGGER.warn(
+                            "Rejected capture-box relocation at {} because its transformed target contains "
+                                    + "an unsafe target state, unavailable position, or block entity; "
+                                    + "capture-box block authority was retained in the source level",
+                            resolved.controller()
+                    );
+                    return new SetupOnlyAbortIterable(
+                            frozen.getFirst(),
+                            () -> rebuildRejectedSourceMassTracker(sourceLevel, resolved)
+                    );
+                }
+                transactions.add(prepared.orElseThrow());
             }
             Context context = new Context(sourceLevel, targetLevel, transform, frozen, transactions);
             ACTIVE.set(context);
@@ -160,6 +186,57 @@ public final class CaptureBoxRelocationCoordinator {
         }
     }
 
+    private static void closeTransactions(List<Transaction> transactions) {
+        for (int index = transactions.size() - 1; index >= 0; index--) {
+            try {
+                transactions.get(index).closeScopes();
+            } catch (Throwable exception) {
+                logCleanupFailure("Capture-box rejected relocation guard cleanup failed closed", exception);
+            }
+        }
+    }
+
+    private static void rebuildRejectedSourceMassTracker(
+            ServerLevel level,
+            CaptureBoxAccess.Resolved expectedSource
+    ) {
+        try {
+            CaptureBoxAccess.Resolved currentSource = CaptureBoxAccess
+                    .resolve(level, expectedSource.controller())
+                    .filter(resolved -> resolved.identity().equals(expectedSource.identity()))
+                    .orElseThrow(() -> new IllegalStateException(
+                            "rejected relocation source is no longer the expected canonical capture box"
+                    ));
+            Object subLevel = SableCompanion.INSTANCE.getContaining(level, currentSource.controller());
+            if (subLevel == null) {
+                return;
+            }
+            Method isRemoved = subLevel.getClass().getMethod("isRemoved");
+            if (Boolean.TRUE.equals(isRemoved.invoke(subLevel))) {
+                throw new IllegalStateException("rejected relocation source sublevel is already removed");
+            }
+            Method massTracker = subLevel.getClass().getMethod("getMassTracker");
+            Object mass = massTracker.invoke(subLevel);
+            Method invalid = mass.getClass().getMethod("isInvalid");
+            if (!Boolean.TRUE.equals(invalid.invoke(mass))) {
+                return;
+            }
+            Method rebuild = subLevel.getClass().getMethod("buildMassTracker");
+            rebuild.invoke(subLevel);
+            Method updateMass = subLevel.getClass().getMethod("updateMergedMassData", float.class);
+            updateMass.invoke(subLevel, 0.0F);
+            if (Boolean.TRUE.equals(isRemoved.invoke(subLevel))) {
+                throw new IllegalStateException("rejected relocation source sublevel was removed during mass repair");
+            }
+            mass = massTracker.invoke(subLevel);
+            if (Boolean.TRUE.equals(invalid.invoke(mass))) {
+                throw new IllegalStateException("rebuilt Sable mass tracker is still invalid");
+            }
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            logCleanupFailure("Rejected capture-box relocation could not restore its source mass tracker", exception);
+        }
+    }
+
     static boolean hasActiveContextForTests() {
         return ACTIVE.get() != null;
     }
@@ -211,6 +288,7 @@ public final class CaptureBoxRelocationCoordinator {
                     snapshot.value(),
                     stateMap(level, source.placements()),
                     stateMap(level, target.placements()),
+                    emptyTargetSlots(target.placements()),
                     sourceScope,
                     targetScope
             );
@@ -231,6 +309,59 @@ public final class CaptureBoxRelocationCoordinator {
             states.put(placement.pos(), level.getBlockState(placement.pos()));
         }
         return states;
+    }
+
+    private static Map<BlockPos, BlockState> emptyTargetSlots(
+            Iterable<CaptureBoxStructure.Placement> placements
+    ) {
+        LinkedHashMap<BlockPos, BlockState> snapshots = new LinkedHashMap<>();
+        for (CaptureBoxStructure.Placement placement : placements) {
+            snapshots.put(placement.pos(), Blocks.AIR.defaultBlockState());
+        }
+        return snapshots;
+    }
+
+    private static Optional<Map<BlockPos, BlockState>> snapshotTargetSlots(
+            ServerLevel level,
+            Iterable<BlockPos> positions
+    ) {
+        if (level == null || positions == null) {
+            return Optional.empty();
+        }
+        LinkedHashMap<BlockPos, BlockState> snapshots = new LinkedHashMap<>();
+        for (BlockPos position : positions) {
+            if (position == null || snapshots.containsKey(position) || !level.isLoaded(position)) {
+                JSRevise.LOGGER.warn(
+                        "Capture-box relocation target preflight rejected position {} (duplicate/null/unloaded)",
+                        position
+                );
+                return Optional.empty();
+            }
+            BlockState state = level.getBlockState(position);
+            if (state == null || CaptureBoxStructure.Kind.fromState(state).isPresent()) {
+                JSRevise.LOGGER.warn(
+                        "Capture-box relocation target preflight rejected capture-box state {} at {}",
+                        state,
+                        position
+                );
+                return Optional.empty();
+            }
+            BlockEntity blockEntity = level.getBlockEntity(position);
+            if (blockEntity != null || state.getBlock() instanceof EntityBlock) {
+                JSRevise.LOGGER.warn(
+                        "Capture-box relocation target preflight rejected block entity at {} (state={}, type={})",
+                        position,
+                        state,
+                        blockEntity == null ? "missing" : blockEntity.getClass().getName()
+                );
+                return Optional.empty();
+            }
+            snapshots.put(position.immutable(), state);
+        }
+        if (snapshots.size() != CaptureBoxStructure.PART_COUNT) {
+            return Optional.empty();
+        }
+        return Optional.of(Map.copyOf(snapshots));
     }
 
     private static List<BlockPos> freeze(Iterable<BlockPos> blocks) {
@@ -348,6 +479,7 @@ public final class CaptureBoxRelocationCoordinator {
         private final CaptureBoxAuthority.Snapshot targetExpected;
         private final Map<BlockPos, BlockState> sourceStates;
         private final Map<BlockPos, BlockState> targetStates;
+        private final Map<BlockPos, BlockState> targetPreviousSlots;
         private final CaptureBoxRelocationState.Scope sourceScope;
         private final CaptureBoxRelocationState.Scope targetScope;
         private OwnedStateClearer ownedStateClearer = CaptureBoxRelocationCoordinator::clearOwned;
@@ -364,6 +496,7 @@ public final class CaptureBoxRelocationCoordinator {
                 CaptureBoxAuthority.Snapshot sourceOriginal,
                 Map<BlockPos, BlockState> sourceStates,
                 Map<BlockPos, BlockState> targetStates,
+                Map<BlockPos, BlockState> targetPreviousSlots,
                 CaptureBoxRelocationState.Scope sourceScope,
                 CaptureBoxRelocationState.Scope targetScope
         ) {
@@ -375,11 +508,12 @@ public final class CaptureBoxRelocationCoordinator {
             this.targetExpected = CaptureBoxAuthority.projectRelocationTarget(sourceOriginal);
             this.sourceStates = Map.copyOf(sourceStates);
             this.targetStates = Map.copyOf(targetStates);
+            this.targetPreviousSlots = Map.copyOf(targetPreviousSlots);
             this.sourceScope = sourceScope;
             this.targetScope = targetScope;
         }
 
-        private static Transaction prepare(
+        private static Optional<Transaction> prepare(
                 ServerLevel sourceLevel,
                 ServerLevel targetLevel,
                 Object transform,
@@ -418,13 +552,12 @@ public final class CaptureBoxRelocationCoordinator {
                     .isEmpty())) {
                 throw new IllegalStateException("Sable transform did not preserve a canonical capture-box domain");
             }
-            if (!targetSlotsAvailable(
-                    targetStates.keySet(),
-                    targetLevel::isLoaded,
-                    targetLevel::getBlockState,
-                    pos -> targetLevel.getBlockEntity(pos) != null
-            )) {
-                throw new IllegalStateException("Sable relocation target is loaded with an existing block or block entity");
+            Optional<Map<BlockPos, BlockState>> targetPreviousSlots = snapshotTargetSlots(
+                    targetLevel,
+                    targetStates.keySet()
+            );
+            if (targetPreviousSlots.isEmpty()) {
+                return Optional.empty();
             }
 
             CaptureBoxRelocationState.Scope sourceScope = CaptureBoxRelocationState.open(
@@ -444,7 +577,7 @@ public final class CaptureBoxRelocationCoordinator {
                         targetIdentity,
                         CaptureBoxRelocationState.State.PROVISIONAL
                 );
-                return new Transaction(
+                return Optional.of(new Transaction(
                         sourceLevel,
                         targetLevel,
                         source.identity(),
@@ -452,9 +585,10 @@ public final class CaptureBoxRelocationCoordinator {
                         snapshot.value(),
                         sourceStates,
                         targetStates,
+                        targetPreviousSlots.orElseThrow(),
                         sourceScope,
                         targetScope
-                );
+                ));
             } catch (RuntimeException | LinkageError exception) {
                 closeScopeSafely(targetScope, "Capture-box target guard cleanup failed closed");
                 closeScopeSafely(sourceScope, "Capture-box source guard cleanup failed closed");
@@ -959,12 +1093,14 @@ public final class CaptureBoxRelocationCoordinator {
         }
 
         private boolean clearTargetOwned() {
-            return runOwnedClear(
+            boolean cleared = runOwnedClear(
                     this.targetLevel,
                     this.targetIdentity,
                     this.targetStates,
                     "Capture-box target structure cleanup failed closed"
             );
+            boolean restored = restoreTargetPreviousSlots(this.targetLevel, this.targetPreviousSlots);
+            return cleared && restored;
         }
 
         private boolean runOwnedClear(
@@ -1143,7 +1279,7 @@ public final class CaptureBoxRelocationCoordinator {
         }
     }
 
-    static boolean targetSlotsAvailable(
+    static boolean targetSlotsSafeToOverwrite(
             Iterable<BlockPos> targets,
             Predicate<BlockPos> loaded,
             Function<BlockPos, BlockState> stateLookup,
@@ -1161,11 +1297,79 @@ public final class CaptureBoxRelocationCoordinator {
                 return false;
             }
             BlockState state = stateLookup.apply(target);
-            if (state == null || !state.isAir()) {
+            if (state == null
+                    || state.getBlock() instanceof EntityBlock
+                    || CaptureBoxStructure.Kind.fromState(state).isPresent()) {
                 return false;
             }
         }
         return unique.size() == CaptureBoxStructure.PART_COUNT;
+    }
+
+    private static boolean restoreTargetPreviousSlots(
+            ServerLevel level,
+            Map<BlockPos, BlockState> previousSlots
+    ) {
+        return restorePreviousTargetStates(
+                previousSlots,
+                level::getBlockState,
+                (position, state) -> {
+                    boolean changed = level.setBlock(position, state, 3);
+                    level.invalidateCapabilities(position);
+                    return changed;
+                }
+        );
+    }
+
+    static boolean restorePreviousTargetStates(
+            Map<BlockPos, BlockState> previousSlots,
+            Function<BlockPos, BlockState> stateLookup,
+            BiPredicate<BlockPos, BlockState> stateSetter
+    ) {
+        if (previousSlots == null || stateLookup == null || stateSetter == null) {
+            return false;
+        }
+        boolean restored = true;
+        for (Map.Entry<BlockPos, BlockState> entry : previousSlots.entrySet()) {
+            BlockPos position = entry.getKey();
+            BlockState previous = entry.getValue();
+            if (position == null || previous == null) {
+                restored = false;
+                continue;
+            }
+            BlockState current = stateLookup.apply(position);
+            if (current == null) {
+                restored = false;
+                continue;
+            }
+            if (current.equals(previous)) {
+                continue;
+            }
+            if (!current.isAir()) {
+                JSRevise.LOGGER.error(
+                        "Capture-box target rollback refused to overwrite an unexpected state at {} (current={}, prior={})",
+                        position,
+                        current,
+                        previous
+                );
+                restored = false;
+                continue;
+            }
+            if (!stateSetter.test(position, previous)) {
+                restored = false;
+            }
+        }
+        for (Map.Entry<BlockPos, BlockState> entry : previousSlots.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) {
+                restored = false;
+                continue;
+            }
+            BlockState current = stateLookup.apply(entry.getKey());
+            if (current == null || !current.equals(entry.getValue())) {
+                restored = false;
+            }
+        }
+        return restored;
     }
 
     private static boolean ensureStructure(
@@ -1238,6 +1442,41 @@ public final class CaptureBoxRelocationCoordinator {
             }
         }
         return false;
+    }
+
+    /**
+     * Exact Sable 2.0.3 performs a setup pass before its copy/notify/delete/update passes. Supplying only the
+     * setup anchor makes a rejected relocation a block-level no-op without exposing Sable's null-first-position
+     * failure. The exact bytecode gate and profile tests lock this five-pass contract.
+     */
+    static final class SetupOnlyAbortIterable implements Iterable<BlockPos> {
+        private final BlockPos setupAnchor;
+        private final Runnable afterSetupAction;
+        private int iteratorCount;
+        private boolean afterSetupActionRun;
+
+        SetupOnlyAbortIterable(BlockPos setupAnchor) {
+            this(setupAnchor, () -> {
+            });
+        }
+
+        SetupOnlyAbortIterable(BlockPos setupAnchor, Runnable afterSetupAction) {
+            this.setupAnchor = Objects.requireNonNull(setupAnchor, "setupAnchor").immutable();
+            this.afterSetupAction = Objects.requireNonNull(afterSetupAction, "afterSetupAction");
+        }
+
+        @Override
+        public Iterator<BlockPos> iterator() {
+            int pass = this.iteratorCount++;
+            if (pass == 0) {
+                return List.of(this.setupAnchor).iterator();
+            }
+            if (!this.afterSetupActionRun) {
+                this.afterSetupActionRun = true;
+                this.afterSetupAction.run();
+            }
+            return Collections.emptyIterator();
+        }
     }
 
     private record TransformAccess(Method targetLevel, Method applyPos, Method applyState) {

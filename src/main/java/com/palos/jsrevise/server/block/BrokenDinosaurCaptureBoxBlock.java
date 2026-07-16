@@ -122,40 +122,9 @@ public final class BrokenDinosaurCaptureBoxBlock extends Block implements Entity
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        BlockPos controllerPos = controllerPos(pos, state);
-        Direction facing = state.getValue(FACING);
-        double minX = 0.0D;
-        double minY = 0.0D;
-        double minZ = 0.0D;
-        double maxX = 1.0D;
-        double maxY = 1.0D;
-        double maxZ = 1.0D;
-        boolean first = true;
-        for (PartPlacement placement : placements(controllerPos, facing)) {
-            double partMinX = placement.pos().getX() - pos.getX();
-            double partMinY = placement.pos().getY() - pos.getY();
-            double partMinZ = placement.pos().getZ() - pos.getZ();
-            double partMaxX = partMinX + 1.0D;
-            double partMaxY = partMinY + 1.0D;
-            double partMaxZ = partMinZ + 1.0D;
-            if (first) {
-                minX = partMinX;
-                minY = partMinY;
-                minZ = partMinZ;
-                maxX = partMaxX;
-                maxY = partMaxY;
-                maxZ = partMaxZ;
-                first = false;
-            } else {
-                minX = Math.min(minX, partMinX);
-                minY = Math.min(minY, partMinY);
-                minZ = Math.min(minZ, partMinZ);
-                maxX = Math.max(maxX, partMaxX);
-                maxY = Math.max(maxY, partMaxY);
-                maxZ = Math.max(maxZ, partMaxZ);
-            }
-        }
-        return Shapes.box(minX, minY, minZ, maxX, maxY, maxZ);
+        // Each proxy owns only its local outline. Expanding every part to the whole multiblock makes oblique
+        // clicks report a different part or face and prevents reliable placement below the box.
+        return Shapes.block();
     }
 
     @Override

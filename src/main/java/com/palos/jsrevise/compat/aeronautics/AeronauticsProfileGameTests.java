@@ -48,6 +48,11 @@ public final class AeronauticsProfileGameTests {
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void formalBlockItemCanBePlacedOnBrokenCaptureBoxBottom(GameTestHelper helper) {
+        runLinkedWhenReady(helper, "broken-bottom-placement");
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
     public static void formalSableMassUsesEveryBrokenCaptureBoxCollisionPart(GameTestHelper helper) {
         runLinkedWhenReady(helper, "broken-mass");
     }
@@ -80,6 +85,21 @@ public final class AeronauticsProfileGameTests {
     @GameTest(template = "profile_compatibility", timeoutTicks = 200)
     public static void formalAssemblyRoundTripsBrokenCaptureBox(GameTestHelper helper) {
         runLinkedWhenReady(helper, "broken");
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void formalDisassemblyOverwritesOrdinaryOccupiedTargets(GameTestHelper helper) {
+        runLinkedWhenReady(helper, "occupied-target");
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void formalDisassemblyRejectsConflictingCaptureAuthorityWithoutCrash(GameTestHelper helper) {
+        runLinkedWhenReady(helper, "authority-conflict");
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    public static void formalDisassemblyRejectsBlockEntityTargetWithoutCrash(GameTestHelper helper) {
+        runLinkedWhenReady(helper, "block-entity-conflict");
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 200)

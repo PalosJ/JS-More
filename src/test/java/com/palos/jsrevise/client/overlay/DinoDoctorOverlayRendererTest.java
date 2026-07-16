@@ -301,9 +301,11 @@ class DinoDoctorOverlayRendererTest {
     }
 
     @Test
-    void exposesCompactBottomPaddingAndWhitePanelBorderColorsForLayoutVerification() {
+    void exposesExpandedBottomPaddingAndWhitePanelBorderColorsForLayoutVerification() {
         assertEquals(8, DinoDoctorOverlayRenderer.PANEL_TOP_PADDING);
-        assertEquals(4, DinoDoctorOverlayRenderer.PANEL_BOTTOM_PADDING);
+        assertEquals(7, DinoDoctorOverlayRenderer.PANEL_BOTTOM_PADDING);
+        assertEquals(15, DinoDoctorOverlayRenderer.PANEL_TOP_PADDING
+                + DinoDoctorOverlayRenderer.PANEL_BOTTOM_PADDING);
         assertEquals(0xFFFFFF, DinoDoctorOverlayRenderer.PANEL_BORDER_TOP_COLOR & 0xFFFFFF);
         assertEquals(0xFFFFFF, DinoDoctorOverlayRenderer.PANEL_BORDER_BOTTOM_COLOR & 0xFFFFFF);
         assertEquals(0x680C1824, DinoDoctorOverlayRenderer.panelBackgroundTopColor(0x336699));

@@ -1,6 +1,8 @@
 package com.palos.jsrevise.compat.aeronautics.linked;
 
 import com.palos.jsrevise.compat.aeronautics.CaptureBoxRelocationState;
+import com.palos.jsrevise.server.block.BrokenDinosaurCaptureBoxBlock;
+import com.palos.jsrevise.server.block.DinosaurCaptureCageBlock;
 import com.palos.jsrevise.server.block.entity.BrokenDinosaurCaptureBoxBlockEntity;
 import com.palos.jsrevise.server.block.entity.DinosaurCaptureCageBlockEntity;
 import com.palos.jsrevise.server.registry.JSReviseItems;
@@ -15,6 +17,7 @@ import com.palos.jsrevise.server.system.capture.DinosaurCaptureService;
 import com.palos.jsrevise.server.system.capture.DinosaurCaptureSupplies;
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import dev.ryanhcode.sable.physics.config.block_properties.PhysicsBlockPropertyHelper;
+import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.simulated_team.simulated.content.blocks.physics_assembler.PhysicsAssemblerBlock;
 import dev.simulated_team.simulated.util.SimAssemblyHelper;
@@ -40,7 +43,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -50,6 +59,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 
 /** Direct exact-profile calls kept behind {@link com.palos.jsrevise.compat.aeronautics.AeronauticsProfileGameTests}. */
 public final class ExactAeronauticsGameTestBridge {
@@ -62,10 +73,13 @@ public final class ExactAeronauticsGameTestBridge {
     public static void run(GameTestHelper helper, String scenario) throws Exception {
         switch (scenario) {
             case "broken-support" -> verifyBrokenSupport(helper);
+            case "broken-bottom-placement" -> verifyBrokenBottomPlacement(helper);
             case "broken-mass" -> verifyBrokenMass(helper);
             case "isolated-broken" -> verifyIsolatedBrokenSupportRejected(helper);
-            case "empty", "supplies", "valid", "unreadable", "broken" ->
+            case "empty", "supplies", "valid", "unreadable", "broken", "occupied-target" ->
                     verifyRoundTrip(helper, scenario);
+            case "authority-conflict" -> verifyAuthorityConflict(helper);
+            case "block-entity-conflict" -> verifyBlockEntityConflict(helper);
             case "sublevel-break" -> verifySublevelDurabilityBreak(helper);
             case "assembler-entry" -> verifyAssemblerEntry(helper);
             case "incomplete" -> verifyIncompleteRejected(helper);
@@ -99,6 +113,93 @@ public final class ExactAeronauticsGameTestBridge {
                 helper.getLevel().setBlockAndUpdate(assemblerPos, Blocks.AIR.defaultBlockState());
             }
         }
+    }
+
+    private static void verifyBrokenBottomPlacement(GameTestHelper helper) {
+        BlockPos controller = helper.absolutePos(new BlockPos(10, 5, 10));
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        for (Direction facing : Direction.Plane.HORIZONTAL) {
+            if (!DinosaurCaptureService.placeBrokenCageBlocks(helper.getLevel(), controller, facing)) {
+                throw new AssertionError("could not place elevated broken capture box facing " + facing);
+            }
+            try {
+                Direction localX = facing.getClockWise();
+                for (CaptureBoxStructure.Placement placement : CaptureBoxStructure.placements(controller, facing)) {
+                    if (placement.offsetY() != 0) {
+                        continue;
+                    }
+                    double outward = placement.offsetX() == 0 ? -3.0D : 3.0D;
+                    Vec3 diagonalOffset = new Vec3(
+                            localX.getStepX() * outward,
+                            -4.0D,
+                            localX.getStepZ() * outward
+                    );
+                    assertBottomBlockItemPlacement(
+                            helper,
+                            player,
+                            placement,
+                            new ItemStack(Blocks.STONE),
+                            Blocks.STONE,
+                            diagonalOffset,
+                            "stone"
+                    );
+                    Block assembler = BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath(
+                            "simulated",
+                            "physics_assembler"
+                    ));
+                    assertBottomBlockItemPlacement(
+                            helper,
+                            player,
+                            placement,
+                            new ItemStack(assembler),
+                            assembler,
+                            diagonalOffset,
+                            "Physics Assembler"
+                    );
+                }
+            } finally {
+                BrokenDinosaurCaptureBoxBlock.removeWholeBoxWithoutDrops(helper.getLevel(), controller, facing);
+            }
+        }
+    }
+
+    private static void assertBottomBlockItemPlacement(
+            GameTestHelper helper,
+            Player player,
+            CaptureBoxStructure.Placement placement,
+            ItemStack stack,
+            Block expectedBlock,
+            Vec3 playerOffset,
+            String label
+    ) {
+        BlockPos support = placement.pos();
+        BlockPos expectedPlacement = support.below();
+        Vec3 faceCenter = new Vec3(support.getX() + 0.5D, support.getY(), support.getZ() + 0.5D);
+        Vec3 playerPosition = faceCenter.add(playerOffset);
+        player.setPos(playerPosition.x, playerPosition.y, playerPosition.z);
+        player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        BlockHitResult hit = helper.getLevel().clip(new ClipContext(
+                player.getEyePosition(),
+                faceCenter.add(0.0D, 0.25D, 0.0D),
+                ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE,
+                player
+        ));
+        if (!support.equals(hit.getBlockPos()) || hit.getDirection() != Direction.DOWN) {
+            throw new AssertionError(label + " diagonal bottom ray hit " + hit.getBlockPos() + "/"
+                    + hit.getDirection() + " instead of " + support + "/DOWN for " + placement);
+        }
+        InteractionResult result = stack.useOn(new BlockPlaceContext(
+                helper.getLevel(),
+                player,
+                InteractionHand.MAIN_HAND,
+                stack,
+                hit
+        ));
+        if (!result.consumesAction() || !helper.getLevel().getBlockState(expectedPlacement).is(expectedBlock)) {
+            throw new AssertionError(label + " BlockItem could not attach below " + placement);
+        }
+        helper.getLevel().setBlockAndUpdate(expectedPlacement, Blocks.AIR.defaultBlockState());
     }
 
     private static void verifyBrokenMass(GameTestHelper helper) {
@@ -189,19 +290,20 @@ public final class ExactAeronauticsGameTestBridge {
     }
 
     private static void verifyRoundTrip(GameTestHelper helper, String scenario) throws Exception {
+        String seedScenario = "occupied-target".equals(scenario) ? "valid" : scenario;
         BlockPos controller = helper.absolutePos(new BlockPos(6, 2, 6));
-        CaptureBoxStructure.Kind kind = "broken".equals(scenario)
+        CaptureBoxStructure.Kind kind = "broken".equals(seedScenario)
                 ? CaptureBoxStructure.Kind.BROKEN
                 : CaptureBoxStructure.Kind.COMPLETE;
         place(helper, controller, kind, true);
-        seed(helper, controller, scenario);
+        seed(helper, controller, seedScenario);
         CaptureBoxAccess.Resolved source = CaptureBoxAccess.resolve(helper.getLevel(), controller).orElseThrow();
         CompoundTag before = source.controllerBlockEntity()
                 .saveWithFullMetadata(helper.getLevel().registryAccess())
                 .copy();
         CompoundTag expected = expectedAfterRelocation(kind, before);
-        ItemStack beforeMirror = "valid".equals(scenario) ? mirroredStack(source) : ItemStack.EMPTY;
-        if (("valid".equals(scenario) || "unreadable".equals(scenario) || "broken".equals(scenario))
+        ItemStack beforeMirror = "valid".equals(seedScenario) ? mirroredStack(source) : ItemStack.EMPTY;
+        if (("valid".equals(seedScenario) || "unreadable".equals(seedScenario) || "broken".equals(seedScenario))
                 && !before.contains("FutureFormalAeronauticsMetadata")) {
             throw new AssertionError("formal fixture lacks preserved unknown controller metadata");
         }
@@ -233,6 +335,15 @@ public final class ExactAeronauticsGameTestBridge {
                 throw new AssertionError("assembly changed capture-box kind, UUID, raw data, supplies, or durability");
             }
             assertAssembledSoleAuthority(helper, controller, result.subLevel(), moved, "direct " + scenario);
+            if ("occupied-target".equals(scenario)) {
+                var targetPlacements = CaptureBoxStructure.placements(controller, Direction.NORTH);
+                BlockPos stoneTarget = targetPlacements.get(3).pos();
+                BlockPos waterTarget = targetPlacements.get(6).pos();
+                if (!helper.getLevel().setBlockAndUpdate(stoneTarget, Blocks.STONE.defaultBlockState())
+                        || !helper.getLevel().setBlockAndUpdate(waterTarget, Blocks.WATER.defaultBlockState())) {
+                    throw new AssertionError("could not seed ordinary occupied disassembly targets");
+                }
+            }
         } finally {
             if (result != null && localController != null) {
                 disassembleAndRemove(helper, result, localController, controller);
@@ -255,9 +366,254 @@ public final class ExactAeronauticsGameTestBridge {
         if (restored.kind() != kind || !CaptureBoxAuthority.equivalentIgnoringPosition(expected, after)) {
             throw new AssertionError("assembly round-trip changed capture-box authority metadata");
         }
-        if ("valid".equals(scenario)
+        if ("valid".equals(seedScenario)
                 && !beforeMirror.getComponents().equals(mirroredStack(restored).getComponents())) {
             throw new AssertionError("assembly round-trip changed standard DAMAGE/MAX_DAMAGE mirror components");
+        }
+    }
+
+    private static void verifyAuthorityConflict(GameTestHelper helper) throws Exception {
+        BlockPos controller = helper.absolutePos(new BlockPos(6, 2, 6));
+        BlockPos conflictController = helper.absolutePos(new BlockPos(18, 2, 6));
+        place(helper, controller, CaptureBoxStructure.Kind.COMPLETE, true);
+        seed(helper, controller, "valid");
+        CaptureBoxAccess.Resolved source = CaptureBoxAccess.resolve(helper.getLevel(), controller).orElseThrow();
+        CompoundTag sourceBefore = source.controllerBlockEntity()
+                .saveWithFullMetadata(helper.getLevel().registryAccess())
+                .copy();
+
+        SimAssemblyHelper.AssemblyResult result = SimAssemblyHelper.assembleFromSingleBlock(
+                helper.getLevel(),
+                controller,
+                controller,
+                true,
+                true
+        );
+        if (result == null) {
+            throw new AssertionError("could not assemble authority-conflict source");
+        }
+        BlockPos localController = controller.offset(result.offset());
+        boolean removed = false;
+        try {
+            assertReadyForDisassembly(result.subLevel(), localController, "authority-conflict");
+            CaptureBoxAccess.Resolved moved = CaptureBoxAccess
+                    .resolve(result.subLevel().getLevel(), localController)
+                    .orElseThrow(() -> new AssertionError("authority-conflict source is absent from sublevel"));
+            CompoundTag movedBefore = moved.controllerBlockEntity()
+                    .saveWithFullMetadata(helper.getLevel().registryAccess())
+                    .copy();
+            UUID movedUuid = capturedUuid(moved);
+            place(helper, conflictController, CaptureBoxStructure.Kind.COMPLETE, true);
+            seed(helper, conflictController, "valid");
+            CaptureBoxAccess.Resolved conflict = CaptureBoxAccess.resolve(helper.getLevel(), conflictController)
+                    .orElseThrow();
+            UUID conflictUuid = capturedUuid(conflict);
+            if (movedUuid.equals(conflictUuid)) {
+                throw new AssertionError("authority-conflict fixtures unexpectedly share one dinosaur UUID");
+            }
+            CompoundTag conflictBefore = conflict.controllerBlockEntity()
+                    .saveWithFullMetadata(helper.getLevel().registryAccess())
+                    .copy();
+
+            SimAssemblyHelper.disassembleSubLevel(
+                    helper.getLevel(),
+                    result.subLevel(),
+                    localController,
+                    conflictController,
+                    Rotation.NONE,
+                    true
+            );
+            assertReadyForDisassembly(result.subLevel(), localController, "authority-conflict rejected source");
+
+            CaptureBoxAccess.Resolved sourceAfterReject = CaptureBoxAccess
+                    .resolve(result.subLevel().getLevel(), localController)
+                    .orElseThrow(() -> new AssertionError("rejected disassembly removed sublevel source authority"));
+            CaptureBoxAccess.Resolved conflictAfterReject = CaptureBoxAccess
+                    .resolve(helper.getLevel(), conflictController)
+                    .orElseThrow(() -> new AssertionError("rejected disassembly removed target authority"));
+            CompoundTag sourceAfter = sourceAfterReject.controllerBlockEntity()
+                    .saveWithFullMetadata(helper.getLevel().registryAccess())
+                    .copy();
+            CompoundTag conflictAfter = conflictAfterReject.controllerBlockEntity()
+                    .saveWithFullMetadata(helper.getLevel().registryAccess())
+                    .copy();
+            if (!CaptureBoxAuthority.equivalentIgnoringPosition(movedBefore, sourceAfter)
+                    || !CaptureBoxAuthority.equivalentIgnoringPosition(conflictBefore, conflictAfter)) {
+                throw new AssertionError("rejected disassembly changed source or conflicting target authority");
+            }
+            if (!movedUuid.equals(capturedUuid(sourceAfterReject))
+                    || !conflictUuid.equals(capturedUuid(conflictAfterReject))) {
+                throw new AssertionError("rejected disassembly changed one of the distinct dinosaur UUIDs");
+            }
+            assertRejectedSubLevelRetained(
+                    helper,
+                    result.subLevel(),
+                    localController,
+                    conflictController,
+                    moved.facing()
+            );
+
+            DinosaurCaptureCageBlock.removeWholeCageWithoutDrops(
+                    helper.getLevel(),
+                    conflictController,
+                    Direction.NORTH
+            );
+            if (CaptureBoxAccess.resolve(helper.getLevel(), conflictController).isPresent()) {
+                throw new AssertionError("could not clear authority-conflict fixture for retry");
+            }
+            disassembleAndRemove(helper, result, localController, controller);
+            removed = true;
+        } finally {
+            DinosaurCaptureCageBlock.removeWholeCageWithoutDrops(
+                    helper.getLevel(),
+                    conflictController,
+                    Direction.NORTH
+            );
+            if (!removed) {
+                if (CaptureBoxAccess.resolve(result.subLevel().getLevel(), localController).isPresent()) {
+                    try {
+                        disassembleAndRemove(helper, result, localController, controller);
+                    } catch (RuntimeException | LinkageError cleanupFailure) {
+                        removeImmediately(helper, result.subLevel());
+                    }
+                } else {
+                    removeImmediately(helper, result.subLevel());
+                }
+            }
+        }
+
+        CaptureBoxAccess.Resolved restored = CaptureBoxAccess.resolve(helper.getLevel(), controller)
+                .orElseThrow(() -> new AssertionError("authority-conflict retry did not restore source"));
+        CompoundTag after = restored.controllerBlockEntity()
+                .saveWithFullMetadata(helper.getLevel().registryAccess())
+                .copy();
+        if (!CaptureBoxAuthority.equivalentIgnoringPosition(sourceBefore, after)) {
+            throw new AssertionError("authority-conflict retry changed source metadata");
+        }
+    }
+
+    private static void verifyBlockEntityConflict(GameTestHelper helper) throws Exception {
+        BlockPos controller = helper.absolutePos(new BlockPos(6, 2, 6));
+        BlockPos targetController = helper.absolutePos(new BlockPos(18, 2, 6));
+        place(helper, controller, CaptureBoxStructure.Kind.COMPLETE, true);
+        seed(helper, controller, "valid");
+        CompoundTag sourceBefore = CaptureBoxAccess.resolve(helper.getLevel(), controller)
+                .orElseThrow()
+                .controllerBlockEntity()
+                .saveWithFullMetadata(helper.getLevel().registryAccess())
+                .copy();
+
+        SimAssemblyHelper.AssemblyResult result = SimAssemblyHelper.assembleFromSingleBlock(
+                helper.getLevel(),
+                controller,
+                controller,
+                true,
+                true
+        );
+        if (result == null) {
+            throw new AssertionError("could not assemble block-entity-conflict source");
+        }
+        BlockPos localController = controller.offset(result.offset());
+        BlockPos conflictPos = CaptureBoxStructure.placements(targetController, Direction.NORTH).get(5).pos();
+        boolean removed = false;
+        try {
+            assertReadyForDisassembly(result.subLevel(), localController, "block-entity-conflict");
+            CaptureBoxAccess.Resolved moved = CaptureBoxAccess
+                    .resolve(result.subLevel().getLevel(), localController)
+                    .orElseThrow(() -> new AssertionError("block-entity-conflict source is absent from sublevel"));
+            CompoundTag movedBefore = moved.controllerBlockEntity()
+                    .saveWithFullMetadata(helper.getLevel().registryAccess())
+                    .copy();
+            if (!helper.getLevel().setBlockAndUpdate(conflictPos, Blocks.CHEST.defaultBlockState())) {
+                throw new AssertionError("could not seed block-entity disassembly target");
+            }
+            BlockEntity conflict = helper.getLevel().getBlockEntity(conflictPos);
+            if (conflict == null) {
+                throw new AssertionError("block-entity conflict fixture has no block entity");
+            }
+            CompoundTag conflictBefore = conflict.saveWithFullMetadata(helper.getLevel().registryAccess()).copy();
+
+            SimAssemblyHelper.disassembleSubLevel(
+                    helper.getLevel(),
+                    result.subLevel(),
+                    localController,
+                    targetController,
+                    Rotation.NONE,
+                    true
+            );
+            assertReadyForDisassembly(result.subLevel(), localController, "block-entity-conflict rejected source");
+
+            CaptureBoxAccess.Resolved sourceAfterReject = CaptureBoxAccess
+                    .resolve(result.subLevel().getLevel(), localController)
+                    .orElseThrow(() -> new AssertionError("block-entity rejection removed source authority"));
+            CompoundTag sourceAfter = sourceAfterReject.controllerBlockEntity()
+                    .saveWithFullMetadata(helper.getLevel().registryAccess())
+                    .copy();
+            BlockEntity conflictAfter = helper.getLevel().getBlockEntity(conflictPos);
+            CompoundTag conflictMetadata = conflictAfter == null
+                    ? null
+                    : conflictAfter.saveWithFullMetadata(helper.getLevel().registryAccess()).copy();
+            if (!CaptureBoxAuthority.equivalentIgnoringPosition(movedBefore, sourceAfter)
+                    || !helper.getLevel().getBlockState(conflictPos).is(Blocks.CHEST)
+                    || !conflictBefore.equals(conflictMetadata)) {
+                throw new AssertionError("block-entity rejection changed source authority or target block entity");
+            }
+            assertRejectedSubLevelRetained(
+                    helper,
+                    result.subLevel(),
+                    localController,
+                    targetController,
+                    moved.facing()
+            );
+
+            helper.getLevel().setBlockAndUpdate(conflictPos, Blocks.AIR.defaultBlockState());
+            disassembleAndRemove(helper, result, localController, controller);
+            removed = true;
+        } finally {
+            helper.getLevel().setBlockAndUpdate(conflictPos, Blocks.AIR.defaultBlockState());
+            if (!removed) {
+                if (CaptureBoxAccess.resolve(result.subLevel().getLevel(), localController).isPresent()) {
+                    try {
+                        disassembleAndRemove(helper, result, localController, controller);
+                    } catch (RuntimeException | LinkageError cleanupFailure) {
+                        removeImmediately(helper, result.subLevel());
+                    }
+                } else {
+                    removeImmediately(helper, result.subLevel());
+                }
+            }
+        }
+
+        CaptureBoxAccess.Resolved restored = CaptureBoxAccess.resolve(helper.getLevel(), controller)
+                .orElseThrow(() -> new AssertionError("block-entity-conflict retry did not restore source"));
+        CompoundTag after = restored.controllerBlockEntity()
+                .saveWithFullMetadata(helper.getLevel().registryAccess())
+                .copy();
+        if (!CaptureBoxAuthority.equivalentIgnoringPosition(sourceBefore, after)) {
+            throw new AssertionError("block-entity-conflict retry changed source metadata");
+        }
+    }
+
+    private static void assertRejectedSubLevelRetained(
+            GameTestHelper helper,
+            SubLevel subLevel,
+            BlockPos localController,
+            BlockPos parentTargetController,
+            Direction facing
+    ) {
+        SubLevelContainer container = SubLevelContainer.getContainer(helper.getLevel());
+        if (container == null) {
+            throw new AssertionError("rejected disassembly lost the parent sublevel container");
+        }
+        container.processSubLevelRemovals();
+        if (subLevel.isRemoved()
+                || container.getSubLevel(subLevel.getUniqueId()) != subLevel) {
+            throw new AssertionError("rejected disassembly scheduled or removed its source sublevel");
+        }
+        int recoveryCarriers = protectedCarrierCount(helper.getLevel(), parentTargetController, facing)
+                + protectedCarrierCount(subLevel.getLevel(), localController, facing);
+        if (recoveryCarriers != 0) {
+            throw new AssertionError("rejected disassembly created a protected recovery carrier");
         }
     }
 
@@ -470,6 +826,10 @@ public final class ExactAeronauticsGameTestBridge {
             }
         }
 
+        if (assembled != null) {
+            removeImmediately(helper, assembled);
+        }
+
         CaptureBoxAccess.Resolved restored = CaptureBoxAccess.resolve(helper.getLevel(), controller)
                 .orElseThrow(() -> new AssertionError("assembler entry cleanup did not restore capture box"));
         assertRestoredSoleAuthority(
@@ -657,6 +1017,14 @@ public final class ExactAeronauticsGameTestBridge {
         ).size();
     }
 
+    private static UUID capturedUuid(CaptureBoxAccess.Resolved resolved) {
+        if (!(resolved.controllerBlockEntity() instanceof DinosaurCaptureCageBlockEntity cage)
+                || cage.getCapturedDinosaur() == null) {
+            throw new AssertionError("capture-box fixture has no readable dinosaur UUID");
+        }
+        return cage.getCapturedDinosaur().originalUuid();
+    }
+
     private static CaptureBoxAccess.Resolved findCaptureBox(SubLevel subLevel) {
         for (BlockPos pos : positionsInside(subLevel)) {
             CaptureBoxAccess.Resolved resolved = CaptureBoxAccess.resolve(subLevel.getLevel(), pos).orElse(null);
@@ -749,11 +1117,44 @@ public final class ExactAeronauticsGameTestBridge {
 
     private static Object invokeNoArgs(BlockEntity target, String methodName) throws ReflectiveOperationException {
         Method method = target.getClass().getMethod(methodName);
+        return invokeMethod(target, method, methodName);
+    }
+
+    private static void assertReadyForDisassembly(
+            SubLevel subLevel,
+            BlockPos localController,
+            String scenario
+    ) {
+        if (!(subLevel instanceof ServerSubLevel serverSubLevel)) {
+            throw new AssertionError(scenario + " source is not a formal ServerSubLevel");
+        }
+        if (subLevel.isRemoved()) {
+            throw new AssertionError(scenario + " source sublevel is already removed");
+        }
+        CaptureBoxAccess.Resolved resolved = CaptureBoxAccess
+                .resolve(subLevel.getLevel(), localController)
+                .orElseThrow(() -> new AssertionError(scenario + " source is not canonical"));
+        if (resolved.placements().size() != CaptureBoxStructure.PART_COUNT) {
+            throw new AssertionError(scenario + " source does not contain all 16 parts");
+        }
+        if (serverSubLevel.getPlot().getBoundingBox().volume() <= 0) {
+            throw new AssertionError(scenario + " source plot has no bounding volume");
+        }
+        if (serverSubLevel.getMassTracker().isInvalid()) {
+            throw new AssertionError(scenario + " source mass is invalid before removal processing");
+        }
+    }
+
+    private static Object invokeMethod(BlockEntity target, Method method, String methodName)
+            throws ReflectiveOperationException {
         try {
             return method.invoke(target);
         } catch (InvocationTargetException exception) {
             Throwable cause = exception.getCause();
-            throw new IllegalStateException("formal Physics Assembler entry threw from " + methodName, cause);
+            throw new IllegalStateException(
+                    "formal Physics Assembler entry threw from " + methodName + ": " + cause,
+                    cause
+            );
         }
     }
 

@@ -47,7 +47,7 @@ public final class DinoDoctorOverlayRenderer {
     private static final int PANEL_HORIZONTAL_PADDING = 6;
     static final int PANEL_RIGHT_EXTRA_PADDING = 5;
     static final int PANEL_TOP_PADDING = 8;
-    static final int PANEL_BOTTOM_PADDING = 4;
+    static final int PANEL_BOTTOM_PADDING = 7;
     static final int PANEL_BORDER_TOP_COLOR = 0x7AFFFFFF;
     static final int PANEL_BORDER_BOTTOM_COLOR = 0x60FFFFFF;
     static final int CONTENT_X_OFFSET = 20;

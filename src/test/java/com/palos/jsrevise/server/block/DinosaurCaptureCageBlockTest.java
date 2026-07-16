@@ -201,21 +201,16 @@ class DinosaurCaptureCageBlockTest {
     }
 
     @Test
-    void brokenCaptureBoxSelectionShapeCoversWholeTwoByFourByTwoFootprintFromEveryPart() {
+    void brokenCaptureBoxSelectionShapeIsLocalToEachPartForReliableFacePlacement() {
         BrokenDinosaurCaptureBoxBlock block = JSReviseBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get();
         BlockPos controller = new BlockPos(8, 63, -11);
         Direction facing = Direction.EAST;
-        AABB expectedWorldBounds = boundsFor(BrokenDinosaurCaptureBoxBlock.placements(controller, facing));
+        AABB expected = new AABB(0.0D, 0.0D, 0.0D, 1.0D, 1.0D, 1.0D);
 
         for (BrokenDinosaurCaptureBoxBlock.PartPlacement placement :
                 BrokenDinosaurCaptureBoxBlock.placements(controller, facing)) {
             BlockState state = block.partState(facing, placement.offsetX(), placement.offsetY(), placement.offsetZ());
             AABB actual = state.getShape(EmptyBlockGetter.INSTANCE, placement.pos(), CollisionContext.empty()).bounds();
-            AABB expected = expectedWorldBounds.move(
-                    -placement.pos().getX(),
-                    -placement.pos().getY(),
-                    -placement.pos().getZ()
-            );
 
             assertBoundsEquals(expected, actual);
         }

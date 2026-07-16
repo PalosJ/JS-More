@@ -82,7 +82,7 @@ class CapturePresentationTest {
         int capturePanelWidthWithTitleAlignedContent = 168;
         for (int[] viewport : new int[][]{{320, 180}, {426, 240}, {854, 480}}) {
             DualPanelLayout layout = DualPanelLayout.arrange(
-                    viewport[0], viewport[1], 160, 220, capturePanelWidthWithTitleAlignedContent, 147
+                    viewport[0], viewport[1], 160, 223, capturePanelWidthWithTitleAlignedContent, 147
             );
             assertLayoutInside(layout, viewport[0], viewport[1]);
             assertTrue(layout.scale() >= 0.75F);
@@ -94,13 +94,13 @@ class CapturePresentationTest {
         }
 
         assertEquals(0.75F, DualPanelLayout.arrange(
-                320, 180, 160, 220, capturePanelWidthWithTitleAlignedContent, 147
+                320, 180, 160, 223, capturePanelWidthWithTitleAlignedContent, 147
         ).scale());
         assertEquals(0.75F, DualPanelLayout.arrange(
-                426, 240, 160, 220, capturePanelWidthWithTitleAlignedContent, 147
+                426, 240, 160, 223, capturePanelWidthWithTitleAlignedContent, 147
         ).scale());
         assertEquals(1.0F, DualPanelLayout.arrange(
-                854, 480, 160, 220, capturePanelWidthWithTitleAlignedContent, 147
+                854, 480, 160, 223, capturePanelWidthWithTitleAlignedContent, 147
         ).scale());
 
         for (int[] viewport : new int[][]{{320, 180}, {426, 240}, {854, 480}}) {
@@ -112,14 +112,14 @@ class CapturePresentationTest {
             assertTrue(emptyBox.right().left() - viewport[0] / 2 >= DualPanelLayout.MIN_CENTER_CLEARANCE);
 
             DualPanelLayout.SinglePanelLayout animal = DualPanelLayout.arrangeSingleLeft(
-                    viewport[0], viewport[1], 160, 220
+                    viewport[0], viewport[1], 160, 223
             );
             assertTrue(animal.panel().isInside(viewport[0], viewport[1], 4));
             assertTrue(viewport[0] / 2 - animal.panel().right() >= DualPanelLayout.MIN_CENTER_CLEARANCE);
             assertTrue(animal.scale() >= 0.75F);
         }
 
-        DualPanelLayout.SinglePanelLayout wideAnimal = DualPanelLayout.arrangeSingleLeft(854, 480, 160, 220);
+        DualPanelLayout.SinglePanelLayout wideAnimal = DualPanelLayout.arrangeSingleLeft(854, 480, 160, 223);
         assertEquals(DualPanelLayout.PREFERRED_LEFT_CENTER_CLEARANCE, 427 - wideAnimal.panel().right());
 
         DualPanelLayout wideEmptyBox = DualPanelLayout.arrange(
@@ -128,7 +128,7 @@ class CapturePresentationTest {
         assertEquals(DualPanelLayout.PREFERRED_RIGHT_CENTER_CLEARANCE, wideEmptyBox.right().left() - 427);
 
         DualPanelLayout wideDual = DualPanelLayout.arrange(
-                854, 480, 160, 220, capturePanelWidthWithTitleAlignedContent, 147
+                854, 480, 160, 223, capturePanelWidthWithTitleAlignedContent, 147
         );
         assertEquals(DualPanelLayout.PREFERRED_LEFT_CENTER_CLEARANCE,
                 427 - wideDual.left().orElseThrow().right());

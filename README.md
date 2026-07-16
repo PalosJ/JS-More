@@ -2,7 +2,7 @@
 
 JS-revise 是面向 Minecraft 1.21.1 NeoForge 的 Jurassic Saga 附属模组。项目以服务端权威的数据、实体状态和真实运动为基础，提供麻醉、睡眠与漂浮、年龄画像、恐龙博士眼镜 HUD、群系生成控制和恐龙捕获箱等功能。
 
-本文档描述 `1.0.132` 候选源码。版本是否可发布仍以完整自动化、限时独立服务器和实际整合包验收记录为准；本文档不把候选版本等同于已发布或已完成实机验收。
+本文档描述 `1.0.133` 候选源码。版本是否可发布仍以完整自动化、限时独立服务器和实际整合包验收记录为准；本文档不把候选版本等同于已发布或已完成实机验收。
 
 ## 1. 支持矩阵
 
@@ -10,7 +10,7 @@ JS-revise 是面向 Minecraft 1.21.1 NeoForge 的 Jurassic Saga 附属模组。�
 | --- | --- | --- |
 | Mod ID | `jsrevise` | Java 包根为 `com.palos.jsrevise` |
 | 作者 | `Palos` | 显示名称为 `JS-revise` |
-| 候选版本 | `1.0.132` | `gradle.properties` 是版本单一来源，构建时展开到 metadata |
+| 候选版本 | `1.0.133` | `gradle.properties` 是版本单一来源，构建时展开到 metadata |
 | Minecraft | `1.21.1` | metadata 固定为 `[1.21.1]` |
 | NeoForge | `21.1.232` 及以上 | metadata 为 `[21.1.232,)` |
 | Java | `21` | Mixin compatibility level 与编译 toolchain 均为 Java 21 |
@@ -59,7 +59,7 @@ Travelers Lib 的 metadata 范围仍为 `[0.7.1,0.8.0)`，但服务端字节码�
 - `jsrevise:dino_doctor_goggles` 可装备在原版头部栏；安装 Curios 时也可从 Curios 头部槽识别。缺少 Curios 时不影响基础功能。
 - 佩戴眼镜并观察 8 格内的 Jurassic Saga 动物时，HUD 显示生命值、年龄、成长阶段、性别、饱食度、口渴度、心情、麻醉状态、基因和自然下蛋进度；饱食度、口渴度和心情把一位小数百分比直接放在名称冒号后，并在下一行绘制进度。观察装有恐龙的捕获箱时，左侧面板只显示恐龙详情，右侧独立面板按麻醉、水源、肉食、草食顺序显示四条余量进度、捕获时长和箱体耐久；余量点数内联为“麻醉余量：30/40”等格式，耐久按剩余值向下取整显示百分比，例如 `15/20 → 75%`。空箱也会显示四条空进度与 `100%` 耐久。
 - 三项生命体征、自然下蛋进度和捕获箱四项余量共享同一进度条样式：内部轨道为 66×7 px，空白部分使用 `0x2EFFFFFF` 半透明灰色轨道；外侧增加 1 px、与正文同色的 `#BFD1E6` 逻辑边框，总占位为 68×9 px。填充宽度按 `floor(66 × progress)` 计算，0%、50% 和 100% 分别为 0、33 和 66 px；每组保持 24 px 高。缺失、NaN 或无限生命体征显示“未知”并保留空轨道；捕获栏不再预留右侧计数列。下蛋进度使用取自 Jurassic Saga 蛋素材的奶油色渐变 `#EED1AF → #FFEDC6`。
-- 两栏普通名称和值的有效字号统一为 `0.98`，标题为 `1.05`；同一主行的 label 与 value 共用按该字号计算的 Y 锚点，避免字号差异造成上下错位。灰色麻醉增加量仍为普通 value 字号的 `0.75`，标题、基因和独立灰色次行仍按各自高度定位；基因标签继续保持现有有效 `0.585`。左栏正文从标题内容起点向右偏移 20 px，除标准 6 px 右侧留白外另加 5 px 专用余量；内容起点、捕获栏测量与双栏布局不变。捕获栏除标题外的正文与进度条继续从标题文字起点绘制，即相对面板内容起点偏移 18 px，测量时包含同一偏移以避免裁切。
+- 两栏普通名称和值的有效字号统一为 `0.98`，标题为 `1.05`；同一主行的 label 与 value 共用按该字号计算的 Y 锚点，避免字号差异造成上下错位。灰色麻醉增加量仍为普通 value 字号的 `0.75`，标题、基因和独立灰色次行仍按各自高度定位；基因标签继续保持现有有效 `0.585`。恐龙详情左栏顶部 padding 保持 8 px，底部 padding 为 7 px；正文从标题内容起点向右偏移 20 px，除标准 6 px 右侧留白外另加 5 px 专用余量。内容起点、捕获栏测量与双栏布局不变。捕获栏除标题外的正文与进度条继续从标题文字起点绘制，即相对面板内容起点偏移 18 px，测量时包含同一偏移以避免裁切。
 - 捕获箱面板使用以 `#A9A79E` 为基色的深暖灰同源渐变，顶部为 `0xDA282825`、底部为 `0xE61C1C1A`；圆角 3 和面板自身的 1 px 半透明渐变边框保持不变。水平 padding 为 6 px，上下 padding 各为 4 px，完整有效面板高 147 px；标题图标为 15 px，图标与标题文字按各自实际高度在 19 px 标题行内垂直居中，普通信息行高 12 px。
 - 宽屏时左侧恐龙面板与屏幕中心保持 80 个虚拟像素净空，右侧捕获箱面板保持 96 个；单栏模式使用各自的对应净空。空间不足时依次尝试 100%、80% 和 75% 缩放，再分别按可用空间收紧但不低于 24 个虚拟像素；仍放不下时把右面板右对齐置于左面板下方，最低缩放为 75%。不可读箱只呈现能安全确认的余量和恢复提示，不伪造捕获时长或耐久。
 - 捕获时长以及恐龙详情 HUD 中的麻醉生效延迟、麻醉剩余和灰色 `(+增加量)` 都按一位小数格式化：不足 60 秒显示秒，不足 60 分钟显示分钟，其余始终显示小时；正好 60 秒和 60 分钟分别切换为 `1.0` 分钟和 `1.0` 小时。麻醉字段只有正数才显示，顺序固定为麻醉剩余在前、麻醉生效在后；remaining 与 queued 同时存在时，灰色增加量从冒号后 value 的起点移到下一视觉行，宽度按主行与次行较宽者测量，麻醉生效排在两者之后。只有 queued 时仍保持同行显示，并且不伪造基础 `0.0 秒`。
@@ -87,7 +87,7 @@ Travelers Lib 的 metadata 范围仍为 `[0.7.1,0.8.0)`，但服务端字节码�
 - 若相同搜索范围内仍没有候选，resolver 必须回退到入口附近的最终点：放置箱使用其 global AABB 顶面中心，手持使用点击面相邻基点，耐久释放沿用原 release origin；该层不再以碰撞、支撑、水、岩浆或边界阻止释放，接受附近卡墙、坠落或环境伤害风险，不把恐龙远传。最终只有实体 NBT 解码失败、任一已加载维度已存在相同 UUID 或 `addFreshEntity=false` 才保留载荷；实体成功加入世界后立即永久清除原 payload，后续载体替换失败不能恢复同 UUID 权威。
 - 释放恢复原 UUID。防复制检查覆盖服务器当前所有已加载维度；项目没有世界级 UUID lease，因此未加载维度不在防重保证内。
 - 物品 tooltip 会为余量可读的空箱、有效箱和恢复态箱显示麻醉、水源、肉食、草食百分比；有效箱继续显示麻醉、整数百分比耐久和按秒/分钟/小时切换的捕获时长。余量本身不可读时只显示恢复警告，不伪造数值。
-- 耐久归零并释放成功后，载体转为 `jsrevise:broken_dinosaur_capture_box`。破损箱仍是 2×4×2 的 16-part 结构，不保存恐龙且没有 HUD 交互；碰撞使用 1 px 厚的箱体壳并按外观扣除前洞、左右两个主侧洞、右侧小洞和顶洞。两个主侧洞有 `25/16` 方块净高，可供 1.5 格高的蹲行实体通过，内部 `30/16` 方块净高可站立，前洞与右侧小洞只保证爬行通过；七块外围箱体碎片始终只是视觉装饰，不参与碰撞。每个 part 继续提供完整支撑面和覆盖结构的选择框，方块保持 `noOcclusion`，使正式 Simulated `canAttach/canSurvive` 路径可放置物理组装器。支撑查询不依赖坐标，因为上游会传入组装器坐标；孤立 part 虽可附着方块，但实际组装仍必须通过 16-part canonical movement gate。
+- 耐久归零并释放成功后，载体转为 `jsrevise:broken_dinosaur_capture_box`。破损箱仍是 2×4×2 的 16-part 结构，不保存恐龙且没有 HUD 交互；碰撞使用 1 px 厚的箱体壳并按外观扣除前洞、左右两个主侧洞、右侧小洞和顶洞。两个主侧洞有 `25/16` 方块净高，可供 1.5 格高的蹲行实体通过，内部 `30/16` 方块净高可站立，前洞与右侧小洞只保证爬行通过；七块外围箱体碎片始终只是视觉装饰，不参与碰撞。每个 part 继续提供完整支撑面，选择与命中轮廓则限定为该 part 本地的 1×1 完整方块，不再由每个代理扩展到整个 2×4×2 结构；这避免斜向点击命中错误 part 或面，使底面附着更可靠，同时不改变细分碰撞、质量或 canonical 结构。方块保持 `noOcclusion`，使正式 Simulated `canAttach/canSurvive` 路径可放置物理组装器。支撑查询不依赖坐标，因为上游会传入组装器坐标；孤立 part 虽可附着方块，但实际组装仍必须通过 16-part canonical movement gate。
 - 新鲜静态完整箱当场破损时，世界 BER 仍显示七块外围碎片；普通破损箱物品放置、挖掘掉落后重新放置、当前位于 sublevel 的完整箱破损、破损箱成功物理化及之后拆解、以及恢复物品重建时都会永久隐藏碎片。首次物理化失败并回滚时恢复原 source 的碎片状态。破损箱物品模型只保留主体，不烘焙七块世界碎片；静态世界 BER 仍使用现有 debris sheet 渲染允许显示的碎片，贴图与方块/物品 ID 均不改变。
 - 完整箱和破损箱的活塞反应均为 `BLOCK`。破坏任一 part 会按实际 part 位置执行 harvest 判定，并且只级联清理通过 canonical 校验、属于同一 controller 的结构；客户端把破坏进度镜像到全部 part。
 - 捕获箱设置为不可原版维修。铁砧会拒绝右槽携带任意 raw 捕获或余量 key，或左槽已有任一 key 时用另一捕获箱合并；右槽为空的改名和附魔书仍可用，并保留 `CUSTOM_DATA`、名称、附魔及 Damage mirror。
@@ -183,6 +183,7 @@ C2S 请求有频率、距离、玩家状态和目标类型校验；服务端不�
 - 完整箱和破损箱始终属于 `#simulated:non_movable`。只有运行时正式类指纹、两个受限 ASM patch 的 post-apply 验证、AdditionalBlocks/AttachedCheck 注册及当前 16-part canonical 结构全部成立时，才由 Companion safe facade 开放移动。Sable `moveBlocks` 严格保留正式 pre-apply 421 条指令验证；post-apply 只接受标准 JS 439 条形态，或在正常 `finish()` 与唯一 `RETURN` 之间额外出现已指纹的 Diesel 五指令 TAIL。后者只从验证视图逻辑排除，实际 ClassNode 指令不删除，视图必须再次通过完整 439 指纹、异常表、邻接关系和 CFG 校验。依赖缺失、只存在一部分、额外尾代码、多个 TAIL、descriptor/owner/anchor/指令顺序漂移或未知版本均 fail-closed 并保持不可移动，不通过删除安全 tag 绕过。
 - `CaptureBoxWorldContext` 对静态世界使用 identity transform；对 Sable sublevel 保存维度、sublevel UUID、local controller、八角投影后的 global AABB、global facing 和有限 point velocity。距离显式使用三维坐标，不依赖上游只覆盖单轴的便捷重载；飞行器上的捕获、释放、掉落、8 格观察和同 sublevel 漏斗都在明确的 local/global 边界中运行。现有两个 BER 保持 Sable 已提供的局部相机/PoseStack，不做二次投影。
 - Sable 逐块搬运事务分别保存 `sourceOriginal` 与 `targetExpected`：provisional 目标必须先与 original 深度等价，破损目标再通过 relocation-only authority 投影为 detached expected 并二次验证；SOURCE 回滚始终恢复 original，TARGET commit/finish 与恢复物品始终使用 expected。位置等价比较仍只忽略 `x/y/z`，不会忽略碎片标记；快照保存完整 controller metadata、任意 raw tag、余量、耐久及 Damage mirror。目标完整时提交并中和源，目标不完整时回滚并恢复源；源无法恢复但目标完整时保留目标，二者都不能形成结构时才生成唯一的受保护恢复物品。该保证只覆盖正常世界写入语义下捕获箱域恰好一个权威，不宣称整艘航空器或 JVM 崩溃窗口具有 ACID 事务性。
+- 反物理化目标的 16 个位置若都已加载且只含空气、普通非 BE 方块或流体，可按正式 Sable 语义覆盖；事务会先记录每格前态，并在后续搬运失败时仅恢复仍由本事务拥有的位置，避免覆盖意外出现的第三方状态。若目标含任意方块实体或 `EntityBlock`、另一捕获箱结构/权威、未加载位置或其他不安全状态，则本次移动会无崩溃地 fail-closed：精确匹配 Sable 的 setup/copy/notify/delete/update 五遍迭代，只让 setup 取得一个锚点，后四遍为空；仅在源 sublevel 质量追踪器失效时重建并重新聚合，保留源结构而不生成恢复物品。清除或修复冲突后可重试，但不支持覆盖方块实体，也不把该安全拒绝描述为整艘飞行器的原子回滚。
 - 已释放恐龙的完整箱在耐久归零后执行原位 `COMPLETE → BROKEN` 转换：先替换 15 个非 controller part，最后替换 controller，全程不把 plot 清空，避免独立 sublevel 因瞬时空结构被移除。转换失败会回滚为空载的完整 canonical 结构，但不会恢复已经成功生成到世界中的恐龙 UUID 或捕获载荷。正式 exact 自动化会让独立 sublevel 跨过 `SubLevelContainer.processSubLevelRemovals()` 并确认 detached 破损结构仍存在；这仍不等同于用户真实整合包中的实机验收。
 - 正式 Sable `2.0.3` 会让每个非空普通 part 的质量为 1；破损箱 64 种 facing/part 碰撞状态均非空，因此 16-part 总质量为 16，与完整箱一致，不增加 `physics_block_properties` JSON。`-PwithAeronautics=true` 验证基础精确二进制；`-PwithAeronauticsPackInterop=true` 自动包含前者，并以不传递的测试运行时依赖加载 Diesel、CEI 和 Dragons Plus。默认 profile 必须主动得到 `ABSENT`，后两者必须得到 `READY`；`DRIFT`、patch 未安装或仍不可移动会让 GameTest 直接失败。正式 profile 覆盖破损箱 `canAttach/canSurvive`、每 part/总质量、直接组装 helper、物理组装器 BE 入口、完整/余量/VALID/raw/破损箱组装与拆解回程，并校验 UUID、原始 NBT、余量、耐久、Damage mirror、碎片状态和未知 controller metadata 的单一权威。通过这些自动化仍不等于真实 Jurassic Tales 整合包、飞行保存重载、Jade/BER 或游戏内视觉已经人工验收。
 
@@ -307,11 +308,11 @@ NeoForge COMMON 配置通过模组配置界面展示，并提供英文与简体�
 
 ## 6. 已验证基线
 
-### 1.0.132 候选自动化边界
+### 1.0.133 候选自动化边界
 
-当前候选沿用单元测试、资源引用测试、独立捕获/麻醉运动 GameTest 和 `assemble` 门禁，并覆盖 HUD 同字号主行对齐/queued 次行、旧 100/500 耐久迁移、无空窗 `COMPLETE → BROKEN` 转换、破损箱 64 个碰撞状态与五个洞口、碎片四态/raw 同步、`sourceOriginal/targetExpected` 搬运语义、正式 Sable 每 part 与总质量、canonical 结构、标准 ItemHandler、三级释放、sublevel 世界桥、单一权威及精确 bytecode 漂移样本；Travelers 补丁测试继续使用真实 `0.7.1` class bytes。实施阶段的 focused JUnit、默认 GameTest 与 exact Aeronautics GameTest 已通过；最终交付仍须由独立 Verifier 复跑三套完整 `test`/GameTest/`assemble`、限时独立服务器，并核对最终 JAR metadata、Mixin 清单、依赖内容、资源和工作树。
+当前候选沿用单元测试、资源引用测试、独立捕获/麻醉运动 GameTest 和 `assemble` 门禁，并覆盖 HUD 同字号主行对齐、queued 次行与左栏新增的 3 px 底部留白，旧 100/500 耐久迁移、无空窗 `COMPLETE → BROKEN` 转换、破损箱 64 个碰撞状态与五个洞口、本地 part 命中轮廓及底面放置、碎片四态/raw 同步、`sourceOriginal/targetExpected` 搬运语义、普通目标前态回滚与危险目标五遍安全拒绝、正式 Sable 每 part 与总质量、canonical 结构、标准 ItemHandler、三级释放、sublevel 世界桥、单一权威及精确 bytecode 漂移样本；Travelers 补丁测试继续使用真实 `0.7.1` class bytes。实施阶段的 focused JUnit 与 exact Aeronautics GameTest 已通过；最终交付仍须由独立 Verifier 复跑三套完整 `test`/GameTest/`assemble`、限时独立服务器，并核对最终 JAR metadata、Mixin 清单、依赖内容、资源和工作树。
 
-局部验证和历史自动化结果不等于当前候选的完整门禁或实际整合包验收。本文档不宣称 `1.0.132` 已通过用户真实 Jurassic Tales 整合包中的独立物理化捕获箱破损、物理组装器、破损箱洞口通行、飞行/旋转、保存重载、拆解、质量/碎片生命周期、Jade/BER、漏斗、持续观察捕获箱、双侧 HUD 多 GUI scale 或其他游戏内视觉验收，也不把未知 Aeronautics/Sable/Create 组合或未取得二进制的其他 Travelers `0.7.x` 标为已实测。默认自动化、两套精确 profile、限时 dedicated server 与实际整合包验收应分别留下明确记录。
+局部验证和历史自动化结果不等于当前候选的完整门禁或实际整合包验收。本文档不宣称 `1.0.133` 已通过用户真实 Jurassic Tales 整合包中的物理组装器 tick 入口、取消物理化回程、普通占位覆盖或危险目标重试，也不宣称独立物理化捕获箱破损、破损箱洞口/底面放置、飞行/旋转、保存重载、拆解、质量/碎片生命周期、Jade/BER、漏斗、持续观察捕获箱、双侧 HUD 多 GUI scale 或其他游戏内视觉已经验收；未知 Aeronautics/Sable/Create 组合和未取得二进制的其他 Travelers `0.7.x` 同样不能标为已实测。默认自动化、两套精确 profile、限时 dedicated server 与实际整合包验收应分别留下明确记录。
 
 ### 1.0.115 历史实机基线
 
@@ -324,4 +325,4 @@ NeoForge COMMON 配置通过模组配置界面展示，并提供英文与简体�
 - 已确认 DNA 图标、动态主题色、85% HUD 整体缩放、等效 90% 字体和透明度在不同 GUI 缩放下表现符合预期。
 - 已通过独立服务器中的年龄、麻醉倒计时、漂浮阶段和粒子事件同步验证。
 
-这些结论只对应 `1.0.115` 发布前的当时整合包环境，不能证明 `1.0.132`、未来依赖版本或其他整合包已通过相同验收。任何功能、资源、Mixin、依赖或整合包变化后，都应重新执行相应的自动化、独立服务器和游戏内验证。
+这些结论只对应 `1.0.115` 发布前的当时整合包环境，不能证明 `1.0.133`、未来依赖版本或其他整合包已通过相同验收。任何功能、资源、Mixin、依赖或整合包变化后，都应重新执行相应的自动化、独立服务器和游戏内验证。
