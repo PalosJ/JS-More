@@ -420,7 +420,7 @@ public final class DinosaurCaptureSupplyGameTests {
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 100)
-    public static void firstServerScanPersistsLegacyDurabilityMigrationAndMirror(GameTestHelper helper) {
+    public static void firstServerScanPersistsCompatibleDurabilityMigrationsAndMirror(GameTestHelper helper) {
         JSAnimalBase animal = createAnimalWithHunger(helper);
         CapturedDinosaurData captured = animal == null ? null : CapturedDinosaurData.capture(animal).orElse(null);
         if (captured == null) {
@@ -449,42 +449,42 @@ public final class DinosaurCaptureSupplyGameTests {
                 .copyTag()
                 .getCompound(DinosaurCaptureItemData.CAPTURE_TAG);
         if (result != DinosaurCaptureService.StackSettlementResult.PERSISTED
-                || DinosaurCaptureItemData.get(stack).map(CapturedDinosaurData::durability).orElse(-1) != 19
-                || stored.getInt("DurabilityCapacity") != 20
-                || !Integer.valueOf(20).equals(stack.get(DataComponents.MAX_DAMAGE))
-                || !Integer.valueOf(1).equals(stack.get(DataComponents.DAMAGE))) {
+                || DinosaurCaptureItemData.get(stack).map(CapturedDinosaurData::durability).orElse(-1) != 475
+                || stored.getInt("DurabilityCapacity") != 500
+                || !Integer.valueOf(500).equals(stack.get(DataComponents.MAX_DAMAGE))
+                || !Integer.valueOf(25).equals(stack.get(DataComponents.DAMAGE))) {
             helper.fail("First server scan did not atomically persist legacy durability migration and mirror");
             return;
         }
 
-        CompoundTag previousCapacity = captured.serializeNBT();
-        previousCapacity.putInt("DurabilityCapacity", 500);
-        previousCapacity.putInt("Durability", 375);
-        ItemStack previousStack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
+        CompoundTag interimCapacity = captured.serializeNBT();
+        interimCapacity.putInt("DurabilityCapacity", 20);
+        interimCapacity.putInt("Durability", 15);
+        ItemStack interimStack = new ItemStack(JSReviseItems.DINOSAUR_CAPTURE_CAGE.get());
         CustomData.update(
                 DataComponents.CUSTOM_DATA,
-                previousStack,
-                tag -> tag.put(DinosaurCaptureItemData.CAPTURE_TAG, previousCapacity)
+                interimStack,
+                tag -> tag.put(DinosaurCaptureItemData.CAPTURE_TAG, interimCapacity)
         );
-        previousStack.set(DataComponents.MAX_DAMAGE, 500);
-        previousStack.set(DataComponents.DAMAGE, 125);
-        DinosaurCaptureService.StackSettlementResult previousResult = DinosaurCaptureService.settleCapturedStack(
-                previousStack,
+        interimStack.set(DataComponents.MAX_DAMAGE, 20);
+        interimStack.set(DataComponents.DAMAGE, 5);
+        DinosaurCaptureService.StackSettlementResult interimResult = DinosaurCaptureService.settleCapturedStack(
+                interimStack,
                 helper.getLevel(),
                 Vec3.atCenterOf(helper.absolutePos(new BlockPos(15, 2, 15))),
                 0.0F
         );
-        CompoundTag rewrittenPrevious = previousStack
+        CompoundTag rewrittenInterim = interimStack
                 .getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
                 .copyTag()
                 .getCompound(DinosaurCaptureItemData.CAPTURE_TAG);
-        if (previousResult != DinosaurCaptureService.StackSettlementResult.PERSISTED
-                || DinosaurCaptureItemData.get(previousStack)
-                .map(CapturedDinosaurData::durability).orElse(-1) != 15
-                || rewrittenPrevious.getInt("DurabilityCapacity") != 20
-                || !Integer.valueOf(20).equals(previousStack.get(DataComponents.MAX_DAMAGE))
-                || !Integer.valueOf(5).equals(previousStack.get(DataComponents.DAMAGE))) {
-            helper.fail("First server scan did not rewrite previous 500-capacity durability and mirror");
+        if (interimResult != DinosaurCaptureService.StackSettlementResult.PERSISTED
+                || DinosaurCaptureItemData.get(interimStack)
+                .map(CapturedDinosaurData::durability).orElse(-1) != 375
+                || rewrittenInterim.getInt("DurabilityCapacity") != 500
+                || !Integer.valueOf(500).equals(interimStack.get(DataComponents.MAX_DAMAGE))
+                || !Integer.valueOf(125).equals(interimStack.get(DataComponents.DAMAGE))) {
+            helper.fail("First server scan did not rewrite interim 20-capacity durability and mirror");
             return;
         }
 
@@ -499,14 +499,14 @@ public final class DinosaurCaptureSupplyGameTests {
         cage.loadCustomOnly(blockEntityTag, helper.getLevel().registryAccess());
         if (!cage.capturedNeedsRewrite()
                 || cage.getCapturedDinosaur() == null
-                || cage.getCapturedDinosaur().durability() != 19) {
+                || cage.getCapturedDinosaur().durability() != 475) {
             helper.fail("Legacy controller payload was not decoded conservatively");
             return;
         }
         DinosaurCaptureService.settlePlacedCage(cage);
         CompoundTag rewrittenBe = cage.saveWithoutMetadata(helper.getLevel().registryAccess());
         if (cage.capturedNeedsRewrite()
-                || rewrittenBe.getCompound("CapturedDinosaur").getInt("DurabilityCapacity") != 20) {
+                || rewrittenBe.getCompound("CapturedDinosaur").getInt("DurabilityCapacity") != 500) {
             helper.fail("First controller tick did not persist durability capacity migration");
             return;
         }

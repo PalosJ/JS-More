@@ -25,10 +25,10 @@ class JSReviseItemTooltipHandlerTest {
     void formatsCaptureBoxDurabilityAsBoundedWholePercentages() {
         assertEquals("0%", CaptureBoxDurabilityFormatter.format(Long.MIN_VALUE));
         assertEquals("0%", CaptureBoxDurabilityFormatter.format(0L));
-        assertEquals("5%", CaptureBoxDurabilityFormatter.format(1L));
-        assertEquals("75%", CaptureBoxDurabilityFormatter.format(15L));
-        assertEquals("95%", CaptureBoxDurabilityFormatter.format(19L));
-        assertEquals("100%", CaptureBoxDurabilityFormatter.format(20L));
+        assertEquals("0%", CaptureBoxDurabilityFormatter.format(1L));
+        assertEquals("75%", CaptureBoxDurabilityFormatter.format(375L));
+        assertEquals("99%", CaptureBoxDurabilityFormatter.format(499L));
+        assertEquals("100%", CaptureBoxDurabilityFormatter.format(500L));
         assertEquals("100%", CaptureBoxDurabilityFormatter.format(Long.MAX_VALUE));
     }
 
@@ -89,7 +89,7 @@ class JSReviseItemTooltipHandlerTest {
         ItemStack valid = new ItemStack(Items.STONE);
         DinosaurCaptureItemData.setContents(
                 valid,
-                capturedData(15),
+                capturedData(375),
                 new DinosaurCaptureSupplies(1, 2, 3, 4)
         );
 

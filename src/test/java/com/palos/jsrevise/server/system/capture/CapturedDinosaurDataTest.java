@@ -239,7 +239,7 @@ class CapturedDinosaurDataTest {
     }
 
     @Test
-    void legacyDurabilityMigrationProjectsThroughEstablishedFiveHundredCapacityState() {
+    void legacyDurabilityMigrationPreservesEstablishedFiveHundredCapacityState() {
         CapturedDinosaurData.DecodeResult decoded = decodeLegacyDurability(75);
         CompoundTag explicitLegacy = storedDataTag(new CompoundTag());
         explicitLegacy.getCompound("EntityNbt").putFloat("Health", 20.0F);
@@ -247,35 +247,41 @@ class CapturedDinosaurDataTest {
         explicitLegacy.putInt("DurabilityCapacity", 100);
         CapturedDinosaurData.DecodeResult explicit = CapturedDinosaurData.decodeNBT(explicitLegacy).orElseThrow();
 
-        assertEquals(20, decodeLegacyDurability(100).data().durability());
-        assertEquals(19, decoded.data().durability());
-        assertEquals(19, explicit.data().durability());
-        assertEquals(17, decodeLegacyDurability(1).data().durability());
+        assertEquals(500, decodeLegacyDurability(100).data().durability());
+        assertEquals(475, decoded.data().durability());
+        assertEquals(475, explicit.data().durability());
+        assertEquals(401, decodeLegacyDurability(1).data().durability());
         assertEquals(0, decodeLegacyDurability(0).data().durability());
         assertTrue(decoded.needsRewrite());
         assertTrue(explicit.needsRewrite());
-        assertEquals(20, decoded.data().serializeNBT().getInt("DurabilityCapacity"));
+        assertEquals(500, decoded.data().serializeNBT().getInt("DurabilityCapacity"));
     }
 
     @Test
-    void explicitCurrentCapacityDoesNotMigratePreviousCapacityDoesAndUnknownIsUnreadable() {
+    void explicitCurrentCapacityDoesNotMigrateInterimCapacityDoesAndUnknownIsUnreadable() {
         CompoundTag current = storedDataTag(new CompoundTag());
         current.getCompound("EntityNbt").putFloat("Health", 20.0F);
-        current.putInt("Durability", 15);
-        current.putInt("DurabilityCapacity", 20);
-        CapturedDinosaurData.DecodeResult decoded = CapturedDinosaurData.decodeNBT(current).orElseThrow();
-        assertEquals(15, decoded.data().durability());
-        assertFalse(decoded.needsRewrite());
-
         current.putInt("Durability", 375);
         current.putInt("DurabilityCapacity", 500);
-        CapturedDinosaurData.DecodeResult previous = CapturedDinosaurData.decodeNBT(current).orElseThrow();
-        assertEquals(15, previous.data().durability());
-        assertTrue(previous.needsRewrite());
+        CapturedDinosaurData.DecodeResult decoded = CapturedDinosaurData.decodeNBT(current).orElseThrow();
+        assertEquals(375, decoded.data().durability());
+        assertFalse(decoded.needsRewrite());
+
+        current.putInt("Durability", 15);
+        current.putInt("DurabilityCapacity", 20);
+        CapturedDinosaurData.DecodeResult interim = CapturedDinosaurData.decodeNBT(current).orElseThrow();
+        assertEquals(375, interim.data().durability());
+        assertTrue(interim.needsRewrite());
+
+        current.putInt("Durability", 20);
+        assertEquals(500, CapturedDinosaurData.decodeNBT(current).orElseThrow().data().durability());
 
         current.putInt("Durability", 1);
-        CapturedDinosaurData.DecodeResult nearlyBrokenPrevious = CapturedDinosaurData.decodeNBT(current).orElseThrow();
-        assertEquals(1, nearlyBrokenPrevious.data().durability());
+        CapturedDinosaurData.DecodeResult nearlyBrokenInterim = CapturedDinosaurData.decodeNBT(current).orElseThrow();
+        assertEquals(25, nearlyBrokenInterim.data().durability());
+
+        current.putInt("Durability", 0);
+        assertEquals(0, CapturedDinosaurData.decodeNBT(current).orElseThrow().data().durability());
 
         current.putInt("DurabilityCapacity", 250);
         assertTrue(CapturedDinosaurData.decodeNBT(current).isEmpty());

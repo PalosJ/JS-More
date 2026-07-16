@@ -72,7 +72,7 @@ class DinosaurCaptureItemDataTest {
 
         assertEquals(Integer.valueOf(CapturedDinosaurData.MAX_DURABILITY), stack.get(DataComponents.MAX_DAMAGE));
         assertEquals(Integer.valueOf(10), stack.get(DataComponents.DAMAGE));
-        assertEquals(7, stack.getBarWidth());
+        assertEquals(13, stack.getBarWidth());
         assertEquals(customBefore, stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag());
         assertFalse(DinosaurCaptureItemData.syncDamageMirror(stack, data, 210L));
     }
@@ -93,7 +93,7 @@ class DinosaurCaptureItemDataTest {
         assertEquals(damageBefore, stack.get(DataComponents.DAMAGE));
         assertEquals(maxDamageBefore, stack.get(DataComponents.MAX_DAMAGE));
         assertEquals(customBefore, stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag());
-        assertEquals(7, stack.getBarWidth());
+        assertEquals(13, stack.getBarWidth());
     }
 
     @Test
@@ -102,13 +102,13 @@ class DinosaurCaptureItemDataTest {
         DinosaurCaptureItemData.set(stack, data(CapturedDinosaurData.MAX_DURABILITY));
 
         DinosaurCaptureItemData.cacheProjectedDurabilityIfStale(stack, 219L);
-        assertEquals(10, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
+        assertEquals(490, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
 
         DinosaurCaptureItemData.cacheProjectedDurabilityIfStale(stack, 220L);
-        assertEquals(10, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
+        assertEquals(490, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
 
         DinosaurCaptureItemData.cacheProjectedDurabilityIfStale(stack, 239L);
-        assertEquals(9, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
+        assertEquals(489, DinosaurCaptureItemData.cachedProjectedDurability(stack).orElseThrow());
     }
 
     @Test

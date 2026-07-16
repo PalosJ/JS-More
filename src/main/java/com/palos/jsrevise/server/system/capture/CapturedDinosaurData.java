@@ -24,9 +24,9 @@ public record CapturedDinosaurData(
         CapturedDinosaurVitals vitals,
         int durabilityRemainderTicks
 ) {
-    public static final int MAX_DURABILITY = 20;
+    public static final int MAX_DURABILITY = 500;
     private static final int LEGACY_MAX_DURABILITY = 100;
-    private static final int PREVIOUS_MAX_DURABILITY = 500;
+    private static final int INTERIM_MAX_DURABILITY = 20;
     private static final String ENTITY_TYPE = "EntityType";
     private static final String ORIGINAL_UUID = "OriginalUuid";
     private static final String DISPLAY_NAME = "DisplayName";
@@ -287,7 +287,7 @@ public record CapturedDinosaurData(
         }
         int storedCapacity = legacyCapacity ? LEGACY_MAX_DURABILITY : tag.getInt(DURABILITY_CAPACITY);
         if (storedCapacity != LEGACY_MAX_DURABILITY
-                && storedCapacity != PREVIOUS_MAX_DURABILITY
+                && storedCapacity != INTERIM_MAX_DURABILITY
                 && storedCapacity != MAX_DURABILITY) {
             return Optional.empty();
         }
@@ -326,9 +326,8 @@ public record CapturedDinosaurData(
         long bounded = Math.min(storedCapacity, storedDurability);
         if (storedCapacity == LEGACY_MAX_DURABILITY) {
             // 1.0.124 migrated 100-capacity boxes to 500 while preserving damage already taken.
-            // Project through that established state so direct upgrades and sequential upgrades agree.
-            bounded = PREVIOUS_MAX_DURABILITY - (LEGACY_MAX_DURABILITY - bounded);
-            storedCapacity = PREVIOUS_MAX_DURABILITY;
+            bounded = MAX_DURABILITY - (LEGACY_MAX_DURABILITY - bounded);
+            storedCapacity = MAX_DURABILITY;
         }
         return (int) Math.min(
                 MAX_DURABILITY,

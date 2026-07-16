@@ -190,7 +190,7 @@ class DinoDoctorOverlayRendererTest {
     @Test
     void captureBoxRightPanelUsesOrderedColoredBarsThenDurationAndDurability() {
         CaptureBoxHudViewModel viewModel = CaptureBoxHudViewModel.occupied(
-                40, 15, 10, 5, false, 72_000L, 15
+                40, 15, 10, 5, false, 72_000L, 375
         );
 
         List<DinoDoctorOverlayRenderer.CapturePanelLine> lines =
@@ -251,7 +251,9 @@ class DinoDoctorOverlayRendererTest {
         ).orElseThrow();
         List<DinoDoctorOverlayRenderer.CapturePanelLine> captureLines =
                 DinoDoctorOverlayRenderer.createCaptureBoxLines(
-                        CaptureBoxHudViewModel.occupied(20, 10, 10, 10, false, 1L, 20)
+                        CaptureBoxHudViewModel.occupied(
+                                20, 10, 10, 10, false, 1L, CapturedDinosaurData.MAX_DURABILITY
+                        )
                 );
 
         assertEquals(3, observationLines.stream().filter(DinoDoctorOverlayRenderer.OverlayLine::hasProgress).count());
@@ -421,7 +423,9 @@ class DinoDoctorOverlayRendererTest {
     @Test
     void capturePanelCompleteValidHeightIsOneHundredFortySevenPixels() {
         List<DinoDoctorOverlayRenderer.CapturePanelLine> lines = DinoDoctorOverlayRenderer.createCaptureBoxLines(
-                CaptureBoxHudViewModel.occupied(40, 20, 20, 20, false, 72_000L, 20)
+                CaptureBoxHudViewModel.occupied(
+                        40, 20, 20, 20, false, 72_000L, CapturedDinosaurData.MAX_DURABILITY
+                )
         );
 
         int contentHeight = lines.stream().mapToInt(DinoDoctorOverlayRenderer.CapturePanelLine::height).sum();
