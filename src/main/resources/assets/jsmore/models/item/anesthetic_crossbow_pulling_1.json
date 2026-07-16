@@ -1,0 +1,6 @@
+{
+  "parent": "jsmore:item/anesthetic_crossbow_base",
+  "textures": {
+    "layer0": "jsmore:item/crossbow_pulling_1"
+  }
+}

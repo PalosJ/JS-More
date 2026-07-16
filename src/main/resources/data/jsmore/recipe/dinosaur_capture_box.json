@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "D": {
+      "item": "minecraft:iron_door"
+    },
+    "I": {
+      "item": "minecraft:iron_block"
+    },
+    "W": {
+      "item": "minecraft:yellow_dye"
+    }
+  },
+  "pattern": [
+    "III",
+    "IWD",
+    "III"
+  ],
+  "result": {
+    "count": 1,
+    "id": "jsmore:dinosaur_capture_box"
+  }
+}

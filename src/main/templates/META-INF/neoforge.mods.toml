@@ -5,6 +5,7 @@ license="${mod_license}"
 modId="${mod_id}" #mandatory
 version="${mod_version}" #mandatory
 displayName="${mod_name}" #mandatory
+logoFile="jsmore.png"
 credits="${credits}"
 authors="${mod_author}"
 description='''${mod_description}'''
@@ -29,14 +30,14 @@ side="BOTH"
 [[dependencies.${mod_id}]]
 modId="jurassicsaga"
 type="required"
-versionRange="[0.2.1,0.3.0)"
+versionRange="[0.2.1,)"
 ordering="AFTER"
 side="BOTH"
 
 [[dependencies.${mod_id}]]
 modId="travelers"
 type="required"
-versionRange="[0.7.1,0.8.0)"
+versionRange="[0.7.1,)"
 ordering="AFTER"
 side="BOTH"
 

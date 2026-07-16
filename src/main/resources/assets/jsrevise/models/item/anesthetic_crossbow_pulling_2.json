@@ -1,6 +1,0 @@
-{
-  "parent": "jsrevise:item/anesthetic_crossbow_base",
-  "textures": {
-    "layer0": "jsrevise:item/crossbow_pulling_2"
-  }
-}

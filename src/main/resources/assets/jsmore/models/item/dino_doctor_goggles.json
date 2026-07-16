@@ -1,0 +1,6 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "jsmore:item/dino_doctor_goggles"
+  }
+}

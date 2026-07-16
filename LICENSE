@@ -1,0 +1,34 @@
+JS More License Scope Notice
+
+Copyright (c) 2026 Palos
+
+JS More uses more than one license. This file is a scope index; it does not
+replace the complete license texts or any third-party terms.
+
+1. MIT scope
+
+   Java source, tests, Gradle and CI files, recipes, tags, language files,
+   ordinary data files, and project documentation are licensed under the MIT
+   License in LICENSES/MIT.txt, unless a file or notice states otherwise.
+
+2. Original visual-asset scope
+
+   Only visual files explicitly marked ARR-VERIFIED in ASSET_PROVENANCE.md are
+   covered by LICENSES/LicenseRef-JSMore-Visual-Assets.txt. A file is not part
+   of this scope merely because it is stored under an assets directory.
+
+3. Third-party and upstream-derived material
+
+   Third-party code, libraries, names, trademarks, referenced resources, and
+   upstream-derived visual material are excluded from both project grants
+   above. Their ownership and applicable terms are recorded in
+   THIRD_PARTY_NOTICES.md and ASSET_PROVENANCE.md.
+
+4. NeoForge MDK template material
+
+   NeoForge MDK template files retain their original MIT notice in
+   TEMPLATE_LICENSE.txt. A packaging copy is available at
+   LICENSES/NeoForge-MDK-MIT.txt.
+
+No trademark rights are granted by this notice. If a provenance row is marked
+BLOCKED or otherwise unresolved, it must be resolved before a public release.

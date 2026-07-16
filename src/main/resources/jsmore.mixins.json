@@ -1,0 +1,36 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.palos.jsmore.mixin",
+  "plugin": "com.palos.jsmore.mixin.JSMoreMixinPlugin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "EntityTypeSpawnEggMixin",
+    "JSAnimalAnimationSystemsMixin",
+    "JSAnimalBaseSystemsMixin",
+    "JSAquaticBaseSystemsMixin",
+    "JSAvianBaseSystemsMixin",
+    "JSTerrablenderMixin",
+    "JSEntityDataHolderSystemsMixin",
+    "LivingEntityTravelMixin",
+    "MultiNoiseBiomeSourceMixin",
+    "TravelersAnimationDefinitionMixin",
+    "TravelersAnimalAnimationModuleAccessor",
+    "TravelersSmartAnimalBaseMixin",
+    "aeronautics.SableSubLevelAssemblyHelperMixin",
+    "aeronautics.SimAssemblyContraptionMixin"
+  ],
+  "client": [
+    "client.AzEntityDispatchCommandPacketMixin",
+    "client.CustomHeadLayerMixin",
+    "client.LevelRendererDestroyProgressMixin",
+    "client.TravelersClientAnimatorMixin",
+    "client.TravelersAzureModelRendererMixin"
+  ],
+  "server": [
+    "server.TravelersHandler1211ServerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

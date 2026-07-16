@@ -1,0 +1,41 @@
+{
+  "parent": "jsmore:acquire_anesthetic_potion",
+  "display": {
+    "icon": {
+      "id": "jsmore:dinosaur_capture_box"
+    },
+    "title": {
+      "translate": "advancement.jsmore.transport_ready.title"
+    },
+    "description": {
+      "translate": "advancement.jsmore.transport_ready.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "has_transport_kit": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "jsmore:anesthetic_crossbow"
+          },
+          {
+            "items": "jsmore:anesthetic_dart"
+          },
+          {
+            "items": "jsmore:dinosaur_capture_box"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_transport_kit"
+    ]
+  ]
+}

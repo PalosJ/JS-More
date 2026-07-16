@@ -1,0 +1,18 @@
+JS More Original Visual Assets License
+
+Copyright (c) 2026 Palos. All rights reserved.
+
+This license applies only to files explicitly marked ARR-VERIFIED in
+ASSET_PROVENANCE.md. It does not apply to Minecraft material, Jurassic Saga
+material, third-party material, upstream-derived work, user-supplied work
+whose ownership is not explicitly assigned, or files with PENDING or BLOCKED
+provenance.
+
+You may use these assets as incorporated in an authorized copy of JS More for
+normal gameplay. No permission is granted to extract, redistribute, sell,
+relicense, or use the covered assets in another project, except with prior
+written permission from the copyright holder or as required by applicable
+law.
+
+The covered assets are provided without warranty to the extent permitted by
+applicable law.

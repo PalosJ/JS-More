@@ -1,0 +1,7 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "jsmore:block/dinosaur_capture_box_side_badge"
+  },
+  "elements": []
+}
