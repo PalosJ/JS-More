@@ -2,20 +2,20 @@
 
 All notable user-facing changes are recorded here.
 
-## [1.1.0] - 2026-07-16
+## [1.0.0] - 2026-07-17
 
-### Breaking identity change
+### Initial public baseline and breaking identity change
 
 - Renamed the project from **JS-revise** to **JS More**.
 - Changed the Mod ID, artifact, registries, resources, data, configuration,
   attachments, payloads, system properties, and GameTest namespace from
   `jsrevise` to `jsmore`.
 - Changed the Java package root from `com.palos.jsrevise` to
-  `com.palos.jsmore` and the final artifact to `jsmore-1.1.0.jar`.
-- Pre-1.1.0 worlds, items, configurations, attachments, and network data are
-  not migrated. There is no dual namespace, MissingMappings bridge, DataFixer,
-  or legacy Mod ID alias. Back up worlds and treat 1.1.0 as a new add-on
-  installation.
+  `com.palos.jsmore` and the final artifact to `jsmore-1.0.0.jar`.
+- Legacy JS-revise worlds, items, configurations, attachments, and network
+  data are not migrated. There is no dual namespace, MissingMappings bridge,
+  DataFixer, or legacy Mod ID alias. Back up worlds and treat JS More 1.0.0 as
+  a new add-on installation.
 - Raised the network protocol identity from `6` to `7`; payload field layouts
   remain unchanged.
 
@@ -28,8 +28,10 @@ All notable user-facing changes are recorded here.
 - Added protected recovery carriers for relocation failures. Valid recovery
   items resist ordinary despawn and environmental loss while preserving one
   canonical dinosaur authority.
-- Added recipe-discovery advancements and two visible survival milestones for
-  entering the anesthesia loop and preparing a transport kit.
+- Added a JS More advancement root that makes the dedicated tab visible after
+  first entering a world without a toast or chat announcement, plus recipe
+  discovery and two visible survival milestones for entering the anesthesia
+  loop and preparing a transport kit.
 - Added a project icon, mixed-license scope, third-party notices, asset
   provenance ledger, architecture/compatibility/development documentation,
   and bilingual Modrinth copy.
@@ -58,9 +60,9 @@ All notable user-facing changes are recorded here.
 ### Removed
 
 - Removed old registry aliases and migrations that existed only for the
-  pre-1.1.0 identity, including the historical capture-cage alias, syringe
-  projectile registration, loaded-syringe migration, and obsolete 20/100
-  durability migrations.
+  legacy JS-revise identity, including the historical capture-cage alias,
+  syringe projectile registration, loaded-syringe migration, and obsolete
+  20/100 durability migrations.
 
 ### Safety and compatibility
 
@@ -77,5 +79,5 @@ All notable user-facing changes are recorded here.
 
 Automated profiles, binary checks, dedicated-server smoke tests, and artifact
 audits are release gates, but they do not prove final behavior in the user's
-full Jurassic Saga modpack. Version 1.1.0 must not be described as having
+full Jurassic Saga modpack. Version 1.0.0 must not be described as having
 passed real in-pack acceptance until that testing is completed.

@@ -2,7 +2,7 @@
 
 JS More 是 Minecraft 1.21.1 NeoForge 的 Jurassic Saga 附属模组。它围绕“麻醉—捕获—运输—照料—释放”建立一套服务端权威的生存玩法，并补充恐龙观察、年龄画像、真实麻醉运动和可选物理结构兼容。
 
-当前源码对应 `1.1.0` 候选。自动化通过不等同于已完成真实整合包验收；正式发布前仍需验证游戏内视觉、移动、保存重载和可选模组组合。
+当前源码对应 `1.0.0` 初次公开审核候选。自动化通过不等同于已完成真实整合包验收；正式发布前仍需验证游戏内视觉、移动、保存重载和可选模组组合。
 
 ## 支持与安装
 
@@ -13,7 +13,7 @@ JS More 是 Minecraft 1.21.1 NeoForge 的 Jurassic Saga 附属模组。它围绕
 | Jurassic Saga | `0.2.1` 或更高版本 |
 | Travelers Lib | `0.7.1` 或更高版本；主开发基线为 `0.7.2` |
 | Java | `21` |
-| Mod ID / 制品 | `jsmore` / `jsmore-1.1.0.jar` |
+| Mod ID / 制品 | `jsmore` / `jsmore-1.0.0.jar` |
 
 最低安装链只包含 JS More、Jurassic Saga 及 Jurassic Saga 声明的前置。Curios、Jade、TerraBlender、Sable、Create 和 Aeronautics 实现均为可选集成；缺少它们时不得阻止游戏或独立服务器启动。
 
@@ -61,6 +61,7 @@ JS More 是 Minecraft 1.21.1 NeoForge 的 Jurassic Saga 附属模组。它围绕
 ### 生存引导
 
 - 五个工作台配方通过隐藏 advancement 自然解锁。
+- 首次进入世界后会解锁无弹窗、无聊天播报的 JS More 根进度，使“进度”界面显示独立的 JS More 标签页。
 - 获得麻醉药水会开启可见玩法入口；同时持有麻醉弩、麻醉镖和捕获箱会完成“运输准备”里程碑。
 - 不需要 JEI、Guidebook 扩展或自定义网络 criterion。
 
@@ -89,11 +90,11 @@ JS More 是 Minecraft 1.21.1 NeoForge 的 Jurassic Saga 附属模组。它围绕
 
 `publish --dry-run` 只检查任务图，不执行实际发布。完整开发流程、Travelers 二进制 smoke、独立服务器验收和制品审计见 [开发文档](docs/DEVELOPMENT.md)。网络协议身份为 `7`；更改 payload、附件或持久化格式前必须重新评估协议和迁移边界。
 
-## 1.1.0 破坏性身份迁移
+## JS More 1.0.0 初次公开基线与破坏性身份迁移
 
-1.1.0 将旧公开名称 **JS-revise**、Mod ID `jsrevise` 和 Java 包 `com.palos.jsrevise` 全面迁移为 **JS More**、`jsmore` 与 `com.palos.jsmore`。旧世界中的注册表对象、配置、附件和网络身份不兼容；本项目不提供 MissingMappings、DataFixer、双 namespace 或旧 Mod ID alias。升级前请备份世界，并把 1.1.0 视为全新的附属模组安装。
+JS More `1.0.0` 是用于首次公开审核的版本基线。它将旧公开名称 **JS-revise**、Mod ID `jsrevise` 和 Java 包 `com.palos.jsrevise` 全面迁移为 **JS More**、`jsmore` 与 `com.palos.jsmore`。旧 JS-revise 世界中的注册表对象、配置、附件和网络身份不兼容；本项目不提供 MissingMappings、DataFixer、双 namespace 或旧 Mod ID alias。切换前请备份世界，并把 JS More `1.0.0` 视为全新的附属模组安装。
 
-后续实质版本从 `1.1.1` 开始递增。详细变化见 [CHANGELOG](CHANGELOG.md)。
+后续实质版本从 `1.0.1` 开始递增。详细变化见 [CHANGELOG](CHANGELOG.md)。
 
 ## 许可证、来源与隐私
 

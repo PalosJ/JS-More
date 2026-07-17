@@ -95,9 +95,10 @@ explicit allowlist and verify the runtime owner instead.
 
 ## Version policy
 
-`1.1.0` is the breaking identity release. The next substantive release starts
-at `1.1.1`, followed by normal patch increments on the 1.1 line unless the
-user explicitly approves another semantic-version boundary. A task applies
+`1.0.0` is the JS More breaking-identity release and initial public-review
+baseline. The next substantive release starts at `1.0.1`, followed by normal
+patch increments on the 1.0 line unless the user explicitly approves another
+semantic-version boundary. A task applies
 one coordinated version change after behavior and resource gates pass.
 
 Keep `gradle.properties`, README, CHANGELOG, generated metadata, POM, and final

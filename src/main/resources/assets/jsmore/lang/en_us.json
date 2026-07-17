@@ -61,6 +61,8 @@
   "overlay.jsmore.anesthetic.remaining": "Anesthetic: ",
   "overlay.jsmore.anesthetic.addition": "(+%s)",
   "overlay.jsmore.unknown": "Unknown",
+  "advancement.jsmore.root.title": "JS More",
+  "advancement.jsmore.root.description": "Anesthetize, capture, and safely transport dinosaurs",
   "advancement.jsmore.acquire_anesthetic_potion.title": "A Calmer Approach",
   "advancement.jsmore.acquire_anesthetic_potion.description": "Brew an anesthetic potion and begin preparing a safe dinosaur transport",
   "advancement.jsmore.transport_ready.title": "Ready for Transport",

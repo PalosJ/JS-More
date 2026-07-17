@@ -133,8 +133,34 @@ class ReleaseAssetAndAdvancementTest {
 
     @Test
     void visibleAdvancementsDefineTheSurvivalTransportEntryAndGoal() throws IOException {
+        JsonObject root = readJson(ADVANCEMENT_ROOT.resolve("root.json"));
+        assertFalse(root.has("parent"));
+        JsonObject rootDisplay = root.getAsJsonObject("display");
+        assertNotNull(rootDisplay);
+        assertEquals(
+                "jsmore:dinosaur_capture_box",
+                rootDisplay.getAsJsonObject("icon").get("id").getAsString()
+        );
+        assertEquals("advancement.jsmore.root.title",
+                rootDisplay.getAsJsonObject("title").get("translate").getAsString());
+        assertEquals("advancement.jsmore.root.description",
+                rootDisplay.getAsJsonObject("description").get("translate").getAsString());
+        assertEquals("minecraft:textures/gui/advancements/backgrounds/adventure.png",
+                rootDisplay.get("background").getAsString());
+        assertEquals("task", rootDisplay.get("frame").getAsString());
+        assertFalse(rootDisplay.get("show_toast").getAsBoolean());
+        assertFalse(rootDisplay.get("announce_to_chat").getAsBoolean());
+        assertFalse(rootDisplay.get("hidden").getAsBoolean());
+        assertEquals(Set.of("tick"), root.getAsJsonObject("criteria").keySet());
+        assertEquals("minecraft:tick",
+                root.getAsJsonObject("criteria").getAsJsonObject("tick").get("trigger").getAsString());
+        assertEquals(
+                List.of("tick"),
+                stringList(root.getAsJsonArray("requirements").get(0).getAsJsonArray())
+        );
+
         JsonObject entry = readJson(ADVANCEMENT_ROOT.resolve("acquire_anesthetic_potion.json"));
-        assertFalse(entry.has("parent"));
+        assertEquals("jsmore:root", entry.get("parent").getAsString());
         assertVisibleDisplay(
                 entry,
                 "jsmore:anesthetic_potion",
@@ -145,11 +171,6 @@ class ReleaseAssetAndAdvancementTest {
                 List.of("jsmore:anesthetic_potion"),
                 criterionItemIds(entry.getAsJsonObject("criteria").getAsJsonObject("has_anesthetic_potion"))
         );
-        assertEquals(
-                "minecraft:textures/gui/advancements/backgrounds/adventure.png",
-                entry.getAsJsonObject("display").get("background").getAsString()
-        );
-
         JsonObject transport = readJson(ADVANCEMENT_ROOT.resolve("transport_ready.json"));
         assertEquals("jsmore:acquire_anesthetic_potion", transport.get("parent").getAsString());
         assertVisibleDisplay(
@@ -177,6 +198,8 @@ class ReleaseAssetAndAdvancementTest {
         assertEquals(enUs.keySet(), zhCn.keySet());
 
         for (String key : List.of(
+                "advancement.jsmore.root.title",
+                "advancement.jsmore.root.description",
                 "advancement.jsmore.acquire_anesthetic_potion.title",
                 "advancement.jsmore.acquire_anesthetic_potion.description",
                 "advancement.jsmore.transport_ready.title",

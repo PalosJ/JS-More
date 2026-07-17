@@ -96,7 +96,7 @@ protection.
 
 ### Network identity
 
-The 1.1.0 identity migration uses network protocol `7`. Payload field layouts
+The JS More 1.0.0 breaking identity uses network protocol `7`. Payload field layouts
 remain deliberately small and validated, but payload IDs, attachments,
 registries, configuration, resources, and GameTest data all use the `jsmore`
 namespace. Protocol changes require coordinated registration, codec, test,

@@ -109,12 +109,13 @@ The exact binary matrix belongs in CI/build configuration and may evolve more
 often than this document. A green compatibility profile is evidence for its
 tested binaries, not a blanket claim for every fork or future version.
 
-## 1.1.0 identity boundary
+## JS More 1.0.0 identity boundary
 
-Version 1.1.0 is intentionally incompatible with pre-1.1.0 registry,
-configuration, attachment, payload, and resource identities. There is no
+JS More 1.0.0 is the initial public-review baseline and is intentionally
+incompatible with legacy project registry, configuration, attachment,
+payload, and resource identities. There is no
 MissingMappings bridge, DataFixer, dual namespace, or legacy Mod ID alias.
-Back up worlds before switching identities and treat 1.1.0 as a new add-on
+Back up worlds before switching identities and treat JS More 1.0.0 as a new add-on
 installation.
 
 ## Support expectations

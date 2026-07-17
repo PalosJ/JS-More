@@ -61,6 +61,8 @@
   "overlay.jsmore.anesthetic.remaining": "麻醉剩余：",
   "overlay.jsmore.anesthetic.addition": "(+%s)",
   "overlay.jsmore.unknown": "未知",
+  "advancement.jsmore.root.title": "JS More",
+  "advancement.jsmore.root.description": "麻醉、捕获并安全运输恐龙",
   "advancement.jsmore.acquire_anesthetic_potion.title": "温和的第一步",
   "advancement.jsmore.acquire_anesthetic_potion.description": "酿造一瓶麻醉药水，开始为安全运输恐龙做准备",
   "advancement.jsmore.transport_ready.title": "运输准备",

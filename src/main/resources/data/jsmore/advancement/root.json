@@ -1,0 +1,28 @@
+{
+  "display": {
+    "icon": {
+      "id": "jsmore:dinosaur_capture_box"
+    },
+    "title": {
+      "translate": "advancement.jsmore.root.title"
+    },
+    "description": {
+      "translate": "advancement.jsmore.root.description"
+    },
+    "background": "minecraft:textures/gui/advancements/backgrounds/adventure.png",
+    "frame": "task",
+    "show_toast": false,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "tick": {
+      "trigger": "minecraft:tick"
+    }
+  },
+  "requirements": [
+    [
+      "tick"
+    ]
+  ]
+}
