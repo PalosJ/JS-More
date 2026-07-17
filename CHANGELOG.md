@@ -50,6 +50,11 @@ All notable user-facing changes are recorded here.
   coverage, artifact audit, and optional-dependency isolation were tightened
   for public distribution.
 
+### Fixed
+
+- Stabilized Jurassic Saga 0.2.1 food-candidate sorting so dense searches no
+  longer violate Java TimSort's comparator contract.
+
 ### Removed
 
 - Removed old registry aliases and migrations that existed only for the

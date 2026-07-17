@@ -3,6 +3,7 @@ package com.palos.jsmore.compat.terrablender;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.palos.jsmore.compat.jurassicsaga.JurassicSagaFoodSortCompatibilityGate;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -14,6 +15,7 @@ class JSMoreMixinPluginTest {
     @AfterEach
     void resetWarningState() throws ReflectiveOperationException {
         invoke("resetTerraBlenderWarningForTests", new Class<?>[0]);
+        invoke("resetJurassicSagaFoodSortWarningForTests", new Class<?>[0]);
     }
 
     @Test
@@ -41,6 +43,34 @@ class JSMoreMixinPluginTest {
         )));
     }
 
+    @Test
+    void jurassicSagaFoodSortDecisionAppliesOnlyTheKnownUnsafeStructure()
+            throws ReflectiveOperationException {
+        assertTrue(decideFoodSort(new JurassicSagaFoodSortCompatibilityGate.Report(
+                JurassicSagaFoodSortCompatibilityGate.Status.PATCH,
+                List.of("known unsafe comparator")
+        )));
+        assertFalse(decideFoodSort(new JurassicSagaFoodSortCompatibilityGate.Report(
+                JurassicSagaFoodSortCompatibilityGate.Status.SAFE_NO_OP,
+                List.of("upstream comparator is safe")
+        )));
+        assertTrue(warnFoodSort("SAFE_NO_OP remained silent"));
+
+        invoke("resetJurassicSagaFoodSortWarningForTests", new Class<?>[0]);
+        assertFalse(decideFoodSort(new JurassicSagaFoodSortCompatibilityGate.Report(
+                JurassicSagaFoodSortCompatibilityGate.Status.DRIFT,
+                List.of("unknown comparator")
+        )));
+        assertFalse(warnFoodSort("duplicate drift"));
+
+        invoke("resetJurassicSagaFoodSortWarningForTests", new Class<?>[0]);
+        assertFalse(decideFoodSort(new JurassicSagaFoodSortCompatibilityGate.Report(
+                JurassicSagaFoodSortCompatibilityGate.Status.ABSENT,
+                List.of("target class absent")
+        )));
+        assertFalse(warnFoodSort("already diagnosed"));
+    }
+
     private static boolean decide(TerraBlenderCompatibilityGate.Report report)
             throws ReflectiveOperationException {
         return (boolean) invoke(
@@ -52,6 +82,19 @@ class JSMoreMixinPluginTest {
 
     private static boolean warn(String diagnostic) throws ReflectiveOperationException {
         return (boolean) invoke("warnTerraBlenderOnce", new Class<?>[]{String.class}, diagnostic);
+    }
+
+    private static boolean decideFoodSort(JurassicSagaFoodSortCompatibilityGate.Report report)
+            throws ReflectiveOperationException {
+        return (boolean) invoke(
+                "shouldApplyJurassicSagaFoodSortReport",
+                new Class<?>[]{JurassicSagaFoodSortCompatibilityGate.Report.class},
+                report
+        );
+    }
+
+    private static boolean warnFoodSort(String diagnostic) throws ReflectiveOperationException {
+        return (boolean) invoke("warnJurassicSagaFoodSortOnce", new Class<?>[]{String.class}, diagnostic);
     }
 
     private static Object invoke(String name, Class<?>[] parameterTypes, Object... arguments)

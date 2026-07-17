@@ -58,6 +58,25 @@ Age registration ignores null species, non-finite values, zero, and negative
 values. An existing override takes priority, then a known built-in adult age,
 then a generic size fallback for an unknown species.
 
+## Jurassic Saga food-task compatibility
+
+Jurassic Saga 0.2.1's `JSFindFoodTask` creates a comparator whose result can
+change while the same candidate pair is being sorted because it samples random
+jitter during each comparison. This can violate Java TimSort's comparator
+contract and abort dense food searches.
+
+JS More gates a common Mixin with a narrow bytecode fingerprint. For the known
+unsafe shape (`PATCH`), the redirect pre-samples one bounded jitter value per
+candidate and sorts by the resulting stable score for that invocation. If the
+old sorting path is proven completely absent (`SAFE_NO_OP`), no patch is
+applied. Any other structural drift is diagnosed and left unpatched rather
+than allowing an unverified redirect to block startup. The game can still
+start, but the affected upstream food-search behavior must be treated as
+unverified until that exact binary is tested.
+
+Remove this workaround only after the upstream implementation no longer uses
+the unsafe comparator and an official replacement binary has been verified.
+
 ## Optional client integrations
 
 - **Curios:** goggles work in supported Curios head slots; without Curios the

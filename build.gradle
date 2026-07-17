@@ -1,7 +1,15 @@
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
 import org.gradle.process.CommandLineArgumentProvider
 
 plugins {
@@ -345,9 +353,191 @@ abstract class CompatibilityBinaryArgumentProvider implements CommandLineArgumen
     }
 }
 
+final class Java21ArgumentFileCodec {
+    private Java21ArgumentFileCodec() {
+    }
+
+    static String serializeClasspath(List<String> orderedAbsoluteClasspath) {
+        if (!orderedAbsoluteClasspath) {
+            throw new GradleException("A Java classpath argument file requires at least one entry")
+        }
+        if (orderedAbsoluteClasspath.any { !it || !new File(it).isAbsolute() }) {
+            throw new GradleException("Java classpath entries must be non-empty absolute paths: ${orderedAbsoluteClasspath}")
+        }
+        return "-classpath\n${quoteToken(orderedAbsoluteClasspath.join(File.pathSeparator))}\n"
+    }
+
+    static String quoteToken(String value) {
+        if (value == null) {
+            throw new GradleException("Java argument tokens cannot be null")
+        }
+        StringBuilder escaped = new StringBuilder(value.length() + 2).append('"')
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index)
+            switch (character) {
+                case '\\': escaped.append("\\\\"); break
+                case '"': escaped.append("\\\""); break
+                case '\n': escaped.append("\\n"); break
+                case '\r': escaped.append("\\r"); break
+                case '\t': escaped.append("\\t"); break
+                case '\f': escaped.append("\\f"); break
+                default:
+                    if (Character.isISOControl(character)) {
+                        throw new GradleException("Unsupported control character U+${String.format('%04X', (int) character)} in Java argument")
+                    }
+                    escaped.append(character)
+            }
+        }
+        return escaped.append('"').toString()
+    }
+}
+
+abstract class WriteRunClasspathArgumentFile extends DefaultTask {
+    @Classpath abstract ConfigurableFileCollection getRunClasspath()
+    @Input abstract ListProperty<String> getOrderedAbsoluteClasspath()
+    @OutputFile abstract RegularFileProperty getOutputFile()
+    @Input abstract Property<String> getArgumentFileEncoding()
+
+    @TaskAction
+    void writeRunClasspathArgumentFile() {
+        File output = outputFile.get().asFile
+        output.parentFile.mkdirs()
+        String contents = Java21ArgumentFileCodec.serializeClasspath(orderedAbsoluteClasspath.get())
+        output.setText(contents, argumentFileEncoding.get())
+    }
+}
+
+abstract class VerifyJavaArgumentFileInfrastructure extends DefaultTask {
+    @Input abstract ListProperty<String> getOrderedAbsoluteClasspath()
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    abstract RegularFileProperty getArgumentFile()
+    @Input abstract Property<String> getArgumentFileEncoding()
+
+    @TaskAction
+    void verifyJavaArgumentFileInfrastructure() {
+        List<String> classpath = orderedAbsoluteClasspath.get()
+        String expected = Java21ArgumentFileCodec.serializeClasspath(classpath)
+        String actual = argumentFile.get().asFile.getText(argumentFileEncoding.get())
+        if (actual != expected) {
+            throw new GradleException("Generated Java classpath argument file does not match its ordered path input")
+        }
+
+        String special = "slash\\quote\"line\ncarriage\rtab\tform\f"
+        String expectedSpecial = "\"slash\\\\quote\\\"line\\ncarriage\\rtab\\tform\\f\""
+        if (Java21ArgumentFileCodec.quoteToken(special) != expectedSpecial) {
+            throw new GradleException("Java argument escaping does not preserve backslashes, quotes, and controls")
+        }
+        try {
+            Java21ArgumentFileCodec.quoteToken("unsupported\u0000control")
+            throw new GradleException("Java argument escaping accepted an unsupported control character")
+        } catch (GradleException exception) {
+            if (!exception.message.startsWith("Unsupported control character")) {
+                throw exception
+            }
+        }
+
+        String executable = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows")
+                ? "java.exe"
+                : "java"
+        File javaExecutable = new File(new File(System.getProperty("java.home"), "bin"), executable)
+        File launcherOutput = new File(temporaryDir, "java-launcher-output.txt")
+        Process process = new ProcessBuilder(
+                javaExecutable.absolutePath,
+                "@${argumentFile.get().asFile.absolutePath}",
+                "-XshowSettings:properties",
+                "-version"
+        ).redirectErrorStream(true).redirectOutput(launcherOutput).start()
+        if (!process.waitFor(30L, java.util.concurrent.TimeUnit.SECONDS)) {
+            process.destroyForcibly()
+            throw new GradleException("Java argument-file smoke timed out")
+        }
+        String output = launcherOutput.getText(argumentFileEncoding.get())
+        int classpathCursor = output.indexOf("java.class.path = ")
+        boolean orderedClasspathVisible = classpathCursor >= 0
+        classpath.each { entry ->
+            int entryIndex = orderedClasspathVisible ? output.indexOf(entry, classpathCursor) : -1
+            orderedClasspathVisible &= entryIndex >= classpathCursor
+            classpathCursor = Math.max(classpathCursor, entryIndex + entry.length())
+        }
+        if (process.exitValue() != 0
+                || !orderedClasspathVisible
+                || !output.toLowerCase(Locale.ROOT).contains("version")) {
+            throw new GradleException(
+                    "Java argument-file smoke failed with exit ${process.exitValue()}: ${output}"
+            )
+        }
+        logger.lifecycle("Verified Java argument-file serialization with a real Java launcher")
+    }
+}
+
+abstract class VerifyTravelersRuntimeClasspath extends DefaultTask {
+    @Classpath abstract ConfigurableFileCollection getRuntimeClasspath()
+    @Classpath abstract ConfigurableFileCollection getTestRuntimeClasspath()
+    @Classpath abstract ConfigurableFileCollection getCompileClasspath()
+    @Classpath abstract ConfigurableFileCollection getServerRunClasspath()
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    abstract RegularFileProperty getServerRunClasspathArgumentFile()
+    @Input abstract ListProperty<String> getOrderedAbsoluteServerRunClasspath()
+    @Input abstract Property<String> getArgumentFileEncoding()
+    @Input abstract Property<String> getExpectedRuntimeVersion()
+    @Input abstract Property<String> getExpectedCompileVersion()
+
+    @TaskAction
+    void verifyTravelersRuntimeClasspath() {
+        verifyClasspath("runtimeClasspath", runtimeClasspath.files, expectedRuntimeVersion.get())
+        verifyClasspath("testRuntimeClasspath", testRuntimeClasspath.files, expectedRuntimeVersion.get())
+        verifyClasspath("compileClasspath", compileClasspath.files, expectedCompileVersion.get())
+        verifyClasspath("runServer.classpathProvider", serverRunClasspath.files, expectedRuntimeVersion.get())
+        verifyArgumentFile(
+                serverRunClasspathArgumentFile.get().asFile,
+                orderedAbsoluteServerRunClasspath.get(),
+                expectedRuntimeVersion.get(),
+                argumentFileEncoding.get()
+        )
+        logger.lifecycle(
+                "Verified Travelers runtime {} with compile baseline {} and generated server launch classpath",
+                expectedRuntimeVersion.get(),
+                expectedCompileVersion.get()
+        )
+    }
+
+    private static void verifyClasspath(String name, Set<File> files, String expectedVersion) {
+        def travelers = files.findAll { file ->
+            file.name.startsWith("travelers-lib-") && file.name.endsWith(".jar")
+        }
+        String expectedName = "travelers-lib-${expectedVersion}.jar"
+        if (travelers.size() != 1 || travelers[0].name != expectedName) {
+            throw new GradleException("${name} must contain exactly ${expectedName}; resolved ${travelers*.absolutePath}")
+        }
+    }
+
+    private static void verifyArgumentFile(
+            File argumentFile,
+            List<String> orderedAbsoluteClasspath,
+            String expectedVersion,
+            String encoding
+    ) {
+        String contents = argumentFile.getText(encoding)
+        String expectedContents = Java21ArgumentFileCodec.serializeClasspath(orderedAbsoluteClasspath)
+        if (contents != expectedContents) {
+            throw new GradleException("${argumentFile} does not exactly match the current ordered runServer classpath")
+        }
+
+        def travelers = contents.findAll(/travelers-lib-[0-9]+(?:\.[0-9]+)+\.jar/)
+        String expectedName = "travelers-lib-${expectedVersion}.jar"
+        if (travelers.size() != 1 || travelers[0] != expectedName) {
+            throw new GradleException("${argumentFile} must contain exactly ${expectedName}; found ${travelers}")
+        }
+    }
+}
+
 dependencies {
     compileOnly "maven.modrinth:travelers-lib:${travelerslib_version}"
-    localRuntime "maven.modrinth:travelers-lib:${travelersRuntimeVersion}"
+    localRuntime("maven.modrinth:travelers-lib:${travelersRuntimeVersion}") {
+        version { strictly travelersRuntimeVersion }
+    }
 
     implementation "maven.modrinth:jurassic-saga:${jurassicsaga_version}"
     if (!withMinimalRuntime) {
@@ -421,6 +611,63 @@ dependencies {
         transitive = false
     }
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+def serverRunClasspathProvider = tasks.named("runServer").get().classpathProvider
+def orderedServerRunClasspathProvider = providers.provider {
+    serverRunClasspathProvider.asPath
+            .split(java.util.regex.Pattern.quote(File.pathSeparator), -1)
+            .findAll { !it.isEmpty() }
+            .collect { new File(it).absoluteFile.toPath().normalize().toString() }
+}
+def nativeArgumentFileEncoding = providers.provider {
+    System.getProperty("native.encoding", java.nio.charset.Charset.defaultCharset().name())
+}
+def writeServerRunClasspathArgumentFile = tasks.register("writeServerRunClasspathArgumentFile", WriteRunClasspathArgumentFile) {
+    runClasspath.from(serverRunClasspathProvider)
+    orderedAbsoluteClasspath.set(orderedServerRunClasspathProvider)
+    outputFile.set(layout.buildDirectory.file("moddev/serverRunClasspath.txt"))
+    argumentFileEncoding.set(nativeArgumentFileEncoding)
+}
+
+def javaArgumentFileFixtureRoot = providers.gradleProperty("javaArgumentFileFixtureRoot")
+        .map { new File(it).absoluteFile.toPath().normalize().toString() }
+        .orElse(layout.buildDirectory.dir("verification/java argfile/非ASCII fixture").map {
+            it.asFile.absoluteFile.toPath().normalize().toString()
+        })
+def javaArgumentFileFixtureClasspath = javaArgumentFileFixtureRoot.map { root ->
+    [new File(root, "第一 classpath entry").absolutePath, new File(root, "第二 classpath entry").absolutePath]
+}
+def writeJavaArgumentFileFixture = tasks.register("writeJavaArgumentFileFixture", WriteRunClasspathArgumentFile) {
+    orderedAbsoluteClasspath.set(javaArgumentFileFixtureClasspath)
+    outputFile.set(layout.buildDirectory.file("verification/java-argument-file-fixture.txt"))
+    argumentFileEncoding.set(nativeArgumentFileEncoding)
+}
+def verifyJavaArgumentFileInfrastructure = tasks.register("verifyJavaArgumentFileInfrastructure", VerifyJavaArgumentFileInfrastructure) {
+    dependsOn writeJavaArgumentFileFixture
+    orderedAbsoluteClasspath.set(javaArgumentFileFixtureClasspath)
+    argumentFile.set(writeJavaArgumentFileFixture.flatMap { it.outputFile })
+    argumentFileEncoding.set(nativeArgumentFileEncoding)
+}
+
+def verifyTravelersRuntimeClasspath = tasks.register("verifyTravelersRuntimeClasspath", VerifyTravelersRuntimeClasspath) {
+    dependsOn writeServerRunClasspathArgumentFile
+    runtimeClasspath.from(configurations.runtimeClasspath)
+    testRuntimeClasspath.from(configurations.testRuntimeClasspath)
+    compileClasspath.from(configurations.compileClasspath)
+    serverRunClasspath.from(serverRunClasspathProvider)
+    serverRunClasspathArgumentFile.set(writeServerRunClasspathArgumentFile.flatMap { it.outputFile })
+    orderedAbsoluteServerRunClasspath.set(orderedServerRunClasspathProvider)
+    argumentFileEncoding.set(nativeArgumentFileEncoding)
+    expectedRuntimeVersion.set(travelersRuntimeVersion)
+    expectedCompileVersion.set(travelerslib_version.toString())
+}
+
+["prepareServerRun", "prepareGameTestServerRun"].each { taskName ->
+    tasks.named(taskName).configure { dependsOn verifyTravelersRuntimeClasspath }
+}
+tasks.named("test").configure {
+    dependsOn verifyTravelersRuntimeClasspath, verifyJavaArgumentFileInfrastructure
 }
 
 def aeronauticsBinaryArguments = objects.newInstance(AeronauticsBinaryArgumentProvider)

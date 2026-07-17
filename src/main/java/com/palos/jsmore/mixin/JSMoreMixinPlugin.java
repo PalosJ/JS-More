@@ -5,6 +5,7 @@ import com.palos.jsmore.compat.aeronautics.AeronauticsCompatibilityGate;
 import com.palos.jsmore.compat.aeronautics.AeronauticsPatchReadiness;
 import com.palos.jsmore.compat.aeronautics.SableSubLevelAssemblyBytecodePatch;
 import com.palos.jsmore.compat.aeronautics.SimAssemblyContraptionBytecodePatch;
+import com.palos.jsmore.compat.jurassicsaga.JurassicSagaFoodSortCompatibilityGate;
 import com.palos.jsmore.compat.terrablender.TerraBlenderCompatibilityGate;
 import com.palos.jsmore.compat.travelers.TravelersHandler1211BytecodePatch;
 import java.util.List;
@@ -31,8 +32,13 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
             "com.palos.jsmore.mixin.JSTerrablenderMixin";
     private static final String TERRABLENDER_TARGET =
             "jp.jurassicsaga.server.world.terrablender.JSTerrablender";
+    private static final String JURASSIC_SAGA_FOOD_SORT_MARKER =
+            "com.palos.jsmore.mixin.JurassicSagaFindFoodTaskMixin";
+    private static final String JURASSIC_SAGA_FOOD_SORT_TARGET =
+            "jp.jurassicsaga.server.animal.entity.obj.tasks.metabolism.JSFindFoodTask";
     private static final AtomicBoolean AERONAUTICS_WARNING_LOGGED = new AtomicBoolean();
     private static final AtomicBoolean TERRABLENDER_WARNING_LOGGED = new AtomicBoolean();
+    private static final AtomicBoolean JURASSIC_SAGA_FOOD_SORT_WARNING_LOGGED = new AtomicBoolean();
 
     private final Set<String> successfulAeronauticsPatches = ConcurrentHashMap.newKeySet();
 
@@ -47,6 +53,9 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (JURASSIC_SAGA_FOOD_SORT_MARKER.equals(mixinClassName)) {
+            return shouldApplyJurassicSagaFoodSortMixin(targetClassName);
+        }
         if (TERRABLENDER_MARKER.equals(mixinClassName)) {
             return shouldApplyTerraBlenderMixin(targetClassName);
         }
@@ -129,6 +138,35 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
             return false;
         }
         return shouldApplyTerraBlenderReport(report);
+    }
+
+    private static boolean shouldApplyJurassicSagaFoodSortMixin(String targetClassName) {
+        if (!JURASSIC_SAGA_FOOD_SORT_TARGET.equals(targetClassName)) {
+            warnJurassicSagaFoodSortOnce("marker targeted unexpected class " + targetClassName);
+            return false;
+        }
+        JurassicSagaFoodSortCompatibilityGate.Report report;
+        try {
+            report = JurassicSagaFoodSortCompatibilityGate.probeRuntimeOnce();
+        } catch (RuntimeException | LinkageError exception) {
+            warnJurassicSagaFoodSortOnce("runtime compatibility gate failed: "
+                    + exception.getClass().getSimpleName());
+            return false;
+        }
+        return shouldApplyJurassicSagaFoodSortReport(report);
+    }
+
+    static boolean shouldApplyJurassicSagaFoodSortReport(
+            JurassicSagaFoodSortCompatibilityGate.Report report
+    ) {
+        if (report.status() == JurassicSagaFoodSortCompatibilityGate.Status.PATCH) {
+            return true;
+        }
+        if (report.status() == JurassicSagaFoodSortCompatibilityGate.Status.SAFE_NO_OP) {
+            return false;
+        }
+        warnJurassicSagaFoodSortOnce(report.status() + ": " + String.join("; ", report.diagnostics()));
+        return false;
     }
 
     static boolean shouldApplyTerraBlenderReport(TerraBlenderCompatibilityGate.Report report) {
@@ -216,5 +254,20 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
 
     static void resetTerraBlenderWarningForTests() {
         TERRABLENDER_WARNING_LOGGED.set(false);
+    }
+
+    static boolean warnJurassicSagaFoodSortOnce(String diagnostic) {
+        if (!JURASSIC_SAGA_FOOD_SORT_WARNING_LOGGED.compareAndSet(false, true)) {
+            return false;
+        }
+        JSMore.LOGGER.warn(
+                "JS More Jurassic Saga food-target sort workaround disabled: {}",
+                diagnostic
+        );
+        return true;
+    }
+
+    static void resetJurassicSagaFoodSortWarningForTests() {
+        JURASSIC_SAGA_FOOD_SORT_WARNING_LOGGED.set(false);
     }
 }

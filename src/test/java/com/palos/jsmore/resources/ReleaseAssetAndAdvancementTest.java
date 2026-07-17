@@ -3,6 +3,7 @@ package com.palos.jsmore.resources;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonArray;
@@ -44,13 +45,13 @@ class ReleaseAssetAndAdvancementTest {
             "dinosaur_capture_box", "minecraft:iron_door"
     );
     private static final Map<String, String> FAMILY_MANIFEST_SHA256 = Map.of(
-            "complete_capture_box", "50198b50fe597d7db07a5d7ca78a2f54aba98c22860684d6892ad7b5d167fc86",
-            "broken_capture_box", "70817105001dc0ecf6153a35fdd3b97ce823d3667983fcd6c0702bbf90e439a3",
-            "anesthetic_dart", "e62d4d7755fc5db5f463765d881002e890582be99b0cd6272be26ad18198b6a7",
-            "anesthetic_crossbow", "22f984ce00e275d6c6042126ec003e887dc7692d3ab3602f1b4c5ccce69a6fa8",
-            "anesthetic_potion", "f56577943de5aba7647388858dd20c2493a328a93793123b144d3c255c78666b",
-            "anesthetic_syringe", "ef7f21660684f986dff6dd32ca0e62221cdf940f465575c13790a57e3b7e3783",
-            "dino_doctor_goggles", "8708175b94ebfee7bcc85cf84f71561e4539bd2f23ff06bac8a5ec603b0dea1d"
+            "complete_capture_box", "7e5d9d14f6008da238c58da84e9c322e46d36618170bb9c9580966d4de8a51a2",
+            "broken_capture_box", "9e1874b7e1c8c4cdb0f9723850c14ae79203a15ee3893205441270c6c3ae435c",
+            "anesthetic_dart", "53d4f20f5866315d57235c4d9be071d4c72628ca0dbadeb1a8c2b77ca8511f0b",
+            "anesthetic_crossbow", "16c8e1795cdb9777396afed91daa9d0a1140c6b0bc5aaf26eccc298826c0bf7e",
+            "anesthetic_potion", "e620b2e98f50d8b520ac2c76783c8c8e765d79b2e73038957798ef595a9c23e1",
+            "anesthetic_syringe", "ea24fa1e405a720de72998842a8d1e59bb01487794ea32965e70b778753d1833",
+            "dino_doctor_goggles", "1c027225ef4500cc578514513026db90c4a08baed08fda225fe8c0e1576a3e74"
     );
     private static final Map<String, Integer> FAMILY_FILE_COUNTS = Map.of(
             "complete_capture_box", 24,
@@ -234,6 +235,22 @@ class ReleaseAssetAndAdvancementTest {
         }
     }
 
+    @Test
+    void assetFamilyJsonHashNormalizesLineEndingsWithoutMaskingContentChanges() {
+        String lf = "{\n  \"value\": 1,\n  \"other\": 2\n}\n";
+        String crlf = lf.replace("\n", "\r\n");
+        String loneCr = lf.replace('\n', '\r');
+        String changed = lf.replace("\"value\": 1", "\"value\": 2");
+
+        String expected = familyFileSha256("fixture.json", lf.getBytes(StandardCharsets.UTF_8));
+        assertEquals(expected, familyFileSha256("fixture.json", crlf.getBytes(StandardCharsets.UTF_8)));
+        assertEquals(expected, familyFileSha256("fixture.json", loneCr.getBytes(StandardCharsets.UTF_8)));
+        assertNotEquals(expected, familyFileSha256("fixture.json", changed.getBytes(StandardCharsets.UTF_8)));
+
+        byte[] binary = {1, '\r', '\n', 2};
+        assertEquals(sha256(binary), familyFileSha256("fixture.png", binary));
+    }
+
     private static void assertVisibleDisplay(JsonObject advancement, String iconId, String titleKey,
                                              String descriptionKey) {
         JsonObject display = advancement.getAsJsonObject("display");
@@ -357,10 +374,20 @@ class ReleaseAssetAndAdvancementTest {
         for (String relative : relativePaths) {
             manifest.append(relative)
                     .append('\t')
-                    .append(sha256(Files.readAllBytes(RESOURCE_ROOT.resolve(relative))))
+                    .append(familyFileSha256(relative, Files.readAllBytes(RESOURCE_ROOT.resolve(relative))))
                     .append('\n');
         }
         return sha256(manifest.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String familyFileSha256(String relativePath, byte[] bytes) {
+        if (!relativePath.toLowerCase(Locale.ROOT).endsWith(".json")) {
+            return sha256(bytes);
+        }
+        String text = new String(bytes, StandardCharsets.UTF_8)
+                .replace("\r\n", "\n")
+                .replace('\r', '\n');
+        return sha256(text.getBytes(StandardCharsets.UTF_8));
     }
 
     private static String sha256(byte[] bytes) {

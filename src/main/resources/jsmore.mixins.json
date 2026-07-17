@@ -10,6 +10,7 @@
     "JSAnimalBaseSystemsMixin",
     "JSAquaticBaseSystemsMixin",
     "JSAvianBaseSystemsMixin",
+    "JurassicSagaFindFoodTaskMixin",
     "JSTerrablenderMixin",
     "JSEntityDataHolderSystemsMixin",
     "LivingEntityTravelMixin",
