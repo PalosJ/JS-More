@@ -102,6 +102,21 @@ class CraftingRecipeResourceTest {
                                 'W', "minecraft:yellow_dye"
                         )
                 ),
+                "egg_collector", new RecipeExpectation(
+                        "egg_collector.json",
+                        "misc",
+                        "jsmore:egg_collector",
+                        1,
+                        List.of(
+                                " H ",
+                                "ICI"
+                        ),
+                        Map.of(
+                                'C', "minecraft:chest",
+                                'H', "minecraft:hay_block",
+                                'I', "minecraft:iron_ingot"
+                        )
+                ),
                 "anesthetic_crossbow", new RecipeExpectation(
                         "anesthetic_crossbow.json",
                         "equipment",

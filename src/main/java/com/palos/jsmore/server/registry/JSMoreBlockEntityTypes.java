@@ -3,6 +3,7 @@ package com.palos.jsmore.server.registry;
 import com.palos.jsmore.JSMore;
 import com.palos.jsmore.server.block.entity.BrokenDinosaurCaptureBoxBlockEntity;
 import com.palos.jsmore.server.block.entity.DinosaurCaptureCageBlockEntity;
+import com.palos.jsmore.server.block.entity.EggCollectorBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
@@ -27,6 +28,13 @@ public final class JSMoreBlockEntityTypes {
                     .of(BrokenDinosaurCaptureBoxBlockEntity::new, JSMoreBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get())
                     .build(null)
     );
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EggCollectorBlockEntity>> EGG_COLLECTOR =
+            BLOCK_ENTITY_TYPES.register(
+                    "egg_collector",
+                    () -> BlockEntityType.Builder
+                            .of(EggCollectorBlockEntity::new, JSMoreBlocks.EGG_COLLECTOR.get())
+                            .build(null)
+            );
 
     private JSMoreBlockEntityTypes() {
     }

@@ -20,6 +20,7 @@ public final class DinosaurAgeSystem {
     private static final String JURASSIC_SAGA_NAMESPACE = "jurassicsaga";
     private static final double FULL_GROWTH = 100.0D;
     private static final long TICKS_PER_GAME_DAY = 24000L;
+    private static final double DAYS_PER_REAL_YEAR = 365.0D;
     private static final ConcurrentHashMap<ResourceLocation, SpeciesAgeProfile> OVERRIDE_AGE_PROFILES =
             new ConcurrentHashMap<>();
     private static final Map<String, SpeciesAgeProfile> SPECIES_AGE_PROFILES = Map.ofEntries(
@@ -195,7 +196,13 @@ public final class DinosaurAgeSystem {
         double currentRealAgeYears;
         if (!shouldForceAdultAgeFloor(animal, sizeProfile) && normalizedGrowth < 1.0D) {
             currentGameAgeTicks = Math.round(adultGameTicks * normalizedGrowth);
-            currentRealAgeYears = ageProfile.adultRealYears() * normalizedGrowth;
+            currentRealAgeYears = calculateRealAgeYears(
+                    ageProfile.adultRealYears(),
+                    adultGameTicks,
+                    currentGameAgeTicks,
+                    normalizedGrowth,
+                    false
+            );
         } else {
             DinosaurAgeData data = animal.getExistingDataOrNull(JSMoreAttachments.DINOSAUR_AGE);
             long birthGameTime = data != null && data.initialized()
@@ -205,8 +212,13 @@ public final class DinosaurAgeSystem {
                 birthGameTime = Math.min(birthGameTime, currentGameTime - adultGameTicks);
             }
             currentGameAgeTicks = Math.max(adultGameTicks, currentGameTime - birthGameTime);
-            currentRealAgeYears = ageProfile.adultRealYears()
-                    * Math.max(1.0D, currentGameAgeTicks / (double) adultGameTicks);
+            currentRealAgeYears = calculateRealAgeYears(
+                    ageProfile.adultRealYears(),
+                    adultGameTicks,
+                    currentGameAgeTicks,
+                    normalizedGrowth,
+                    true
+            );
         }
 
         return new DinosaurAgeEstimate(
@@ -218,6 +230,23 @@ public final class DinosaurAgeSystem {
                 OptionalDouble.of(currentRealAgeYears),
                 OptionalDouble.of(ageProfile.adultRealYears())
         );
+    }
+
+    static double calculateRealAgeYears(
+            double adultRealYears,
+            long adultGameTicks,
+            long currentGameAgeTicks,
+            double normalizedGrowth,
+            boolean adult
+    ) {
+        if (!adult) {
+            double safeGrowth = Double.isFinite(normalizedGrowth)
+                    ? Mth.clamp(normalizedGrowth, 0.0D, 1.0D)
+                    : 0.0D;
+            return adultRealYears * safeGrowth;
+        }
+        long postAdultTicks = Math.max(0L, currentGameAgeTicks - Math.max(0L, adultGameTicks));
+        return adultRealYears + postAdultTicks / (TICKS_PER_GAME_DAY * DAYS_PER_REAL_YEAR);
     }
 
     private static SpeciesAgeProfile resolveSpeciesAgeProfile(

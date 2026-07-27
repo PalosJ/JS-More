@@ -4,6 +4,7 @@ import com.palos.jsmore.JSMore;
 import com.palos.jsmore.server.system.age.DinosaurAgeData;
 import com.palos.jsmore.server.system.anesthetic.AnestheticData;
 import com.palos.jsmore.server.system.anesthetic.AnestheticFloatData;
+import com.palos.jsmore.server.system.breeding.PeriodicEggBreedingData;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -26,6 +27,12 @@ public final class JSMoreAttachments {
             ATTACHMENTS.register("anesthetic_float", () -> AttachmentType.builder(AnestheticFloatData::new)
                     .sync(AnestheticFloatData.STREAM_CODEC)
                     .build());
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<PeriodicEggBreedingData>>
+            PERIODIC_EGG_BREEDING =
+            ATTACHMENTS.register(
+                    "periodic_egg_breeding",
+                    () -> AttachmentType.serializable(PeriodicEggBreedingData::new).build()
+            );
 
     private JSMoreAttachments() {
     }

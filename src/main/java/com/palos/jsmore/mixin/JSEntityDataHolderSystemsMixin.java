@@ -1,6 +1,7 @@
 package com.palos.jsmore.mixin;
 
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
+import com.palos.jsmore.server.system.breeding.DinosaurBreedingService;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSEntityDataHolder;
 import net.minecraft.nbt.CompoundTag;
@@ -46,6 +47,7 @@ public abstract class JSEntityDataHolderSystemsMixin {
     private void jsmore$restoreAnestheticSleepMarker(CompoundTag tag, CallbackInfo callbackInfo) {
         if ((Object) this instanceof JSAnimalBase animal) {
             DinosaurAnestheticSystem.restoreAnestheticSleepSaveMarker(animal, tag);
+            DinosaurBreedingService.validateLoadedPeriodicBreedingState(animal);
         }
     }
 }

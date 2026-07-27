@@ -26,6 +26,7 @@ public final class JSMoreCreativeTabs {
                         output.accept(JSMoreItems.ANESTHETIC_CROSSBOW.get());
                         output.accept(JSMoreItems.DINOSAUR_CAPTURE_CAGE.get());
                         output.accept(JSMoreItems.BROKEN_DINOSAUR_CAPTURE_BOX.get());
+                        output.accept(JSMoreItems.EGG_COLLECTOR.get());
                     })
                     .build()
     );

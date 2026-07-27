@@ -131,6 +131,27 @@ class DinoDoctorOverlayRendererTest {
     }
 
     @Test
+    void entityAndCaptureBoxHudExposePostAdultDays() {
+        DinosaurObservationSnapshot observation = snapshotWithRealAge(18.0D + 1.0D / 365.0D);
+        List<DinoDoctorOverlayRenderer.OverlayLine> entityLines =
+                DinoDoctorOverlayRenderer.createObservationLines(observation);
+        Component entityAge = entityLines.get(1).mainSegments().get(1).text();
+        TranslatableContents age = assertInstanceOf(TranslatableContents.class, entityAge.getContents());
+        assertEquals("overlay.jsmore.age.real.year_day", age.getKey());
+        assertEquals(2, age.getArgs().length);
+        assertEquals("18", ((Component) age.getArgs()[0]).getString());
+        assertEquals("1", ((Component) age.getArgs()[1]).getString());
+
+        CaptureCageObservationSnapshot cage = CaptureCageObservationSnapshot.from(
+                ResourceLocation.fromNamespaceAndPath("jurassicsaga", "test_dino"),
+                observation,
+                400L,
+                CapturedDinosaurData.MAX_DURABILITY
+        );
+        assertEquals(entityLines, DinoDoctorOverlayRenderer.createCaptureCageObservationLines(cage));
+    }
+
+    @Test
     void createsEggLayingProgressAsSeparateBottomLineWithoutSeconds() {
         List<DinoDoctorOverlayRenderer.OverlayLine> lines = DinoDoctorOverlayRenderer.createObservationLines(
                 snapshotWithEggProgressAndGenes()
@@ -823,6 +844,34 @@ class DinoDoctorOverlayRendererTest {
                 OptionalLong.of(60L),
                 EggLayingProgress.create(40, 100),
                 List.of(gene)
+        );
+    }
+
+    private static DinosaurObservationSnapshot snapshotWithRealAge(double years) {
+        DinosaurObservationSnapshot base = snapshotWithEggProgressAndGenes();
+        DinosaurAgeEstimate ageEstimate = new DinosaurAgeEstimate(
+                base.ageEstimate().speciesId(),
+                DinosaurLifecycleStage.ADULT,
+                100.0D,
+                OptionalLong.empty(),
+                OptionalLong.empty(),
+                OptionalDouble.of(years),
+                OptionalDouble.of(18.0D)
+        );
+        return new DinosaurObservationSnapshot(
+                base.displayName(),
+                ageEstimate,
+                base.currentHealth(),
+                base.maxHealth(),
+                base.male(),
+                base.hungerPercent(),
+                base.thirstPercent(),
+                base.moodPercent(),
+                base.pendingAnestheticTicks(),
+                base.remainingAnestheticTicks(),
+                base.queuedAnestheticTicks(),
+                base.eggLayingProgress(),
+                base.genes()
         );
     }
 

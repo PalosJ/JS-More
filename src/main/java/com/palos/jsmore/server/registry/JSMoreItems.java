@@ -6,6 +6,7 @@ import com.palos.jsmore.server.item.AnestheticSyringeItem;
 import com.palos.jsmore.server.item.BrokenDinosaurCaptureBoxItem;
 import com.palos.jsmore.server.item.DinoDoctorGogglesItem;
 import com.palos.jsmore.server.item.DinosaurCaptureCageItem;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -34,6 +35,8 @@ public final class JSMoreItems {
                     "broken_dinosaur_capture_box",
                     () -> new BrokenDinosaurCaptureBoxItem(JSMoreBlocks.BROKEN_DINOSAUR_CAPTURE_BOX.get())
             );
+    public static final DeferredItem<BlockItem> EGG_COLLECTOR =
+            ITEMS.registerSimpleBlockItem(JSMoreBlocks.EGG_COLLECTOR);
 
     private JSMoreItems() {
     }

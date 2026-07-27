@@ -37,12 +37,24 @@ class ReleaseAssetAndAdvancementTest {
             "77fbadb45e91c871d4165c05d3ab29bd48988e2e12bfc66a76c02d77f2ffde62";
     private static final String GOGGLES_TEXTURE_SHA256 =
             "20809b1d786cd12a97944948f06abca53a41c68d3bb16f4f994b1ad7ba47d84e";
+    private static final Map<String, String> EGG_COLLECTOR_TEXTURE_SHA256 = Map.of(
+            "device_bottom", "a213869f5ed90557bd4ead83c9be8a1b5cc758a4ac859abcb5e31288c2914981",
+            "device_front", "12c3a3070fcceccf1cc8464258736397267fc086bab6187a579a349fc8235201",
+            "device_side", "c3f4f71169c92413a58451e72f62732c893e24e5d352dbf9ad81a768093baf87",
+            "device_top", "5320bcdde5276c8d64c41879a245a0b60bd68c5812fbcc0c073760020911d36d",
+            "nest_bed", "9d040209c4c9d8f69d05e0cc02171037cc2b44c60e959d2f47479474514d9e42",
+            "nest_corner_band", "d0414ef39055610f2b99c2caf09228125802a0fc2a2d4afb1dd5e3d9bcb1db71",
+            "nest_rim", "9bb0df9416ebff8e0782f67b6b79085dd64b8e1c4f19347487e80b7706245529",
+            "nest_side", "1478d752898f107d1ca13575f1d19e8d420970fd55c178c9c3a9d87479a544cb",
+            "nest_slope", "6f00f485580d13ef83aaa357b2b5b63cfd78b52c845a0166bac080d915065c59"
+    );
     private static final Map<String, String> RECIPE_UNLOCK_INGREDIENTS = Map.of(
             "anesthetic_crossbow", "minecraft:tripwire_hook",
             "anesthetic_dart", "jsmore:anesthetic_syringe",
             "anesthetic_syringe", "jsmore:anesthetic_potion",
             "dino_doctor_goggles", "jurassicsaga:guidebook",
-            "dinosaur_capture_box", "minecraft:iron_door"
+            "dinosaur_capture_box", "minecraft:iron_door",
+            "egg_collector", "minecraft:hay_block"
     );
     private static final Map<String, String> FAMILY_MANIFEST_SHA256 = Map.of(
             "complete_capture_box", "7e5d9d14f6008da238c58da84e9c322e46d36618170bb9c9580966d4de8a51a2",
@@ -51,7 +63,8 @@ class ReleaseAssetAndAdvancementTest {
             "anesthetic_crossbow", "16c8e1795cdb9777396afed91daa9d0a1140c6b0bc5aaf26eccc298826c0bf7e",
             "anesthetic_potion", "e620b2e98f50d8b520ac2c76783c8c8e765d79b2e73038957798ef595a9c23e1",
             "anesthetic_syringe", "ea24fa1e405a720de72998842a8d1e59bb01487794ea32965e70b778753d1833",
-            "dino_doctor_goggles", "1c027225ef4500cc578514513026db90c4a08baed08fda225fe8c0e1576a3e74"
+            "dino_doctor_goggles", "1c027225ef4500cc578514513026db90c4a08baed08fda225fe8c0e1576a3e74",
+            "egg_collector", "7b62c59496d918b78d30080b5f487e0b9843dfc8a8f71b43c4f62fe03974417f"
     );
     private static final Map<String, Integer> FAMILY_FILE_COUNTS = Map.of(
             "complete_capture_box", 24,
@@ -60,7 +73,8 @@ class ReleaseAssetAndAdvancementTest {
             "anesthetic_crossbow", 21,
             "anesthetic_potion", 2,
             "anesthetic_syringe", 1,
-            "dino_doctor_goggles", 2
+            "dino_doctor_goggles", 2,
+            "egg_collector", 12
     );
 
     @Test
@@ -92,6 +106,250 @@ class ReleaseAssetAndAdvancementTest {
         assertEquals(16, goggles.getHeight());
         assertTrue(goggles.getColorModel().hasAlpha());
         assertBinaryAlpha(goggles);
+    }
+
+    @Test
+    void eggCollectorV10UsesNineCutoutTexturesAndApprovedOctagonalNestGeometry() throws IOException {
+        JsonObject blockModel = readJson(
+                RESOURCE_ROOT.resolve("assets/jsmore/models/block/egg_collector.json")
+        );
+        assertEquals("minecraft:cutout", blockModel.get("render_type").getAsString());
+
+        JsonObject textures = blockModel.getAsJsonObject("textures");
+        assertEquals(
+                Set.of(
+                        "particle",
+                        "device_front",
+                        "device_side",
+                        "device_top",
+                        "device_bottom",
+                        "nest_bed",
+                        "nest_slope",
+                        "nest_rim",
+                        "nest_side",
+                        "nest_corner_band"
+                ),
+                textures.keySet()
+        );
+        Set<String> expectedTextureReferences = new HashSet<>();
+        for (String textureName : EGG_COLLECTOR_TEXTURE_SHA256.keySet()) {
+            expectedTextureReferences.add("jsmore:block/egg_collector_" + textureName);
+        }
+        Set<String> actualTextureReferences = new HashSet<>();
+        for (Map.Entry<String, JsonElement> texture : textures.entrySet()) {
+            actualTextureReferences.add(texture.getValue().getAsString());
+        }
+        assertEquals(expectedTextureReferences, actualTextureReferences);
+        assertEquals("jsmore:block/egg_collector_device_side", textures.get("particle").getAsString());
+
+        for (Map.Entry<String, String> texture : EGG_COLLECTOR_TEXTURE_SHA256.entrySet()) {
+            Path path = RESOURCE_ROOT.resolve(
+                    "assets/jsmore/textures/block/egg_collector_" + texture.getKey() + ".png"
+            );
+            assertEquals(texture.getValue(), sha256(Files.readAllBytes(path)));
+            BufferedImage image = ImageIO.read(path.toFile());
+            assertNotNull(image);
+            assertEquals(16, image.getWidth());
+            assertEquals(16, image.getHeight());
+            assertTrue(image.getColorModel().hasAlpha());
+            if (texture.getKey().startsWith("nest_")) {
+                assertBinaryAlpha(image);
+                if (texture.getKey().equals("nest_corner_band")) {
+                    assertCornerBandTexture(image);
+                }
+            } else {
+                assertOpaqueAlpha(image);
+            }
+        }
+
+        JsonArray elements = blockModel.getAsJsonArray("elements");
+        assertEquals(17, elements.size());
+
+        JsonObject device = elements.get(0).getAsJsonObject();
+        assertJsonVector(device.getAsJsonArray("from"), 0.0D, 0.0D, 0.0D);
+        assertJsonVector(device.getAsJsonArray("to"), 16.0D, 8.0D, 16.0D);
+        JsonObject deviceFaces = device.getAsJsonObject("faces");
+        assertEquals("#device_front",
+                deviceFaces.getAsJsonObject("south").get("texture").getAsString());
+        for (String side : List.of("north", "east", "west")) {
+            assertEquals("#device_side",
+                    deviceFaces.getAsJsonObject(side).get("texture").getAsString());
+        }
+        assertEquals("#device_top", deviceFaces.getAsJsonObject("up").get("texture").getAsString());
+        assertEquals("#device_bottom",
+                deviceFaces.getAsJsonObject("down").get("texture").getAsString());
+
+        JsonObject bed = elements.get(1).getAsJsonObject();
+        assertJsonVector(bed.getAsJsonArray("from"), 4.0D, 8.625D, 4.0D);
+        assertJsonVector(bed.getAsJsonArray("to"), 12.0D, 8.625D, 12.0D);
+        assertFalse(bed.has("rotation"));
+        assertTwoSidedCutoutPlane(bed, "#nest_bed");
+
+        double[][] slopeFrom = {
+                {2.5D, 8.5D, -1.0D},
+                {2.5D, 8.5D, 8.0D},
+                {-1.0D, 8.5D, 2.5D},
+                {8.0D, 8.5D, 2.5D}
+        };
+        double[][] slopeTo = {
+                {13.5D, 8.5D, 8.0D},
+                {13.5D, 8.5D, 17.0D},
+                {8.0D, 8.5D, 13.5D},
+                {17.0D, 8.5D, 13.5D}
+        };
+        String[] slopeAxes = {"x", "x", "z", "z"};
+        double[] slopeAngles = {22.5D, -22.5D, -22.5D, 22.5D};
+        for (int index = 0; index < slopeFrom.length; index++) {
+            JsonObject slope = elements.get(index + 2).getAsJsonObject();
+            assertJsonVector(slope.getAsJsonArray("from"), slopeFrom[index]);
+            assertJsonVector(slope.getAsJsonArray("to"), slopeTo[index]);
+            assertTwoSidedCutoutPlane(slope, "#nest_slope");
+            JsonObject rotation = slope.getAsJsonObject("rotation");
+            assertEquals(slopeAxes[index], rotation.get("axis").getAsString());
+            assertEquals(slopeAngles[index], rotation.get("angle").getAsDouble(), 0.000001D);
+            assertJsonVector(rotation.getAsJsonArray("origin"), 8.0D, 8.5D, 8.0D);
+            assertFalse(rotation.get("rescale").getAsBoolean());
+        }
+
+        double[] rimMinimums = {-1.5D, -0.5D, 0.5D};
+        double[] rimMaximums = {17.5D, 16.5D, 15.5D};
+        double[] rimHeights = {11.25D, 12.25D, 13.25D};
+        double previousWidth = Double.POSITIVE_INFINITY;
+        double previousHeight = Double.NEGATIVE_INFINITY;
+        for (int index = 0; index < rimMinimums.length; index++) {
+            JsonObject rim = elements.get(index + 6).getAsJsonObject();
+            double minimum = rimMinimums[index];
+            double maximum = rimMaximums[index];
+            double height = rimHeights[index];
+            assertJsonVector(rim.getAsJsonArray("from"), minimum, height, minimum);
+            assertJsonVector(rim.getAsJsonArray("to"), maximum, height, maximum);
+            assertFalse(rim.has("rotation"));
+            assertTwoSidedCutoutPlane(rim, "#nest_rim");
+
+            double width = maximum - minimum;
+            assertTrue(width < previousWidth, "Each higher rim layer must inset from the previous layer");
+            assertTrue(height > previousHeight, "Rim layers must stay ordered from bottom to top");
+            previousWidth = width;
+            previousHeight = height;
+        }
+
+        double[][] sideFrom = {
+                {-0.5D, 8.0D, 0.5D},
+                {-0.5D, 8.0D, 15.5D},
+                {0.5D, 8.0D, -0.5D},
+                {15.5D, 8.0D, -0.5D}
+        };
+        double[][] sideTo = {
+                {16.5D, 13.25D, 0.5D},
+                {16.5D, 13.25D, 15.5D},
+                {0.5D, 13.25D, 16.5D},
+                {15.5D, 13.25D, 16.5D}
+        };
+        double[][] sideOrigins = {
+                {8.0D, 8.0D, 0.5D},
+                {8.0D, 8.0D, 15.5D},
+                {0.5D, 8.0D, 8.0D},
+                {15.5D, 8.0D, 8.0D}
+        };
+        String[] sideAxes = {"x", "x", "z", "z"};
+        double[] sideAngles = {-22.5D, 22.5D, 22.5D, -22.5D};
+        String[][] sideFaces = {
+                {"north", "south"},
+                {"north", "south"},
+                {"east", "west"},
+                {"east", "west"}
+        };
+        for (int index = 0; index < sideFrom.length; index++) {
+            JsonObject side = elements.get(index + 9).getAsJsonObject();
+            assertJsonVector(side.getAsJsonArray("from"), sideFrom[index]);
+            assertJsonVector(side.getAsJsonArray("to"), sideTo[index]);
+
+            JsonObject rotation = side.getAsJsonObject("rotation");
+            assertJsonVector(rotation.getAsJsonArray("origin"), sideOrigins[index]);
+            assertEquals(sideAxes[index], rotation.get("axis").getAsString());
+            assertEquals(sideAngles[index], rotation.get("angle").getAsDouble(), 0.000001D);
+            assertFalse(rotation.get("rescale").getAsBoolean());
+
+            JsonObject faces = side.getAsJsonObject("faces");
+            assertEquals(Set.copyOf(List.of(sideFaces[index])), faces.keySet());
+            for (String faceName : sideFaces[index]) {
+                JsonObject face = faces.getAsJsonObject(faceName);
+                assertJsonVector(face.getAsJsonArray("uv"), 0.0D, 0.0D, 16.0D, 16.0D);
+                assertEquals("#nest_side", face.get("texture").getAsString());
+                assertFalse(face.has("cullface"));
+            }
+        }
+
+        double[][] cornerFrom = {
+                {-0.625D, 10.75D, -0.625D},
+                {11.625D, 10.75D, -0.625D},
+                {11.625D, 10.75D, 11.625D},
+                {-0.625D, 10.75D, 11.625D}
+        };
+        double[][] cornerTo = {
+                {4.375D, 10.75D, 4.375D},
+                {16.625D, 10.75D, 4.375D},
+                {16.625D, 10.75D, 16.625D},
+                {4.375D, 10.75D, 16.625D}
+        };
+        int[] cornerRotations = {0, 90, 180, 270};
+        for (int index = 0; index < cornerFrom.length; index++) {
+            JsonObject corner = elements.get(index + 13).getAsJsonObject();
+            assertJsonVector(corner.getAsJsonArray("from"), cornerFrom[index]);
+            assertJsonVector(corner.getAsJsonArray("to"), cornerTo[index]);
+            assertFalse(corner.has("rotation"));
+
+            JsonObject faces = corner.getAsJsonObject("faces");
+            assertEquals(Set.of("up", "down"), faces.keySet());
+            JsonObject up = faces.getAsJsonObject("up");
+            JsonObject down = faces.getAsJsonObject("down");
+            assertJsonVector(up.getAsJsonArray("uv"), 0.0D, 0.0D, 16.0D, 16.0D);
+            assertJsonVector(down.getAsJsonArray("uv"), 0.0D, 16.0D, 16.0D, 0.0D);
+            assertEquals("#nest_corner_band", up.get("texture").getAsString());
+            assertEquals("#nest_corner_band", down.get("texture").getAsString());
+            assertEquals(cornerRotations[index], up.get("rotation").getAsInt());
+            assertEquals(cornerRotations[index], down.get("rotation").getAsInt());
+            assertFalse(up.has("cullface"));
+            assertFalse(down.has("cullface"));
+        }
+
+        JsonObject blockstate = readJson(
+                RESOURCE_ROOT.resolve("assets/jsmore/blockstates/egg_collector.json")
+        );
+        JsonObject variants = blockstate.getAsJsonObject("variants");
+        Map<String, Integer> expectedRotations = Map.of(
+                "facing=north", 180,
+                "facing=east", 270,
+                "facing=south", 0,
+                "facing=west", 90
+        );
+        assertEquals(expectedRotations.keySet(), variants.keySet());
+        for (Map.Entry<String, Integer> variant : expectedRotations.entrySet()) {
+            JsonObject definition = variants.getAsJsonObject(variant.getKey());
+            assertEquals("jsmore:block/egg_collector", definition.get("model").getAsString());
+            assertEquals(variant.getValue().intValue(), definition.get("y").getAsInt());
+        }
+
+        JsonObject itemModel = readJson(
+                RESOURCE_ROOT.resolve("assets/jsmore/models/item/egg_collector.json")
+        );
+        assertEquals("jsmore:block/egg_collector", itemModel.get("parent").getAsString());
+        JsonObject display = itemModel.getAsJsonObject("display");
+        assertEquals(
+                Set.of(
+                        "gui",
+                        "ground",
+                        "fixed",
+                        "thirdperson_righthand",
+                        "thirdperson_lefthand",
+                        "firstperson_righthand",
+                        "firstperson_lefthand"
+                ),
+                display.keySet()
+        );
+        JsonObject gui = display.getAsJsonObject("gui");
+        assertJsonVector(gui.getAsJsonArray("rotation"), 30.0D, 225.0D, 0.0D);
+        assertJsonVector(gui.getAsJsonArray("scale"), 0.59D, 0.59D, 0.59D);
     }
 
     @Test
@@ -338,6 +596,49 @@ class ReleaseAssetAndAdvancementTest {
         assertEquals(Set.of(0, 255), alphaValues);
     }
 
+    private static void assertOpaqueAlpha(BufferedImage image) {
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                assertEquals(255, alpha(image.getRGB(x, y)));
+            }
+        }
+    }
+
+    private static void assertCornerBandTexture(BufferedImage image) {
+        int opaquePixels = 0;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                int currentAlpha = alpha(image.getRGB(x, y));
+                assertEquals(currentAlpha, alpha(image.getRGB(y, x)),
+                        "Corner band must remain diagonally symmetric");
+                if (currentAlpha == 255) {
+                    opaquePixels++;
+                    assertTrue(x + y >= 8 && x + y <= 13,
+                            "Corner band pixels must stay inside the approved inner diagonal");
+                }
+            }
+        }
+        assertEquals(53, opaquePixels);
+        assertEquals(0, alpha(image.getRGB(0, 0)));
+        assertEquals(0, alpha(image.getRGB(15, 15)));
+    }
+
+    private static void assertTwoSidedCutoutPlane(JsonObject element, String texture) {
+        JsonObject faces = element.getAsJsonObject("faces");
+        assertEquals(Set.of("up", "down"), faces.keySet());
+        assertEquals(texture, faces.getAsJsonObject("up").get("texture").getAsString());
+        assertEquals(texture, faces.getAsJsonObject("down").get("texture").getAsString());
+        assertFalse(faces.getAsJsonObject("up").has("cullface"));
+        assertFalse(faces.getAsJsonObject("down").has("cullface"));
+    }
+
+    private static void assertJsonVector(JsonArray actual, double... expected) {
+        assertEquals(expected.length, actual.size());
+        for (int index = 0; index < expected.length; index++) {
+            assertEquals(expected[index], actual.get(index).getAsDouble(), 0.000001D);
+        }
+    }
+
     private static int alpha(int argb) {
         return argb >>> 24;
     }
@@ -380,6 +681,11 @@ class ReleaseAssetAndAdvancementTest {
             case "dino_doctor_goggles" -> path ->
                     path.equals("assets/jsmore/models/item/dino_doctor_goggles.json")
                             || path.equals("assets/jsmore/textures/item/dino_doctor_goggles.png");
+            case "egg_collector" -> path ->
+                    path.equals("assets/jsmore/blockstates/egg_collector.json")
+                            || path.equals("assets/jsmore/models/block/egg_collector.json")
+                            || path.equals("assets/jsmore/models/item/egg_collector.json")
+                            || path.startsWith("assets/jsmore/textures/block/egg_collector_");
             default -> throw new IllegalArgumentException("Unknown asset family " + family);
         };
 

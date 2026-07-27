@@ -376,11 +376,25 @@ public final class BrokenCaptureBoxDebrisGameTests {
                 ? StringTag.valueOf("future-neutralizer-marker")
                 : net.minecraft.nbt.ByteTag.valueOf((byte) 0);
         String futureValue = (targetFailure ? "target-" : "source-") + (throwFailure ? "throw" : "false");
-        if (!placeFresh(helper, source)
-                || !placeFresh(helper, target)
-                || !addMetadata(helper, source, BrokenCaptureBoxDebrisData.TAG_KEY, sourceMarker)
-                || !addMetadata(helper, source, "FutureBrokenNeutralizerRaw", StringTag.valueOf(futureValue))) {
-            helper.fail("Could not seed broken item-neutralizer failure fixtures");
+        if (!placeFresh(helper, source)) {
+            helper.fail("Could not seed broken item-neutralizer source structure");
+            return;
+        }
+        if (!placeFresh(helper, target)) {
+            helper.fail("Could not seed broken item-neutralizer target structure");
+            return;
+        }
+        if (!addMetadata(helper, source, BrokenCaptureBoxDebrisData.TAG_KEY, sourceMarker)) {
+            helper.fail("Could not seed broken item-neutralizer debris marker");
+            return;
+        }
+        if (!addMetadata(
+                helper,
+                source,
+                "FutureBrokenNeutralizerRaw",
+                StringTag.valueOf(futureValue)
+        )) {
+            helper.fail("Could not seed broken item-neutralizer unknown metadata");
             return;
         }
 

@@ -5,6 +5,8 @@
   "plugin": "com.palos.jsmore.mixin.JSMoreMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AlligatorPeriodicEggBreedingMixin",
+    "BasiliskPeriodicEggBreedingMixin",
     "EntityTypeSpawnEggMixin",
     "JSAnimalAnimationSystemsMixin",
     "JSAnimalBaseSystemsMixin",
@@ -15,6 +17,8 @@
     "JSEntityDataHolderSystemsMixin",
     "LivingEntityTravelMixin",
     "MultiNoiseBiomeSourceMixin",
+    "OstrichPeriodicEggBreedingMixin",
+    "ReedFrogPeriodicEggBreedingMixin",
     "TravelersAnimationDefinitionMixin",
     "TravelersAnimalAnimationModuleAccessor",
     "TravelersSmartAnimalBaseMixin",

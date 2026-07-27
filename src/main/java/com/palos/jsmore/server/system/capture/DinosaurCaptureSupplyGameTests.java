@@ -737,7 +737,7 @@ public final class DinosaurCaptureSupplyGameTests {
         }
 
         DinosaurCaptureCageBlockEntity failingCage = placeController(
-                helper, helper.absolutePos(new BlockPos(24, 2, 12))
+                helper, helper.absolutePos(new BlockPos(21, 2, 12))
         );
         CapturedDinosaurData invalid = invalidPigCapture(helper.getLevel().getGameTime());
         DinosaurCaptureSupplies preservedSupplies = new DinosaurCaptureSupplies(1, 2, 2, 3);
@@ -758,7 +758,7 @@ public final class DinosaurCaptureSupplyGameTests {
     @GameTest(template = "profile_compatibility", timeoutTicks = 120)
     public static void offlineHistoryConsumesAtMostOneReservePerLoadedCarePass(GameTestHelper helper) {
         JSAnimalBase animal = createAnimalWithHunger(helper);
-        DinosaurCaptureCageBlockEntity cage = placeController(helper, helper.absolutePos(new BlockPos(5, 2, 20)));
+        DinosaurCaptureCageBlockEntity cage = placeController(helper, helper.absolutePos(new BlockPos(5, 2, 16)));
         if (animal == null || cage == null || helper.getLevel().getGameTime() <= 0L) {
             helper.fail("Could not prepare offline care fixture with a safe historical baseline");
             return;
@@ -822,7 +822,7 @@ public final class DinosaurCaptureSupplyGameTests {
             JSAnimalBase animal = createAnimalForDiet(helper, diet);
             DinosaurCaptureCageBlockEntity cage = placeController(
                     helper,
-                    helper.absolutePos(new BlockPos(11 + index * 6, 2, 20))
+                    helper.absolutePos(new BlockPos(4 + index * 7, 2, 15))
             );
             if (animal == null || cage == null) {
                 helper.fail("Jurassic Saga 0.2.1 did not provide a runtime " + diet + " care fixture");
@@ -869,7 +869,7 @@ public final class DinosaurCaptureSupplyGameTests {
             }
         }
         CapturedDinosaurData captured = animal == null ? null : CapturedDinosaurData.capture(animal).orElse(null);
-        BlockPos controllerPos = helper.absolutePos(new BlockPos(4, 2, 27));
+        BlockPos controllerPos = helper.absolutePos(new BlockPos(3, 2, 16));
         DinosaurCaptureCageBlockEntity cage = placeCompleteCage(helper, controllerPos, Direction.EAST);
         DinosaurCaptureSupplies supplies = new DinosaurCaptureSupplies(0, 5, 3, 4);
         if (captured == null || cage == null || !cage.setContents(captured, supplies)) {
@@ -887,7 +887,7 @@ public final class DinosaurCaptureSupplyGameTests {
             return;
         }
 
-        BlockPos releaseBase = helper.absolutePos(new BlockPos(16, 3, 27));
+        BlockPos releaseBase = helper.absolutePos(new BlockPos(8, 3, 8));
         prepareReleaseArea(helper, releaseBase);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         InteractionResult released = DinosaurCaptureService.releaseFromStack(
@@ -918,7 +918,7 @@ public final class DinosaurCaptureSupplyGameTests {
         if (replacementMetabolism.isThirstEnabled()) {
             replacementMetabolism.setThirst(replacementMetabolism.getMaxThirst());
         }
-        BlockPos replacementAnchor = helper.absolutePos(new BlockPos(24, 2, 8));
+        BlockPos replacementAnchor = helper.absolutePos(new BlockPos(18, 2, 15));
         player.setPos(
                 replacementAnchor.getX() + 0.5D,
                 replacementAnchor.getY(),
@@ -977,7 +977,7 @@ public final class DinosaurCaptureSupplyGameTests {
             helper.fail("Could not create creative supply transfer animal");
             return;
         }
-        BlockPos anchor = helper.absolutePos(new BlockPos(24, 2, 27));
+        BlockPos anchor = helper.absolutePos(new BlockPos(16, 2, 15));
         Player player = helper.makeMockPlayer(GameType.CREATIVE);
         player.getAbilities().instabuild = true;
         player.setYRot(180.0F);
@@ -1019,7 +1019,7 @@ public final class DinosaurCaptureSupplyGameTests {
             helper.fail("Could not create survival supply transfer animal");
             return;
         }
-        BlockPos survivalAnchor = helper.absolutePos(new BlockPos(8, 2, 27));
+        BlockPos survivalAnchor = helper.absolutePos(new BlockPos(6, 2, 15));
         Player survivalPlayer = helper.makeMockPlayer(GameType.SURVIVAL);
         survivalPlayer.setYRot(180.0F);
         Direction survivalDirection = survivalPlayer.getDirection();

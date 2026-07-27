@@ -5,10 +5,12 @@ import com.palos.jsmore.compat.aeronautics.AeronauticsCompatibilityGate;
 import com.palos.jsmore.compat.aeronautics.AeronauticsPatchReadiness;
 import com.palos.jsmore.compat.aeronautics.SableSubLevelAssemblyBytecodePatch;
 import com.palos.jsmore.compat.aeronautics.SimAssemblyContraptionBytecodePatch;
+import com.palos.jsmore.compat.jurassicsaga.JurassicSagaBreedingCompatibilityGate;
 import com.palos.jsmore.compat.jurassicsaga.JurassicSagaFoodSortCompatibilityGate;
 import com.palos.jsmore.compat.terrablender.TerraBlenderCompatibilityGate;
 import com.palos.jsmore.compat.travelers.TravelersHandler1211BytecodePatch;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,6 +38,21 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
             "com.palos.jsmore.mixin.JurassicSagaFindFoodTaskMixin";
     private static final String JURASSIC_SAGA_FOOD_SORT_TARGET =
             "jp.jurassicsaga.server.animal.entity.obj.tasks.metabolism.JSFindFoodTask";
+    private static final Map<String, String> JURASSIC_SAGA_BREEDING_TARGETS =
+            Map.of(
+                    "com.palos.jsmore.mixin.JSAnimalBaseSystemsMixin",
+                    "jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase",
+                    "com.palos.jsmore.mixin.JSEntityDataHolderSystemsMixin",
+                    "jp.jurassicsaga.server.animal.entity.obj.bases.JSEntityDataHolder",
+                    "com.palos.jsmore.mixin.OstrichPeriodicEggBreedingMixin",
+                    "jp.jurassicsaga.server.animal.entity.misc.misc_extant.OstrichEntity",
+                    "com.palos.jsmore.mixin.AlligatorPeriodicEggBreedingMixin",
+                    "jp.jurassicsaga.server.animal.entity.misc.misc_extant.AlligatorEntity",
+                    "com.palos.jsmore.mixin.ReedFrogPeriodicEggBreedingMixin",
+                    "jp.jurassicsaga.server.animal.entity.misc.misc_extant.ReedFrogEntity",
+                    "com.palos.jsmore.mixin.BasiliskPeriodicEggBreedingMixin",
+                    "jp.jurassicsaga.server.animal.entity.misc.misc_extant.BasiliskEntity"
+            );
     private static final AtomicBoolean AERONAUTICS_WARNING_LOGGED = new AtomicBoolean();
     private static final AtomicBoolean TERRABLENDER_WARNING_LOGGED = new AtomicBoolean();
     private static final AtomicBoolean JURASSIC_SAGA_FOOD_SORT_WARNING_LOGGED = new AtomicBoolean();
@@ -53,6 +70,14 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        String breedingTarget = JURASSIC_SAGA_BREEDING_TARGETS.get(mixinClassName);
+        if (breedingTarget != null) {
+            return shouldApplyJurassicSagaBreedingMixin(
+                    targetClassName,
+                    mixinClassName,
+                    breedingTarget
+            );
+        }
         if (JURASSIC_SAGA_FOOD_SORT_MARKER.equals(mixinClassName)) {
             return shouldApplyJurassicSagaFoodSortMixin(targetClassName);
         }
@@ -154,6 +179,44 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
             return false;
         }
         return shouldApplyJurassicSagaFoodSortReport(report);
+    }
+
+    private static boolean shouldApplyJurassicSagaBreedingMixin(
+            String targetClassName,
+            String mixinClassName,
+            String expectedTarget
+    ) {
+        if (!expectedTarget.equals(targetClassName)) {
+            throw new IllegalStateException(
+                    "JS More Jurassic Saga breeding marker " + mixinClassName
+                            + " targeted unexpected class " + targetClassName
+            );
+        }
+        JurassicSagaBreedingCompatibilityGate.Report report;
+        try {
+            report = JurassicSagaBreedingCompatibilityGate.probeRuntimeOnce();
+        } catch (RuntimeException | LinkageError exception) {
+            throw new IllegalStateException(
+                    "JS More could not prove the Jurassic Saga breeding binary contract",
+                    exception
+            );
+        }
+        return shouldApplyJurassicSagaBreedingReport(report);
+    }
+
+    static boolean shouldApplyJurassicSagaBreedingReport(
+            JurassicSagaBreedingCompatibilityGate.Report report
+    ) {
+        if (report != null && report.supported()) {
+            return true;
+        }
+        String diagnostic = report == null
+                ? "missing compatibility report"
+                : report.status() + ": " + String.join("; ", report.diagnostics());
+        throw new IllegalStateException(
+                "JS More requires the exact supported Jurassic Saga breeding binary: "
+                        + diagnostic
+        );
     }
 
     static boolean shouldApplyJurassicSagaFoodSortReport(

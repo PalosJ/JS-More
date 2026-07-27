@@ -1,6 +1,7 @@
 package com.palos.jsmore.server.registry;
 
 import com.palos.jsmore.server.block.entity.DinosaurCaptureCageBlockEntity;
+import com.palos.jsmore.server.block.entity.EggCollectorBlockEntity;
 import com.palos.jsmore.server.system.capture.CaptureBoxAccess;
 import com.palos.jsmore.server.system.capture.CaptureBoxStructure;
 import net.neoforged.neoforge.capabilities.Capabilities;
@@ -12,6 +13,13 @@ public final class JSMoreBlockCapabilities {
     }
 
     public static void register(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+                Capabilities.ItemHandler.BLOCK,
+                (level, pos, state, blockEntity, side) -> blockEntity instanceof EggCollectorBlockEntity collector
+                        ? collector.getItemHandler()
+                        : null,
+                JSMoreBlocks.EGG_COLLECTOR.get()
+        );
         event.registerBlock(
                 Capabilities.ItemHandler.BLOCK,
                 (level, pos, state, blockEntity, side) -> CaptureBoxAccess.resolve(level, pos)

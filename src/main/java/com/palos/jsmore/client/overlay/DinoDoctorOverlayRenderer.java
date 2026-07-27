@@ -1088,10 +1088,25 @@ public final class DinoDoctorOverlayRenderer {
         int days = (int) Math.floor(remainingDays - (months * REAL_AGE_DAYS_PER_MONTH) + 1.0E-6D);
         if (wholeYears > 0) {
             if (months > 0) {
+                if (days > 0) {
+                    return formatValue(
+                            "overlay.jsmore.age.real.year_month_day",
+                            Integer.toString(wholeYears),
+                            Integer.toString(months),
+                            Integer.toString(days)
+                    );
+                }
                 return formatValue(
                         "overlay.jsmore.age.real.year_month",
                         Integer.toString(wholeYears),
                         Integer.toString(months)
+                );
+            }
+            if (days > 0) {
+                return formatValue(
+                        "overlay.jsmore.age.real.year_day",
+                        Integer.toString(wholeYears),
+                        Integer.toString(days)
                 );
             }
             return formatValue("overlay.jsmore.age.real.year_only", Integer.toString(wholeYears));

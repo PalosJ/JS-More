@@ -3,6 +3,7 @@ package com.palos.jsmore.server.registry;
 import com.palos.jsmore.JSMore;
 import com.palos.jsmore.server.block.BrokenDinosaurCaptureBoxBlock;
 import com.palos.jsmore.server.block.DinosaurCaptureCageBlock;
+import com.palos.jsmore.server.block.EggCollectorBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.material.PushReaction;
@@ -31,6 +32,13 @@ public final class JSMoreBlocks {
                             .requiresCorrectToolForDrops()
                             .sound(SoundType.METAL)
                             .pushReaction(PushReaction.BLOCK)
+                            .noOcclusion()
+            );
+    public static final DeferredBlock<EggCollectorBlock> EGG_COLLECTOR =
+            BLOCKS.registerBlock(
+                    "egg_collector",
+                    EggCollectorBlock::new,
+                    BlockBehaviour.Properties.ofFullCopy(Blocks.BARREL)
                             .noOcclusion()
             );
 

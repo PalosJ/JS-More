@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "jsmore:block/egg_collector",
+      "y": 180
+    },
+    "facing=east": {
+      "model": "jsmore:block/egg_collector",
+      "y": 270
+    },
+    "facing=south": {
+      "model": "jsmore:block/egg_collector",
+      "y": 0
+    },
+    "facing=west": {
+      "model": "jsmore:block/egg_collector",
+      "y": 90
+    }
+  }
+}

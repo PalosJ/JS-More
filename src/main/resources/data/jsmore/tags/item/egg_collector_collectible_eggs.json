@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:egg",
+    "jurassicsaga:egg_alligator",
+    "jurassicsaga:egg_ostrich",
+    "jurassicsaga:egg_frog",
+    "jurassicsaga:egg_basilisk",
+    "jurassicsaga:egg_fish",
+    "jurassicsaga:egg_spider"
+  ]
+}

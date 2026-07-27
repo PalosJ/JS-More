@@ -1,8 +1,10 @@
 package com.palos.jsmore.compat.terrablender;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.palos.jsmore.compat.jurassicsaga.JurassicSagaBreedingCompatibilityGate;
 import com.palos.jsmore.compat.jurassicsaga.JurassicSagaFoodSortCompatibilityGate;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -71,6 +73,27 @@ class JSMoreMixinPluginTest {
         assertFalse(warnFoodSort("already diagnosed"));
     }
 
+    @Test
+    void jurassicSagaBreedingDecisionRequiresAnExactReadyReport()
+            throws ReflectiveOperationException {
+        assertTrue(decideBreeding(new JurassicSagaBreedingCompatibilityGate.Report(
+                JurassicSagaBreedingCompatibilityGate.Status.READY,
+                List.of()
+        )));
+        assertThrows(ReflectiveOperationException.class, () -> decideBreeding(
+                new JurassicSagaBreedingCompatibilityGate.Report(
+                        JurassicSagaBreedingCompatibilityGate.Status.DRIFT,
+                        List.of("changed periodic egg path")
+                )
+        ));
+        assertThrows(ReflectiveOperationException.class, () -> decideBreeding(
+                new JurassicSagaBreedingCompatibilityGate.Report(
+                        JurassicSagaBreedingCompatibilityGate.Status.ABSENT,
+                        List.of("required Jurassic Saga classes absent")
+                )
+        ));
+    }
+
     private static boolean decide(TerraBlenderCompatibilityGate.Report report)
             throws ReflectiveOperationException {
         return (boolean) invoke(
@@ -89,6 +112,15 @@ class JSMoreMixinPluginTest {
         return (boolean) invoke(
                 "shouldApplyJurassicSagaFoodSortReport",
                 new Class<?>[]{JurassicSagaFoodSortCompatibilityGate.Report.class},
+                report
+        );
+    }
+
+    private static boolean decideBreeding(JurassicSagaBreedingCompatibilityGate.Report report)
+            throws ReflectiveOperationException {
+        return (boolean) invoke(
+                "shouldApplyJurassicSagaBreedingReport",
+                new Class<?>[]{JurassicSagaBreedingCompatibilityGate.Report.class},
                 report
         );
     }

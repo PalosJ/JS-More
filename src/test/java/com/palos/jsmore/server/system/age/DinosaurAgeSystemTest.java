@@ -8,6 +8,8 @@ import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
 class DinosaurAgeSystemTest {
+    private static final double EPSILON = 1.0E-12D;
+    private static final long GAME_DAY_TICKS = 24000L;
     private static final ResourceLocation KNOWN_SPECIES =
             ResourceLocation.fromNamespaceAndPath("jurassicsaga", "tylosaurus");
     private static final ResourceLocation UNKNOWN_SPECIES =
@@ -73,6 +75,79 @@ class DinosaurAgeSystemTest {
 
         assertEquals(18.0D, jurassicSaga.orElseThrow());
         assertEquals(12.0D, foreignSamePath.orElseThrow());
+    }
+
+    @Test
+    void preAdultAgeKeepsTheExistingGrowthProjection() {
+        long adultGameTicks = 24L * GAME_DAY_TICKS;
+
+        assertEquals(0.0D, DinosaurAgeSystem.calculateRealAgeYears(
+                18.0D, adultGameTicks, 0L, 0.0D, false
+        ), EPSILON);
+        assertEquals(9.0D, DinosaurAgeSystem.calculateRealAgeYears(
+                18.0D, adultGameTicks, adultGameTicks / 2L, 0.5D, false
+        ), EPSILON);
+        assertEquals(17.82D, DinosaurAgeSystem.calculateRealAgeYears(
+                18.0D, adultGameTicks, Math.round(adultGameTicks * 0.99D), 0.99D, false
+        ), EPSILON);
+    }
+
+    @Test
+    void adultAgeStartsAtTheRealAdultAgeWithoutABoundaryJump() {
+        long adultGameTicks = 24L * GAME_DAY_TICKS;
+
+        assertEquals(18.0D, DinosaurAgeSystem.calculateRealAgeYears(
+                18.0D, adultGameTicks, adultGameTicks, 1.0D, true
+        ), EPSILON);
+    }
+
+    @Test
+    void adultAgeAdvancesOneDisplayedDayPerRunningGameDay() {
+        long adultGameTicks = 24L * GAME_DAY_TICKS;
+
+        assertEquals(18.0D + 23999.0D / (GAME_DAY_TICKS * 365.0D),
+                DinosaurAgeSystem.calculateRealAgeYears(
+                        18.0D, adultGameTicks, adultGameTicks + 23999L, 1.0D, true
+                ), EPSILON);
+        assertEquals(18.0D + 1.0D / 365.0D,
+                DinosaurAgeSystem.calculateRealAgeYears(
+                        18.0D, adultGameTicks, adultGameTicks + GAME_DAY_TICKS, 1.0D, true
+                ), EPSILON);
+        assertEquals(18.0D + 2.0D / 365.0D,
+                DinosaurAgeSystem.calculateRealAgeYears(
+                        18.0D, adultGameTicks, adultGameTicks + 2L * GAME_DAY_TICKS, 1.0D, true
+                ), EPSILON);
+    }
+
+    @Test
+    void adultRateDoesNotDependOnSpeciesGrowthDuration() {
+        double expected = 12.0D + 1.0D / 365.0D;
+        long fastAdultTicks = 8L * GAME_DAY_TICKS;
+        long slowAdultTicks = 30L * GAME_DAY_TICKS;
+
+        assertEquals(expected, DinosaurAgeSystem.calculateRealAgeYears(
+                12.0D, fastAdultTicks, fastAdultTicks + GAME_DAY_TICKS, 1.0D, true
+        ), EPSILON);
+        assertEquals(expected, DinosaurAgeSystem.calculateRealAgeYears(
+                12.0D, slowAdultTicks, slowAdultTicks + GAME_DAY_TICKS, 1.0D, true
+        ), EPSILON);
+    }
+
+    @Test
+    void existingAdultBirthAnchorNoLongerProducesArtificialCenturyScaleAges() {
+        long adultGameTicks = 24L * GAME_DAY_TICKS;
+        long currentGameAgeTicks = adultGameTicks + 100L * GAME_DAY_TICKS;
+
+        assertEquals(18.0D + 100.0D / 365.0D, DinosaurAgeSystem.calculateRealAgeYears(
+                18.0D, adultGameTicks, currentGameAgeTicks, 1.0D, true
+        ), EPSILON);
+    }
+
+    @Test
+    void invalidPreAdultGrowthSafelyFallsBackToBirthAge() {
+        assertEquals(0.0D, DinosaurAgeSystem.calculateRealAgeYears(
+                18.0D, 24L * GAME_DAY_TICKS, 0L, Double.NaN, false
+        ), EPSILON);
     }
 
     private static void assertRejected(ResourceLocation speciesId, double adultAgeYears) {

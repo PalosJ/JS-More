@@ -43,8 +43,8 @@ Travelers 0.7.1 and 0.7.2 also receive separate minimal-runtime server smoke
 tests:
 
 ```powershell
-.\gradlew.bat runGameTestServer -PruntimeProfile=minimal -PtravelersRuntimeVersion=0.7.1 --rerun-tasks --warning-mode all --console=plain
-.\gradlew.bat runGameTestServer -PruntimeProfile=minimal -PtravelersRuntimeVersion=0.7.2 --rerun-tasks --warning-mode all --console=plain
+.\gradlew.bat runGameTestServer -PruntimeProfile=minimal '-PtravelersRuntimeVersion=0.7.1' --rerun-tasks --warning-mode all --console=plain
+.\gradlew.bat runGameTestServer -PruntimeProfile=minimal '-PtravelersRuntimeVersion=0.7.2' --rerun-tasks --warning-mode all --console=plain
 ```
 
 The minimum server log must prove Curios, Jade, TerraBlender, and Aeronautics

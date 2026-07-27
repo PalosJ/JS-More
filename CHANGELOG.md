@@ -2,6 +2,75 @@
 
 All notable user-facing changes are recorded here.
 
+## [1.0.1] - 2026-07-22
+
+### Added
+
+- Added the Egg Collector, a one-block nest and storage device with a vanilla
+  two-row, 18-slot chest interface.
+- Egg Collectors scan a 16-block-radius sphere every 10 ticks and collect only
+  tagged base eggs after the dropped item has existed for at least 100 ticks.
+- Added a hidden recipe unlock and a survival recipe using one hay bale, one
+  chest, and two iron ingots.
+
+### Changed
+
+- Jurassic Saga animals in the `CREATURE` and `WATER_CREATURE` categories no
+  longer enter distance- or idle-based cleanup. JS More preserves rather than
+  sets or clears each animal's existing `isPersistenceRequired` flag.
+- Random automatic mate search is blocked. Non-periodic breeding now requires
+  separately feeding both same-species, opposite-sex, adult, fertile,
+  zero-cooldown parents; Jurassic Saga remains responsible for mate checks,
+  genetics, and birth.
+- Ostriches accept seeds, alligators accept fish, and reed frogs and basilisks
+  accept mosquitoes to arm one eligible adult, fertile, zero-cooldown female
+  for her next real periodic lay.
+- The armed lay replaces exactly one item egg with a maternal-gene `EggEntity`.
+  Success clears `PENDING` so later unarmed cycles return to item eggs.
+  Creation or world-insertion failure still drops the original item egg and
+  retains `PENDING` for a later cycle.
+- Valid pending state and maternal genes survive entity saves across
+  unload/reload and capture-box round trips. Reloading also clears stale
+  automatic mate search.
+- Finalized the Egg Collector with a `16x8x16` lower bin, a visually
+  overhanging `19x19` grass nest, a total height of `13.25`, and an item GUI
+  scale of `0.59`. It uses a full-block selection outline and detailed
+  single-cell collision that follows the lower bin and open-centered,
+  three-layer inset rim.
+- Dinosaur age remains proportional to growth before adulthood. At the exact
+  adult boundary it now switches to one displayed day per 24000 ticks of
+  server runtime, so sleep and `/time` daylight jumps do not inflate age while
+  unloaded chunks and capture-box storage continue from the persisted birth
+  anchor.
+
+### Behavior and safety
+
+- The default collection tag covers the vanilla egg and Jurassic Saga's
+  alligator, ostrich, frog, basilisk, fish, and spider base eggs. Collection is
+  source-agnostic, so matching natural, death, and player-dropped eggs behave
+  consistently while unrelated drops are ignored.
+- Players and hoppers may store any item in the collector. A full inventory
+  leaves the dropped egg untouched, and partial insertion preserves the exact
+  remainder in the world.
+- Network protocol identity remains `7`; the collector reuses the vanilla
+  two-row chest menu and adds no custom payload or screen.
+- The collector still accepts only tagged egg `ItemEntity` drops after roughly
+  five seconds, exposes 18 storage slots, and reuses its placeable block model
+  in inventories.
+
+### Upgrade note
+
+- Before upgrading from an earlier local `1.0.1` candidate, manually empty
+  slots 19–27 in that candidate. This capacity reduction intentionally does
+  not migrate the old third row; items stored in those high slots will not
+  enter the new 18-slot inventory.
+
+### Verification boundary
+
+Automated bytecode contracts, persistence tests, and GameTests cover the
+implemented rules above, but they do not replace real long-duration husbandry
+or final in-game visual acceptance.
+
 ## [1.0.0] - 2026-07-17
 
 ### Initial public baseline and breaking identity change
