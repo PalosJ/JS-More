@@ -2,13 +2,16 @@ package com.palos.jsmore.server.system.age;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.Mth;
 import net.neoforged.neoforge.common.util.INBTSerializable;
 
 public final class DinosaurAgeData implements INBTSerializable<CompoundTag> {
+    public static final int CURRENT_ALGORITHM_VERSION = 2;
     private static final long MAX_ABSOLUTE_GAME_TIME = Long.MAX_VALUE / 4L;
+    private static final String AGE_ALGORITHM_VERSION = "AgeAlgorithmVersion";
     public static final StreamCodec<RegistryFriendlyByteBuf, DinosaurAgeData> STREAM_CODEC = StreamCodec.of(
             (buffer, data) -> {
                 buffer.writeBoolean(data.initialized);
@@ -24,6 +27,7 @@ public final class DinosaurAgeData implements INBTSerializable<CompoundTag> {
                 data.birthGameTime = sanitizeGameTime(buffer.readLong());
                 data.lastObservedGameTime = Math.max(0L, buffer.readLong());
                 data.lastObservedGrowthPercentage = sanitizeGrowthPercentage(buffer.readDouble());
+                data.ageAlgorithmVersion = CURRENT_ALGORITHM_VERSION;
                 return data;
             }
     );
@@ -33,6 +37,7 @@ public final class DinosaurAgeData implements INBTSerializable<CompoundTag> {
     private long birthGameTime;
     private long lastObservedGameTime;
     private double lastObservedGrowthPercentage;
+    private int ageAlgorithmVersion;
 
     public boolean initialized() {
         return this.initialized;
@@ -74,6 +79,18 @@ public final class DinosaurAgeData implements INBTSerializable<CompoundTag> {
         this.lastObservedGrowthPercentage = sanitizeGrowthPercentage(lastObservedGrowthPercentage);
     }
 
+    public int ageAlgorithmVersion() {
+        return this.ageAlgorithmVersion;
+    }
+
+    public void setAgeAlgorithmVersion(int ageAlgorithmVersion) {
+        this.ageAlgorithmVersion = Math.max(0, ageAlgorithmVersion);
+    }
+
+    public boolean requiresLegacyMigration() {
+        return this.ageAlgorithmVersion < CURRENT_ALGORITHM_VERSION;
+    }
+
     @Override
     public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         CompoundTag tag = new CompoundTag();
@@ -82,6 +99,7 @@ public final class DinosaurAgeData implements INBTSerializable<CompoundTag> {
         tag.putLong("BirthGameTime", this.birthGameTime);
         tag.putLong("LastObservedGameTime", this.lastObservedGameTime);
         tag.putDouble("LastGrowthPercentage", this.lastObservedGrowthPercentage);
+        tag.putInt(AGE_ALGORITHM_VERSION, this.ageAlgorithmVersion);
         return tag;
     }
 
@@ -92,6 +110,9 @@ public final class DinosaurAgeData implements INBTSerializable<CompoundTag> {
         this.birthGameTime = sanitizeGameTime(tag.getLong("BirthGameTime"));
         this.lastObservedGameTime = Math.max(0L, tag.getLong("LastObservedGameTime"));
         this.lastObservedGrowthPercentage = sanitizeGrowthPercentage(tag.getDouble("LastGrowthPercentage"));
+        this.ageAlgorithmVersion = tag.contains(AGE_ALGORITHM_VERSION, Tag.TAG_ANY_NUMERIC)
+                ? Math.max(0, tag.getInt(AGE_ALGORITHM_VERSION))
+                : 0;
     }
 
     private static long sanitizeGameTime(long gameTime) {

@@ -1,6 +1,7 @@
 package com.palos.jsmore.server.system.age;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.OptionalDouble;
@@ -148,6 +149,105 @@ class DinosaurAgeSystemTest {
         assertEquals(0.0D, DinosaurAgeSystem.calculateRealAgeYears(
                 18.0D, 24L * GAME_DAY_TICKS, 0L, Double.NaN, false
         ), EPSILON);
+    }
+
+    @Test
+    void legacyAdultsResetToTheAdultBoundaryRegardlessOfTheirPreviousExcessAge() {
+        long adultTicks = 24L * GAME_DAY_TICKS;
+        long resetEpoch = 2_000_000L;
+        for (long excessTicks : new long[]{1L, GAME_DAY_TICKS, 400L * GAME_DAY_TICKS}) {
+            DinosaurAgeData data = initializedLegacyData(resetEpoch - adultTicks - excessTicks);
+
+            assertTrue(DinosaurAgeSystem.migrateLegacyAgeData(
+                    data,
+                    resetEpoch,
+                    resetEpoch,
+                    resetEpoch,
+                    adultTicks,
+                    true
+            ));
+            assertEquals(resetEpoch - adultTicks, data.birthGameTime());
+            assertEquals(DinosaurAgeData.CURRENT_ALGORITHM_VERSION, data.ageAlgorithmVersion());
+        }
+    }
+
+    @Test
+    void delayedLegacyAdultMigrationUsesTheSharedEpochAndAccruesOnlyPostUpdateRuntime() {
+        long adultTicks = 24L * GAME_DAY_TICKS;
+        long resetEpoch = 2_000_000L;
+        long delayedTicks = 48_000L;
+        long levelOffset = 80_000L;
+        DinosaurAgeData data = initializedLegacyData(resetEpoch + levelOffset - adultTicks - 10L * GAME_DAY_TICKS);
+
+        assertTrue(DinosaurAgeSystem.migrateLegacyAgeData(
+                data,
+                resetEpoch,
+                resetEpoch + delayedTicks,
+                resetEpoch + levelOffset + delayedTicks,
+                adultTicks,
+                true
+        ));
+
+        assertEquals(resetEpoch + levelOffset + delayedTicks - adultTicks - delayedTicks, data.birthGameTime());
+        assertEquals(DinosaurAgeData.CURRENT_ALGORITHM_VERSION, data.ageAlgorithmVersion());
+        assertEquals(18.0D + 2.0D / 365.0D, DinosaurAgeSystem.calculateRealAgeYears(
+                18.0D,
+                adultTicks,
+                resetEpoch + levelOffset + delayedTicks - data.birthGameTime(),
+                1.0D,
+                true
+        ), EPSILON);
+    }
+
+    @Test
+    void legacyJuvenileAtTheSharedEpochKeepsItsBirthAnchorEvenIfItMaturesBeforeLoading() {
+        long adultTicks = 24L * GAME_DAY_TICKS;
+        long resetEpoch = 2_000_000L;
+        long originalBirth = resetEpoch - adultTicks + 1L;
+        DinosaurAgeData data = initializedLegacyData(originalBirth);
+
+        assertTrue(DinosaurAgeSystem.migrateLegacyAgeData(
+                data,
+                resetEpoch,
+                resetEpoch + GAME_DAY_TICKS,
+                resetEpoch + GAME_DAY_TICKS,
+                adultTicks,
+                true
+        ));
+        assertEquals(originalBirth, data.birthGameTime());
+        assertEquals(DinosaurAgeData.CURRENT_ALGORITHM_VERSION, data.ageAlgorithmVersion());
+    }
+
+    @Test
+    void currentFutureAndUninitializedAgeDataNeverResetAgain() {
+        DinosaurAgeData current = initializedLegacyData(10L);
+        current.setAgeAlgorithmVersion(DinosaurAgeData.CURRENT_ALGORITHM_VERSION);
+        DinosaurAgeData future = initializedLegacyData(20L);
+        future.setAgeAlgorithmVersion(DinosaurAgeData.CURRENT_ALGORITHM_VERSION + 1);
+        DinosaurAgeData uninitialized = new DinosaurAgeData();
+
+        assertFalse(DinosaurAgeSystem.migrateLegacyAgeData(
+                current, 100L, 100L, 100L, GAME_DAY_TICKS, true
+        ));
+        assertFalse(DinosaurAgeSystem.migrateLegacyAgeData(
+                future, 100L, 100L, 100L, GAME_DAY_TICKS, true
+        ));
+        assertFalse(DinosaurAgeSystem.migrateLegacyAgeData(
+                uninitialized, 100L, 100L, 100L, GAME_DAY_TICKS, true
+        ));
+        assertEquals(10L, current.birthGameTime());
+        assertEquals(20L, future.birthGameTime());
+    }
+
+    private static DinosaurAgeData initializedLegacyData(long birthGameTime) {
+        DinosaurAgeData data = new DinosaurAgeData();
+        data.setInitialized(true);
+        data.setForceAdultSpawnEggAge(false);
+        data.setBirthGameTime(birthGameTime);
+        data.setLastObservedGameTime(Math.max(0L, birthGameTime));
+        data.setLastObservedGrowthPercentage(100.0D);
+        data.setAgeAlgorithmVersion(0);
+        return data;
     }
 
     private static void assertRejected(ResourceLocation speciesId, double adultAgeYears) {

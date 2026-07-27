@@ -97,7 +97,11 @@ public final class AeronauticsProfileGameTests {
         runLinkedWhenReady(helper, "authority-conflict");
     }
 
-    @GameTest(template = "profile_compatibility", timeoutTicks = 200)
+    @GameTest(
+            template = "profile_compatibility",
+            batch = "aeronautics_block_entity_conflict",
+            timeoutTicks = 200
+    )
     public static void formalDisassemblyRejectsBlockEntityTargetWithoutCrash(GameTestHelper helper) {
         runLinkedWhenReady(helper, "block-entity-conflict");
     }

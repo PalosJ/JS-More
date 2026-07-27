@@ -16,6 +16,7 @@ import com.palos.jsmore.server.registry.JSMoreItems;
 import com.palos.jsmore.server.registry.JSMoreRecipeSerializers;
 import com.palos.jsmore.server.recipe.AnestheticPotionBrewingRecipe;
 import com.palos.jsmore.server.system.JSAnimalTickHandler;
+import com.palos.jsmore.server.system.age.DinosaurAgeMigrationSavedData;
 import com.palos.jsmore.server.system.capture.DinosaurCaptureAnvilHandler;
 import com.palos.jsmore.server.system.capture.DinosaurCaptureTickHandler;
 import com.palos.jsmore.server.system.profile.DinosaurProfileResolver;
@@ -55,6 +56,7 @@ public final class JSMoreNeo {
     }
 
     private static void onServerStarted(ServerStartedEvent event) {
+        DinosaurAgeMigrationSavedData.initialize(event.getServer());
         AeronauticsCompatibilityBootstrap.initialize();
         DinosaurProfileResolver.auditRegisteredAnimals(event.getServer().overworld());
     }

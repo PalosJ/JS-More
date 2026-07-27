@@ -7,6 +7,7 @@ import com.palos.jsmore.server.block.entity.BrokenDinosaurCaptureBoxBlockEntity;
 import com.palos.jsmore.server.block.entity.DinosaurCaptureCageBlockEntity;
 import com.palos.jsmore.server.registry.JSMoreBlocks;
 import com.palos.jsmore.server.registry.JSMoreItems;
+import com.palos.jsmore.server.system.age.DinosaurAgeSystem;
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
 import com.palos.jsmore.system.observation.CaptureCageObservationSnapshot;
 import com.palos.jsmore.system.observation.DinosaurObservationSystem;
@@ -539,7 +540,8 @@ public final class DinosaurCaptureService {
         long elapsedTicks = Math.max(0L, currentGameTime - data.lastSettledGameTime());
         boolean settleHistory = elapsedTicks > 0L && (exact || elapsedTicks >= SETTLEMENT_INTERVAL_TICKS);
         boolean needsCare = needsAutoCareMaterialization(data, currentSupplies, currentGameTime);
-        if (!settleHistory && !needsCare) {
+        boolean needsAgeMigration = DinosaurAgeSystem.requiresLegacyAgeMigration(data.entityNbt());
+        if (!settleHistory && !needsCare && !needsAgeMigration) {
             return new ContentsSettlement(data, currentSupplies, false);
         }
         Optional<JSAnimalBase> animal = createTemporaryAnimal(level, data);
@@ -644,8 +646,10 @@ public final class DinosaurCaptureService {
         boolean needsRewrite = DinosaurCaptureItemData.requiresDurabilityRewrite(stack);
         long currentGameTime = level.getGameTime();
         boolean careWasNeeded = needsAutoCareMaterialization(current, supplies, currentGameTime);
+        boolean ageMigrationWasNeeded = DinosaurAgeSystem.requiresLegacyAgeMigration(current.entityNbt());
         if (DinosaurCaptureItemData.projectedDurability(current, currentGameTime) > 0
-                && !careWasNeeded) {
+                && !careWasNeeded
+                && !ageMigrationWasNeeded) {
             if (needsRewrite && DinosaurCaptureItemData.setContents(stack, current, supplies)) {
                 return StackSettlementResult.PERSISTED;
             }
@@ -669,6 +673,10 @@ public final class DinosaurCaptureService {
             }
         }
         if (settlement.changed() && (careWasNeeded || !settlement.supplies().equals(supplies))) {
+            DinosaurCaptureItemData.setContents(stack, settled, settlement.supplies());
+            return StackSettlementResult.PERSISTED;
+        }
+        if (ageMigrationWasNeeded && settlement.changed()) {
             DinosaurCaptureItemData.setContents(stack, settled, settlement.supplies());
             return StackSettlementResult.PERSISTED;
         }
@@ -823,6 +831,7 @@ public final class DinosaurCaptureService {
                     data.relativeAnestheticNbt(),
                     data.anestheticReferenceGameTime()
             );
+            DinosaurAgeSystem.migrateLegacyAgeIfNeeded(animal);
             return Optional.of(animal);
         } catch (RuntimeException exception) {
             return Optional.empty();

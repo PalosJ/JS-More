@@ -2,6 +2,7 @@ package com.palos.jsmore.server.system.age;
 
 import static java.util.Map.entry;
 
+import com.palos.jsmore.JSMore;
 import com.palos.jsmore.server.registry.JSMoreAttachments;
 import com.palos.jsmore.server.system.size.DinosaurSizeBucket;
 import com.palos.jsmore.server.system.size.DinosaurSizeProfile;
@@ -13,11 +14,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAquaticBase;
 import jp.jurassicsaga.server.animal.entity.obj.bases.JSAvianBase;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 
 public final class DinosaurAgeSystem {
     private static final String JURASSIC_SAGA_NAMESPACE = "jurassicsaga";
+    private static final String ATTACHMENTS_NBT_KEY = "neoforge:attachments";
+    private static final String AGE_ATTACHMENT_NBT_KEY = JSMore.MOD_ID + ":dinosaur_age";
+    private static final String INITIALIZED_NBT_KEY = "Initialized";
+    private static final String AGE_ALGORITHM_VERSION_NBT_KEY = "AgeAlgorithmVersion";
     private static final double FULL_GROWTH = 100.0D;
     private static final long TICKS_PER_GAME_DAY = 24000L;
     private static final double DAYS_PER_REAL_YEAR = 365.0D;
@@ -124,6 +132,7 @@ public final class DinosaurAgeSystem {
         data.setBirthGameTime(startAsBaby ? currentGameTime : currentGameTime - ageProfile.adultGameTicks());
         data.setLastObservedGameTime(currentGameTime);
         data.setLastObservedGrowthPercentage(startAsBaby ? 0.0D : FULL_GROWTH);
+        data.setAgeAlgorithmVersion(DinosaurAgeData.CURRENT_ALGORITHM_VERSION);
         animal.syncData(JSMoreAttachments.DINOSAUR_AGE);
     }
 
@@ -136,7 +145,12 @@ public final class DinosaurAgeSystem {
         SpeciesAgeProfile ageProfile = resolveSpeciesAgeProfile(sizeProfile, animal);
         DinosaurAgeData data = animal.getData(JSMoreAttachments.DINOSAUR_AGE);
         long inferredBirthGameTime = inferBirthGameTime(currentGameTime, sizeProfile.growthPercentage(), ageProfile);
-        boolean changed = false;
+        boolean changed = migrateLegacyAgeIfNeeded(
+                animal,
+                data,
+                sizeProfile,
+                ageProfile
+        );
 
         if (shouldForceAdultAgeFloor(animal, sizeProfile) && !data.forceAdultSpawnEggAge()) {
             data.setForceAdultSpawnEggAge(true);
@@ -147,6 +161,7 @@ public final class DinosaurAgeSystem {
             data.setBirthGameTime(data.forceAdultSpawnEggAge()
                     ? currentGameTime - ageProfile.adultGameTicks()
                     : inferredBirthGameTime);
+            data.setAgeAlgorithmVersion(DinosaurAgeData.CURRENT_ALGORITHM_VERSION);
             changed = true;
         }
 
@@ -179,6 +194,41 @@ public final class DinosaurAgeSystem {
         if (changed) {
             animal.syncData(JSMoreAttachments.DINOSAUR_AGE);
         }
+    }
+
+    public static boolean migrateLegacyAgeIfNeeded(JSAnimalBase animal) {
+        if (animal == null || animal.level().isClientSide || !(animal.level() instanceof ServerLevel)) {
+            return false;
+        }
+        DinosaurAgeData data = animal.getExistingDataOrNull(JSMoreAttachments.DINOSAUR_AGE);
+        if (data == null || !data.initialized() || !data.requiresLegacyMigration()) {
+            return false;
+        }
+        DinosaurSizeProfile sizeProfile = DinosaurSizeSystem.resolveProfile(animal);
+        return migrateLegacyAgeIfNeeded(
+                animal,
+                data,
+                sizeProfile,
+                resolveSpeciesAgeProfile(sizeProfile, animal)
+        );
+    }
+
+    public static boolean requiresLegacyAgeMigration(CompoundTag entityNbt) {
+        if (entityNbt == null || !entityNbt.contains(ATTACHMENTS_NBT_KEY, Tag.TAG_COMPOUND)) {
+            return false;
+        }
+        CompoundTag attachments = entityNbt.getCompound(ATTACHMENTS_NBT_KEY);
+        if (!attachments.contains(AGE_ATTACHMENT_NBT_KEY, Tag.TAG_COMPOUND)) {
+            return false;
+        }
+        CompoundTag ageTag = attachments.getCompound(AGE_ATTACHMENT_NBT_KEY);
+        if (!ageTag.getBoolean(INITIALIZED_NBT_KEY)) {
+            return false;
+        }
+        int storedVersion = ageTag.contains(AGE_ALGORITHM_VERSION_NBT_KEY, Tag.TAG_ANY_NUMERIC)
+                ? Math.max(0, ageTag.getInt(AGE_ALGORITHM_VERSION_NBT_KEY))
+                : 0;
+        return storedVersion < DinosaurAgeData.CURRENT_ALGORITHM_VERSION;
     }
 
     public static DinosaurAgeEstimate estimate(JSAnimalBase animal) {
@@ -247,6 +297,74 @@ public final class DinosaurAgeSystem {
         }
         long postAdultTicks = Math.max(0L, currentGameAgeTicks - Math.max(0L, adultGameTicks));
         return adultRealYears + postAdultTicks / (TICKS_PER_GAME_DAY * DAYS_PER_REAL_YEAR);
+    }
+
+    static boolean migrateLegacyAgeData(
+            DinosaurAgeData data,
+            long resetEpochGameTime,
+            long currentServerGameTime,
+            long currentLevelGameTime,
+            long adultGameTicks,
+            boolean currentlyAdult
+    ) {
+        if (data == null || !data.initialized() || !data.requiresLegacyMigration()) {
+            return false;
+        }
+        long safeCurrentServerTime = Math.max(0L, currentServerGameTime);
+        long safeCurrentLevelTime = Math.max(0L, currentLevelGameTime);
+        long safeResetEpoch = Math.max(0L, Math.min(resetEpochGameTime, safeCurrentServerTime));
+        long safeAdultGameTicks = Math.max(TICKS_PER_GAME_DAY, adultGameTicks);
+        long elapsedSinceReset = safeElapsedTicks(safeCurrentServerTime, safeResetEpoch);
+        long levelResetEpoch = saturatingSubtract(safeCurrentLevelTime, elapsedSinceReset);
+        long ageAtResetEpoch = safeElapsedTicks(levelResetEpoch, data.birthGameTime());
+        if (currentlyAdult && ageAtResetEpoch >= safeAdultGameTicks) {
+            long resetAgeTicks = saturatingAdd(safeAdultGameTicks, elapsedSinceReset);
+            data.setBirthGameTime(saturatingSubtract(safeCurrentLevelTime, resetAgeTicks));
+            data.setLastObservedGrowthPercentage(FULL_GROWTH);
+        }
+        data.setLastObservedGameTime(safeCurrentLevelTime);
+        data.setAgeAlgorithmVersion(DinosaurAgeData.CURRENT_ALGORITHM_VERSION);
+        return true;
+    }
+
+    private static boolean migrateLegacyAgeIfNeeded(
+            JSAnimalBase animal,
+            DinosaurAgeData data,
+            DinosaurSizeProfile sizeProfile,
+            SpeciesAgeProfile ageProfile
+    ) {
+        if (!data.initialized() || !data.requiresLegacyMigration()
+                || !(animal.level() instanceof ServerLevel level)) {
+            return false;
+        }
+        long currentServerGameTime = Math.max(0L, level.getServer().overworld().getGameTime());
+        boolean currentlyAdult = shouldForceAdultAgeFloor(animal, sizeProfile)
+                || sizeProfile.growthPercentage() >= FULL_GROWTH;
+        return migrateLegacyAgeData(
+                data,
+                DinosaurAgeMigrationSavedData.resetEpochGameTime(level.getServer()),
+                currentServerGameTime,
+                level.getGameTime(),
+                ageProfile.adultGameTicks(),
+                currentlyAdult
+        );
+    }
+
+    private static long safeElapsedTicks(long later, long earlier) {
+        if (later <= earlier) {
+            return 0L;
+        }
+        return earlier < 0L && later > Long.MAX_VALUE + earlier
+                ? Long.MAX_VALUE
+                : later - earlier;
+    }
+
+    private static long saturatingAdd(long left, long right) {
+        return right > 0L && left > Long.MAX_VALUE - right ? Long.MAX_VALUE : left + right;
+    }
+
+    private static long saturatingSubtract(long left, long right) {
+        return right > 0L && left < Long.MIN_VALUE + right ? Long.MIN_VALUE : left - right;
     }
 
     private static SpeciesAgeProfile resolveSpeciesAgeProfile(

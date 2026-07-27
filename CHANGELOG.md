@@ -42,6 +42,10 @@ All notable user-facing changes are recorded here.
   server runtime, so sleep and `/time` daylight jumps do not inflate age while
   unloaded chunks and capture-box storage continue from the persisted birth
   anchor.
+- On the first server start with this age fix, legacy dinosaurs that were
+  already adult reset once to their species adult age. Later-loaded entities
+  and capture boxes use the same saved world epoch, accrue only post-update
+  server runtime, and never repeat the reset after a restart.
 
 ### Behavior and safety
 
