@@ -1,5 +1,7 @@
 # JS More
 
+**简体中文** | [English](README.en.md)
+
 JS More 是 **Minecraft 1.21.1 NeoForge** 的 Jurassic Saga 附属模组，为恐龙饲养补上麻醉、运输、观察、可控繁殖和自动集蛋。
 
 源码版本：**1.0.0 正式版**。下载请认准 [Modrinth](https://modrinth.com/mod/jurassic-saga-more)。公开的 `1.0.0 Alpha` 与本次正式版分开记录，实际发布状态以该页面为准。
