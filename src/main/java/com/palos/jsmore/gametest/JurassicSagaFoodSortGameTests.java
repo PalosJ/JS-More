@@ -86,11 +86,17 @@ public final class JurassicSagaFoodSortGameTests {
             }
 
             try {
-                fixture.task.findTargets(
-                        96.0F,
-                        (fixture.rounds & 1) == 0 ? null : fixture.subject.animal().position()
-                );
-            } catch (IllegalArgumentException exception) {
+                if (com.palos.jsmore.compat.jurassicsaga.JurassicSagaFoodSortCompatibilityGate
+                        .probeRuntimeOnce().variant() == com.palos.jsmore.compat.jurassicsaga
+                        .JurassicSagaFoodSortCompatibilityGate.Variant.CURRENT) {
+                    JSFindFoodTask.class.getMethod("findTargets", float.class).invoke(fixture.task, 96.0F);
+                } else {
+                    fixture.task.findTargets(
+                            96.0F,
+                            (fixture.rounds & 1) == 0 ? null : fixture.subject.animal().position()
+                    );
+                }
+            } catch (ReflectiveOperationException | IllegalArgumentException exception) {
                 cleanup(fixture.subject.animal(), fixture.candidates);
                 subjects.forEach(subject -> subject.animal().discard());
                 helper.fail("Jurassic Saga food sort rejected its comparator contract: " + exception.getMessage());

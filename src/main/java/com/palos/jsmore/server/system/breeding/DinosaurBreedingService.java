@@ -1,6 +1,7 @@
 package com.palos.jsmore.server.system.breeding;
 
 import com.palos.jsmore.server.registry.JSMoreAttachments;
+import com.palos.jsmore.config.JSMoreServerConfig;
 import java.util.function.Function;
 import jp.jurassicsaga.server.animal.animals.obj.JSAnimal;
 import jp.jurassicsaga.server.animal.entity.misc.misc_extant.AlligatorEntity;
@@ -32,7 +33,7 @@ public final class DinosaurBreedingService {
             boolean breedingEligibleBeforeFeed,
             boolean lookingForMateBeforeFeed
     ) {
-        if (animal == null || !(animal.level() instanceof ServerLevel)) {
+        if (!JSMoreServerConfig.playerFedBreeding() || animal == null || !(animal.level() instanceof ServerLevel)) {
             return;
         }
         if (isPeriodicSpecies(animal)) {
@@ -50,7 +51,7 @@ public final class DinosaurBreedingService {
     }
 
     public static boolean canStartPlayerFedBreeding(JSAnimalBase animal) {
-        if (animal == null
+        if (!JSMoreServerConfig.playerFedBreeding() || animal == null
                 || !(animal.level() instanceof ServerLevel)
                 || animal.isLookingForMate()
                 || animal.getBreedingCooldown() != 0
@@ -94,7 +95,7 @@ public final class DinosaurBreedingService {
             ItemStack stack,
             boolean isUpstreamFood
     ) {
-        if (animal == null) {
+        if (!JSMoreServerConfig.playerFedBreeding() || animal == null) {
             return false;
         }
         animal.setLookingForMate(false);
@@ -142,7 +143,7 @@ public final class DinosaurBreedingService {
             ItemLike itemLike,
             Function<JSGeneData, Boolean> spawnAttempt
     ) {
-        if (animal == null || itemLike == null || !isPeriodicSpecies(animal)) {
+        if (!JSMoreServerConfig.playerFedBreeding() || animal == null || itemLike == null || !isPeriodicSpecies(animal)) {
             return animal == null || itemLike == null ? null : animal.spawnAtLocation(itemLike);
         }
         PeriodicEggBreedingData data = animal.getData(JSMoreAttachments.PERIODIC_EGG_BREEDING);
@@ -153,12 +154,15 @@ public final class DinosaurBreedingService {
     }
 
     public static void clearLoadedMateSearch(JSAnimalBase animal) {
-        if (animal != null) {
+        if (JSMoreServerConfig.playerFedBreeding() && animal != null) {
             animal.setLookingForMate(false);
         }
     }
 
     public static void validateLoadedPeriodicBreedingState(JSAnimalBase animal) {
+        if (!JSMoreServerConfig.playerFedBreeding()) {
+            return;
+        }
         clearLoadedMateSearch(animal);
         if (animal == null) {
             return;

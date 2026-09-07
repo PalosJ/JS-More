@@ -140,6 +140,11 @@ public final class TravelersHandler1211BytecodePatch {
         if (isProvenClientOnly(onLoad, sequence)) {
             return Result.SAFE_NO_OP;
         }
+        // Only the historical CoreServices entry is eligible for mutation. The new
+        // no-argument entry must already prove client isolation above.
+        if (!ON_LOAD_DESCRIPTOR.equals(onLoad.desc)) {
+            throw unsupported("unguarded renderer in the no-argument onLoad entry");
+        }
         validateKnownUnsafeLayout(onLoad, sequence);
         onLoad.instructions.remove(sequence.allocation());
         onLoad.instructions.remove(sequence.duplication());
@@ -156,8 +161,13 @@ public final class TravelersHandler1211BytecodePatch {
         List<MethodNode> namedMethods = targetClass.methods.stream()
                 .filter(method -> "onLoad".equals(method.name))
                 .toList();
-        if (namedMethods.size() != 1 || !ON_LOAD_DESCRIPTOR.equals(namedMethods.getFirst().desc)) {
-            throw unsupported("missing or changed onLoad" + ON_LOAD_DESCRIPTOR);
+        if (namedMethods.size() != 1
+                || !(ON_LOAD_DESCRIPTOR.equals(namedMethods.getFirst().desc)
+                    || "()V".equals(namedMethods.getFirst().desc))
+                || (namedMethods.getFirst().access
+                    & (Opcodes.ACC_STATIC | Opcodes.ACC_ABSTRACT | Opcodes.ACC_NATIVE)) != 0
+                || (namedMethods.getFirst().access & Opcodes.ACC_PUBLIC) == 0) {
+            throw unsupported("missing, ambiguous or changed onLoad entry");
         }
         return namedMethods.getFirst();
     }

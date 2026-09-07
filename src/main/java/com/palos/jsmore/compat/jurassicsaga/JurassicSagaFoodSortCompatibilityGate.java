@@ -82,6 +82,10 @@ public final class JurassicSagaFoodSortCompatibilityGate {
                 .filter(method -> "findTargets".equals(method.name)
                         && FIND_TARGETS_DESCRIPTOR.equals(method.desc))
                 .toList();
+        if (entryPoints.isEmpty() && target.methods.stream().anyMatch(method ->
+                "gatherCandidates".equals(method.name))) {
+            return probeCurrent(target, taskBaseClassBytes);
+        }
         if (entryPoints.size() != 1) {
             return drift("findTargets" + FIND_TARGETS_DESCRIPTOR + " must exist exactly once");
         }
@@ -124,7 +128,7 @@ public final class JurassicSagaFoodSortCompatibilityGate {
         if (comparatorHandle == null) {
             return drift("Comparator bootstrap arguments drifted from the real 0.2.1 contract");
         }
-        Report sortSiteReport = validateSortSite(entryPoint, sortCalls.getFirst(), factory);
+        Report sortSiteReport = validateSortSite(entryPoint, sortCalls.getFirst(), factory, 5, 6);
         if (sortSiteReport != null) {
             return sortSiteReport;
         }
@@ -141,6 +145,100 @@ public final class JurassicSagaFoodSortCompatibilityGate {
             return comparatorReport;
         }
         return validateMixinInheritance(target, taskBaseClassBytes);
+    }
+
+    private static Report probeCurrent(ClassNode target, byte[] taskBaseClassBytes) {
+        String gatherDescriptor = "(Lnet/minecraft/world/level/Level;F)Ljava/util/List;";
+        List<MethodNode> entries = target.methods.stream()
+                .filter(method -> "gatherCandidates".equals(method.name)).toList();
+        List<MethodNode> callers = target.methods.stream()
+                .filter(method -> "findTargets".equals(method.name)).toList();
+        if (entries.size() != 1 || !gatherDescriptor.equals(entries.getFirst().desc)
+                || entries.getFirst().access != Opcodes.ACC_PRIVATE
+                || callers.size() != 1 || !"(F)V".equals(callers.getFirst().desc)
+                || callers.getFirst().access != Opcodes.ACC_PUBLIC) {
+            return drift("Current candidate gathering entry or caller has drifted");
+        }
+        long gatherCalls = meaningfulInstructions(callers.getFirst()).stream().filter(instruction ->
+                matches(instruction, Opcodes.INVOKEVIRTUAL, TARGET_INTERNAL_NAME,
+                        "gatherCandidates", gatherDescriptor)).count();
+        if (gatherCalls != 1) {
+            return drift("Current findTargets must call candidate gathering exactly once");
+        }
+        MethodNode entry = entries.getFirst();
+        List<MethodInsnNode> sorts = meaningfulInstructions(entry).stream()
+                .filter(instruction -> instruction instanceof MethodInsnNode call
+                        && ("sort".equals(call.name) || "sorted".equals(call.name)))
+                .map(MethodInsnNode.class::cast).toList();
+        if (sorts.size() != 1) {
+            return drift("Current candidate gathering must contain exactly one List.sort");
+        }
+        MethodInsnNode sort = sorts.getFirst();
+        if (sort.getOpcode() != Opcodes.INVOKEINTERFACE || !sort.itf
+                || !"java/util/List".equals(sort.owner)
+                || !"(Ljava/util/Comparator;)V".equals(sort.desc)
+                || !(previousMeaningful(sort) instanceof InvokeDynamicInsnNode factory)) {
+            return drift("Current List.sort invocation or factory has drifted");
+        }
+        Handle handle = exactComparatorHandle(factory);
+        if (handle == null) {
+            return drift("Current comparator bootstrap has drifted");
+        }
+        Report site = validateSortSite(entry, sort, factory, 4, 5);
+        if (site != null) {
+            return site;
+        }
+        List<MethodNode> comparators = target.methods.stream().filter(method ->
+                handle.getName().equals(method.name) && handle.getDesc().equals(method.desc)).toList();
+        if (comparators.size() != 1 || comparators.getFirst().access
+                != (Opcodes.ACC_PRIVATE | Opcodes.ACC_STATIC | Opcodes.ACC_SYNTHETIC)) {
+            return drift("Current comparator implementation has drifted");
+        }
+        List<AbstractInsnNode> code = meaningfulInstructions(comparators.getFirst());
+        String scoreDescriptor = "(Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/entity/Entity;)D";
+        if (code.size() != 8
+                || !matchesVar(code.get(0), Opcodes.ALOAD, 0)
+                || !matchesVar(code.get(1), Opcodes.ALOAD, 1)
+                || !matches(code.get(2), Opcodes.INVOKESTATIC, TARGET_INTERNAL_NAME,
+                        "jitteredDistSqr", scoreDescriptor)
+                || !matchesVar(code.get(3), Opcodes.ALOAD, 0)
+                || !matchesVar(code.get(4), Opcodes.ALOAD, 2)
+                || !matches(code.get(5), Opcodes.INVOKESTATIC, TARGET_INTERNAL_NAME,
+                        "jitteredDistSqr", scoreDescriptor)
+                || !matches(code.get(6), Opcodes.INVOKESTATIC, "java/lang/Double", "compare", "(DD)I")
+                || code.get(7).getOpcode() != Opcodes.IRETURN) {
+            return drift("Current comparator no longer compares two jittered scores directly");
+        }
+        List<MethodNode> helpers = target.methods.stream().filter(method ->
+                "jitteredDistSqr".equals(method.name)).toList();
+        if (helpers.size() != 1 || !scoreDescriptor.equals(helpers.getFirst().desc)
+                || helpers.getFirst().access != (Opcodes.ACC_PRIVATE | Opcodes.ACC_STATIC)) {
+            return drift("Current jitter helper signature has drifted");
+        }
+        List<AbstractInsnNode> score = meaningfulInstructions(helpers.getFirst());
+        if (score.size() != 14 || score.get(0).getOpcode() != Opcodes.DCONST_1
+                || !matches(score.get(1), Opcodes.INVOKESTATIC, "java/util/concurrent/ThreadLocalRandom",
+                        "current", "()Ljava/util/concurrent/ThreadLocalRandom;")
+                || !matches(score.get(2), Opcodes.INVOKEVIRTUAL, "java/util/concurrent/ThreadLocalRandom",
+                        "nextDouble", "()D")
+                || !matchesDoubleConstant(score.get(3), 0.25D)
+                || score.get(4).getOpcode() != Opcodes.DMUL || score.get(5).getOpcode() != Opcodes.DADD
+                || !matchesVar(score.get(6), Opcodes.DSTORE, 2)
+                || !matchesVar(score.get(7), Opcodes.ALOAD, 0)
+                || !matchesVar(score.get(8), Opcodes.ALOAD, 1)
+                || !matches(score.get(9), Opcodes.INVOKEVIRTUAL, "net/minecraft/world/entity/Entity",
+                        "position", "()Lnet/minecraft/world/phys/Vec3;")
+                || !matches(score.get(10), Opcodes.INVOKEVIRTUAL, "net/minecraft/world/phys/Vec3",
+                        "distanceToSqr", "(Lnet/minecraft/world/phys/Vec3;)D")
+                || !matchesVar(score.get(11), Opcodes.DLOAD, 2)
+                || score.get(12).getOpcode() != Opcodes.DMUL || score.get(13).getOpcode() != Opcodes.DRETURN) {
+            return drift("Current per-comparison jitter arithmetic has drifted");
+        }
+        Report inheritance = validateMixinInheritance(target, taskBaseClassBytes);
+        return inheritance.shouldPatch()
+                ? new Report(Status.PATCH, List.of("0.2.3 gathering repeats jitter inside its comparator"),
+                        Variant.CURRENT)
+                : inheritance;
     }
 
     private static Report validateMixinInheritance(ClassNode target, byte[] taskBaseClassBytes) {
@@ -200,21 +298,23 @@ public final class JurassicSagaFoodSortCompatibilityGate {
     private static Report validateSortSite(
             MethodNode entryPoint,
             MethodInsnNode sortCall,
-            InvokeDynamicInsnNode factory
+            InvokeDynamicInsnNode factory,
+            int candidateLocal,
+            int originLocal
     ) {
         List<AbstractInsnNode> instructions = meaningfulInstructions(entryPoint);
         int sortIndex = identityIndexOf(instructions, sortCall);
         if (sortIndex < 3
                 || instructions.get(sortIndex - 1) != factory
-                || !matchesVar(instructions.get(sortIndex - 2), Opcodes.ALOAD, 6)
-                || !matchesVar(instructions.get(sortIndex - 3), Opcodes.ALOAD, 5)) {
-            return drift("ArrayList.sort no longer consumes candidate local 5 and origin local 6 directly");
+                || !matchesVar(instructions.get(sortIndex - 2), Opcodes.ALOAD, originLocal)
+                || !matchesVar(instructions.get(sortIndex - 3), Opcodes.ALOAD, candidateLocal)) {
+            return drift("Sort no longer consumes the expected candidate and origin locals directly");
         }
 
         int originStores = 0;
         boolean exactOriginAssignment = false;
         for (int index = 0; index < instructions.size(); index++) {
-            if (!matchesVar(instructions.get(index), Opcodes.ASTORE, 6)) {
+            if (!matchesVar(instructions.get(index), Opcodes.ASTORE, originLocal)) {
                 continue;
             }
             originStores++;
@@ -238,7 +338,7 @@ public final class JurassicSagaFoodSortCompatibilityGate {
             }
         }
         if (originStores != 1 || !exactOriginAssignment) {
-            return drift("Comparator origin local 6 no longer comes directly from animal.position()");
+            return drift("Comparator origin no longer comes directly from animal.position()");
         }
         return null;
     }
@@ -447,7 +547,13 @@ public final class JurassicSagaFoodSortCompatibilityGate {
         DRIFT
     }
 
-    public record Report(Status status, List<String> diagnostics) {
+    public enum Variant { LEGACY, CURRENT }
+
+    public record Report(Status status, List<String> diagnostics, Variant variant) {
+        public Report(Status status, List<String> diagnostics) {
+            this(status, diagnostics, Variant.LEGACY);
+        }
+
         public Report {
             diagnostics = List.copyOf(diagnostics);
         }

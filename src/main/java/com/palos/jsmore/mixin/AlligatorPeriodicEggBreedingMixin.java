@@ -26,6 +26,9 @@ public abstract class AlligatorPeriodicEggBreedingMixin {
             ItemStack stack,
             CallbackInfo callbackInfo
     ) {
+        if (!com.palos.jsmore.config.JSMoreServerConfig.playerFedBreeding()) {
+            return;
+        }
         DinosaurBreedingService.handlePeriodicPlayerFeed(
                 (AlligatorEntity) (Object) this,
                 player,

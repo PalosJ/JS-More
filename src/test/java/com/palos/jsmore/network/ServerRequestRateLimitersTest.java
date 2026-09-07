@@ -36,6 +36,24 @@ class ServerRequestRateLimitersTest {
     }
 
     @Test
+    void burstCleanupPreservesCooldownExpiryRollbackAndTrackerBound() {
+        ServerRequestRateLimiter limiter = new ServerRequestRateLimiter(5, 2048);
+        for (int tick = 100; tick < 110; tick++) {
+            for (int repeat = 0; repeat < 4; repeat++) {
+                for (int player = 0; player < 2048; player++) {
+                    assertEquals(repeat == 0 && (tick == 100 || tick == 105),
+                            limiter.allow(new UUID(0, player), tick));
+                }
+            }
+        }
+        assertEquals(2048, limiter.size());
+        assertTrue(limiter.allow(new UUID(1, 0), 109));
+        assertEquals(2048, limiter.size());
+        assertTrue(limiter.allow(new UUID(0, 1), 10));
+        assertEquals(1, limiter.size());
+    }
+
+    @Test
     void clearAllDropsBothRequestTrackers() {
         assertTrue(ServerRequestRateLimiters.allowCaptureCageObservation(PLAYER, 100L));
         assertTrue(ServerRequestRateLimiters.allowEggLayingProgress(PLAYER, 100L));

@@ -67,6 +67,22 @@ class TravelersHandler1211BytecodePatchTest {
     }
 
     @Test
+    void acceptsRealTravelers0822NoArgumentEntryWithoutChangingAnyInstructions() throws IOException {
+        ClassNode target = readTravelersClass("0.8.2.2");
+        MethodNode entry = onLoad(target);
+        AbstractInsnNode[] before = entry.instructions.toArray();
+
+        assertEquals("()V", entry.desc);
+        assertEquals(TravelersHandler1211BytecodePatch.Result.SAFE_NO_OP,
+                TravelersHandler1211BytecodePatch.apply(target));
+        org.junit.jupiter.api.Assertions.assertArrayEquals(before, entry.instructions.toArray());
+        assertCommonInitialization(entry);
+
+        firstJump(entry, Opcodes.IF_ACMPNE).setOpcode(Opcodes.IF_ACMPEQ);
+        assertUnsupported(target);
+    }
+
+    @Test
     void patchedReal071AndFullyDeletedBridgeAreSafeNoOps() throws IOException {
         ClassNode patched = readTravelersClass("0.7.1");
         assertEquals(

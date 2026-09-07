@@ -1,125 +1,86 @@
 # JS More
 
-JS More 是 Minecraft 1.21.1 NeoForge 的 Jurassic Saga 附属模组。它围绕“麻醉—捕获—运输—照料—释放”建立一套服务端权威的生存玩法，并补充可控繁殖、自动集蛋、恐龙观察、年龄画像、真实麻醉运动和可选物理结构兼容。
+JS More 是 **Minecraft 1.21.1 NeoForge** 的 Jurassic Saga 附属模组，为恐龙饲养补上麻醉、运输、观察、可控繁殖和自动集蛋。
 
-当前源码对应 `1.0.1` 候选。自动化通过不等同于已完成真实整合包验收；正式发布前仍需验证游戏内视觉、移动、真实长期圈养与繁殖、保存重载和可选模组组合。
+源码版本：**1.0.0 正式版**。下载请认准 [Modrinth](https://modrinth.com/mod/jurassic-saga-more)。公开的 `1.0.0 Alpha` 与本次正式版分开记录，实际发布状态以该页面为准。
 
-## 支持与安装
+## 安装
 
-| 项目 | 要求 |
-| --- | --- |
-| Minecraft | `1.21.1` |
-| NeoForge | `21.1.232` 或更高的兼容 1.21.1 构建 |
-| Jurassic Saga | `0.2.1` 或更高版本 |
-| Travelers Lib | `0.7.1` 或更高版本；主开发基线为 `0.7.2` |
-| Java | `21` |
-| Mod ID / 制品 | `jsmore` / `jsmore-1.0.1.jar` |
+客户端和服务器均需要 Java 21、NeoForge，以及以下三个模组的 **NeoForge 1.21.1 文件**：
 
-最低安装链只包含 JS More、Jurassic Saga 及 Jurassic Saga 声明的前置。Curios、Jade、TerraBlender、Sable、Create 和 Aeronautics 实现均为可选集成；缺少它们时不得阻止游戏或独立服务器启动。
+| 组合 | JS More | Jurassic Saga | Travelers Lib |
+| --- | --- | --- | --- |
+| 当前版本 | 1.0.0 | [0.2.3](https://modrinth.com/mod/jurassic-saga/version/EzDlTUHi) | [0.8.2.2](https://modrinth.com/mod/travelers-lib/version/Aadzy3jP) |
+| 旧版兼容 | 1.0.0 | [0.2.1](https://modrinth.com/mod/jurassic-saga/version/YdbXbcFo) | [0.7.2](https://modrinth.com/mod/travelers-lib/version/vKc8KD7H) |
 
-## 核心生存流程
+NeoForge 最低验证基线为 `21.1.232`，另覆盖 `21.1.250`。Travelers `0.7.1` 保留旧版独服回归，不要与 Jurassic Saga `0.2.3` 混用。不同平台可能共用版本号，下载时还要核对 Minecraft 和加载器。
 
-1. 在酿造台中用虞美人与粗制药水制作不可饮用的麻醉药水。
-2. 用麻醉药水和 Jurassic Saga 的空注射器制作麻醉针，再将麻醉针与羽毛合成麻醉镖。
-3. 用六发麻醉弩射击可麻醉的 Jurassic Saga 动物。剂量会延迟生效并叠加，服务端负责睡眠、AI、飞行和水中运动状态。
-4. 目标进入有效麻醉期后，用恐龙捕获箱保存其原 UUID、成长状态和必要 NBT。
-5. 运输期间维持箱体耐久以及麻醉、水、肉食和草食余量；恐龙博士眼镜可查看动物与箱体状态。
-6. 在安全地点释放恐龙。普通搜索失败时会逐级扩大安全搜索，最终强制释放用于避免永久困箱。
+Curios、Jade、TerraBlender 与航空学组件均为可选项，没有它们也能使用核心功能。
 
-破损捕获箱不可修复、不可回收，也不能再次保存恐龙；它代表运输失败的资源损耗。
+## 从麻醉到运输
 
-## 玩家功能
+1. 用虞美人与粗制药水酿造麻醉药水，再结合主模组的空注射器和羽毛制作麻醉镖。
+2. 长按右键为麻醉弩装填，最多六发；左键射击。剂量会延迟生效，可以叠加。
+3. 恐龙被充分麻醉后，用捕获箱收容，再将它运到新围栏。
+4. 运输过程中维持麻醉、水和对应食物的补给，留意箱体耐久。恐龙博士眼镜可以查看动物与箱体状态。
+5. 尽量在宽敞、合适的地形释放。运输失败时会强制就近释放，危险地形仍可能让恐龙受伤或死亡。
 
-### 麻醉与运动
+捕获箱占地 2×4 格、高 2 格，最大耐久 500。破损箱不可修复或重新收容恐龙。若物品提示数据无法读取，请保留它，勿当成空箱使用。
 
-- 麻醉剂量、待生效区间、剩余时长和相对时间会保存并在服务端同步。
-- 陆生、水生和飞行动物使用真实实体状态与碰撞感知移动，不以纯客户端动画代替游戏规则。
-- 水面漂浮、姿态和粒子按环境与体型处理；未知未来动物优先使用能力与稳定基类回退，而不是固定物种白名单。
-- 麻醉镖只对可麻醉目标保留短期体内显示；命中方块后不会像原版箭一样长期残留。
+## 圈养与繁殖
 
-### 捕获、运输与恢复
+默认情况下，主模组陆生、水生动物不会因为玩家走远或长时间没有互动而自然消失。它们仍然会受到伤害；本功能保留主模组已有的持久化规则。
 
-- 捕获箱是 `2×4×2` 多方块结构，最大耐久为 `500`，并保留麻醉、水源和两类食物余量。
-- 捕获数据区分 EMPTY、VALID 与 UNREADABLE。无法安全解析的 raw 数据和未知字段会原样保全，不会静默当作空箱覆盖。
-- 捕获、放置、破坏、掉落、容器、保存重载、释放和受支持的物理化搬运都维持单一恐龙权威，避免复制或无提示丢失。
-- 物理化事务无法恢复规范箱体时，可生成经过严格校验的恢复载体。有效恢复掉落物会抵抗普通消失与环境损坏，直到数据成功恢复为唯一规范权威；伪造或畸形标记不会获得永久保护。
-- 标准耐久组件与捕获载荷同步，供原版耐久条和第三方耐久显示读取；占用箱不能通过原版维修路径消费载荷。
+普通繁殖需要同种、异性、成年、可育且冷却结束的双方，分别被玩家喂食各自接受的食物。求偶、遗传与出生过程沿用 Jurassic Saga。
 
-### 圈养与繁殖
+鸵鸟、鳄鱼、芦苇蛙和蛇怪按自己的周期产蛋。喂食符合条件的成年雌性后，下一次产蛋会变为带有母系基因的实体蛋。鸵鸟吃种子，鳄鱼吃鱼，芦苇蛙和蛇怪吃主模组的蚊子。成功产下后，需要再次喂食才能让下个周期继续产受精蛋。待产状态可随存档、区块重载和捕获箱运输保留。
 
-- Jurassic Saga 中归类为 `CREATURE` 或 `WATER_CREATURE` 的动物不会再因距离或长时间无操作被清理。JS More 只让 `checkDespawn` 内两处 `removeWhenFarAway` 判定返回不移除，不会设置、清除或替换上游已有的 `isPersistenceRequired` 标记，也不跳过其余上游分支。
-- 随机自动求偶已被阻断。非周期动物只有在同种异性双方都成年、可育且繁殖冷却恰为 `0`，并由玩家分别喂食各自认可的食物后才会配对；配偶校验、基因组合和出生仍沿用 Jurassic Saga。
-- 四种周期产蛋物种使用一次性喂食武装：鸵鸟接受种子、鳄鱼接受鱼类、芦苇蛙与 Basilisk（蛇怪）接受 Jurassic Saga 蚊子。单只成年、可育、零冷却雌性被成功喂食后，下一个真实产蛋周期会恰好生成一个携带母系基因的 Jurassic Saga 实体蛋。
-- 成功生成实体蛋后会清除待产状态，未再次喂食的后续周期恢复为普通物品蛋。实体蛋创建或加入世界失败时仍掉落原普通物品蛋，并保留有效 `PENDING` 待产状态以供下一周期重试。
-- 有效 `PENDING` 状态及母系基因随实体存档保存，在实体卸载后重载和捕获箱往返中保留；从存档恢复时不会重新启用旧的随机求偶状态。
+两项规则都能由服务器单独关闭，详见配置。
 
-### 集蛋器
+## 集蛋器与观察
 
-- 集蛋器以方块中心为球心，每 10 tick 错峰扫描半径 16 格内已加载的 `ItemEntity`；只有符合标签的基础蛋掉落物在存在满 100 tick 后才会被收集，实际等待约为 5.0–5.5 秒。
-- 默认标签包含原版鸡蛋，以及 Jurassic Saga 的鳄鱼、鸵鸟、青蛙、Basilisk、鱼和蜘蛛基础蛋。系统不区分自然下蛋、死亡掉落或玩家丢出，但绝不会自动吸取标签外的物品。
-- 右键打开原版两排箱子界面，提供 18 格存储。玩家和漏斗可存取任意物品；库存已满时蛋会留在世界中，只有部分空间时也只转移可容纳的数量。
-- 从更早的本地 `1.0.1` 候选升级前，请先在旧候选中手动清空集蛋器第 19–27 格（旧界面第三排）。本次容量调整不迁移这些旧高位槽，其中的物品不会进入新的 18 格库存。
-- 成品外观由 `16×8×16` 下仓与横向 `19×19` 视觉外溢的草巢组成，总高为 `13.25`；物品栏 GUI 缩放为 `0.59`。选中时使用完整方块选择框，实际碰撞则精细限制在单格内，并贴合下仓与开放巢心的三层内收巢沿。
+集蛋器会收取半径 16 格内、落地约 5–5.5 秒的基础蛋，包括鸡蛋及主模组的鳄鱼、鸵鸟、青蛙、蛇怪、鱼和蜘蛛蛋。它不收取正在孵化的实体蛋，也不主动加载区块。右键打开 18 格库存，可接漏斗；库存不足时，装不下的蛋会留在地上。
 
-### 恐龙博士眼镜
+恐龙博士眼镜可查看生命、性别、饱食、口渴、心情、成长、年龄、麻醉和产蛋进度，观察捕获箱时还会显示补给与耐久。可佩戴在原版头部栏，安装 Curios 后支持相应槽位。
 
-- 查看生命、年龄、成长阶段、性别、饱食、口渴、心情、麻醉、基因和自然下蛋进度。
-- 观察捕获箱时显示四项运输余量、捕获时长和箱体耐久。
-- 支持原版头部栏；安装 Curios 时可识别兼容头部槽。缺少 Curios 不影响基础功能。
-- 所有客户端缓存均有容量与生命周期边界；服务端会重新验证目标、距离、佩戴状态和请求频率。
+成年前，显示年龄随成长进度变化；成年后每经过一个游戏日的服务器运行时间增加一天。睡觉或 `/time` 跳过白天不会让年龄突然增加。尚未迁移的旧成年恐龙只校正一次，已迁移个体不会再次重置。
 
-### 画像、配置与世界生成
+## 配置
 
-- 年龄、体型、成长阶段和刷怪蛋规则基于 Jurassic Saga 稳定类型与安全回退。已知物种可使用精确数据，未知动物仍能获得通用功能。
-- 年龄采用分段算法：成年前继续按现实成年年龄与成长进度换算，成长达到 100% 时恰好显示物种成年年龄；成年后每经过 24000 个服务器实际运行 tick 增长一个显示日。睡眠和 `/time` 只改变日照时间，不会瞬间增加年龄；保存重载、区块卸载和捕获箱存放期间则继续沿用持久化出生时间计算。
-- 首次使用本次 `1.0.1` 年龄修复启动旧世界时，当时已经成年的旧恐龙会一次性回到对应物种的成年年龄；此后只补算该次启动以后实际经过的服务器运行时间。未加载区块和捕获箱中的旧恐龙会在以后首次出现或结算时使用同一个世界迁移起点，幼体不会被重置，已迁移数据也不会在重启后再次重置。
-- `registerAdultAge` 忽略 null、非有限数、零和负数；已有覆盖优先，其次使用已知成年日，未知物种才使用体型回退。
-- COMMON 配置可关闭 Jurassic Saga 自定义群系生成；该项需要完整重启。它不移除动物、化石、物品或无关结构。
+| 文件与配置项 | 默认值 | 用途 |
+| --- | --- | --- |
+| `config/jsmore-common.toml` → `disable_jurassicsaga_biome_generation` | `false` | 按需关闭主模组群系生成 |
+| `jsmore-server.toml` → `prevent_jurassicsaga_animal_despawn` | `true` | 防止陆生、水生动物因距离或闲置自然消失 |
+| `jsmore-server.toml` → `enable_player_fed_breeding` | `true` | 玩家喂食繁殖与周期受精蛋规则 |
 
-### 生存引导
+**默认保留 Jurassic Saga 的群系生成。** 如果它与整合包中的其他群系模组发生冲突，可以把群系禁用选项改成 `true`。这是一个简单直接的备用解决办法，需要重启游戏或服务器；已有区块不会因此重新生成。
 
-- 六个工作台配方通过隐藏 advancement 自然解锁。
-- 首次进入世界后会解锁无弹窗、无聊天播报的 JS More 根进度，使“进度”界面显示独立的 JS More 标签页。
-- 获得麻醉药水会开启可见玩法入口；同时持有麻醉弩、麻醉镖和捕获箱会完成“运输准备”里程碑。
-- 不需要 JEI、Guidebook 扩展或自定义网络 criterion。
+升级正式版时，旧格式的群系禁用设置会重置为 `false` 一次。原配置备份在同目录的 `.pre-schema-1.bak` 文件中，格式标记 `config_schema_version` 随后变为 `1`。此后自行开启的 `true` 会保留，请勿手动删除格式标记。
 
-## 可选兼容
+SERVER 配置通常位于 `config/`，世界的 `serverconfig/jsmore-server.toml` 可以覆盖它。两个玩法开关由服务器决定并同步到客户端，修改后重启世界或服务器。关闭繁殖开关会恢复主模组规则，已有待产数据保留，重新开启后校验使用。
 
-- **Curios：** 提供眼镜槽位识别。
-- **Jade：** 仅在安装时启用对应客户端信息集成。
-- **TerraBlender：** 可选群系生成钩子；缺失时安全禁用，结构漂移时提供明确诊断。
-- **Travelers Lib：** `0.7.1` 的已知不安全服务端渲染安装会被精确修补；可证明安全的新版结构不修改，模糊漂移会 fail-fast，避免静默破坏公共初始化。
-- **Sable / Create / Aeronautics：** 仅对通过精确结构门禁的组合启用捕获箱物理化；未知实现保持不可搬运。内嵌的 Sable Companion 是缺少实现时安全的兼容门面，不会把航空学实现变成必需依赖。
+## 可选兼容与反馈
 
-完整边界见 [兼容性文档](docs/COMPATIBILITY.md)，系统职责与数据权威见 [架构文档](docs/ARCHITECTURE.md)。
+- Curios `9.5.1`：眼镜槽位；Jade `15.10.6`：信息显示；TerraBlender `4.1.0.8`：群系集成。
+- 捕获箱物理搬运支持 Create `6.0.10`，搭配 Aeronautics `1.3.0` / Sable `2.0.3`，或 Aeronautics `1.3.2` / Sable `2.0.5`。请整套安装对应版本。未知或不完整组合会禁用搬运集成。
+- 未列出的新版本不代表已验证兼容。问题请提交到 [GitHub Issues](https://github.com/PalosJ/JS-More/issues)，附上版本组合、复现步骤和相关日志。
 
-## 开发与验证
+## 开发
 
-使用仓库中的 Gradle Wrapper 和 Java 21：
+使用 Java 21 和仓库 Wrapper。macOS/Linux：
 
-```powershell
-.\gradlew.bat test runGameTestServer assemble --rerun-tasks --warning-mode all --console=plain
-.\gradlew.bat test runGameTestServer assemble -PruntimeProfile=minimal --rerun-tasks --warning-mode all --console=plain
-.\gradlew.bat test runGameTestServer assemble -PruntimeProfile=aeronautics --rerun-tasks --warning-mode all --console=plain
-.\gradlew.bat test runGameTestServer assemble -PruntimeProfile=pack-interop --rerun-tasks --warning-mode all --console=plain
-.\gradlew.bat auditReleaseArtifact --warning-mode all --console=plain
-.\gradlew.bat publish --dry-run --warning-mode all --console=plain
+```sh
+sh ./gradlew test runGameTestServer assemble -PupstreamProfile=current -PruntimeProfile=minimal
 ```
 
-`publish --dry-run` 只检查任务图，不执行实际发布。完整开发流程、Travelers 二进制 smoke、独立服务器验收和制品审计见 [开发文档](docs/DEVELOPMENT.md)。网络协议身份为 `7`；更改 payload、附件或持久化格式前必须重新评估协议和迁移边界。
+Windows PowerShell：
 
-## JS More 1.0.0 初次公开基线与破坏性身份迁移
+```powershell
+.\gradlew.bat test runGameTestServer assemble -PupstreamProfile=current -PruntimeProfile=minimal
+```
 
-JS More `1.0.0` 是用于首次公开审核的版本基线。它将旧公开名称 **JS-revise**、Mod ID `jsrevise` 和 Java 包 `com.palos.jsrevise` 全面迁移为 **JS More**、`jsmore` 与 `com.palos.jsmore`。旧 JS-revise 世界中的注册表对象、配置、附件和网络身份不兼容；本项目不提供 MissingMappings、DataFixer、双 namespace 或旧 Mod ID alias。切换前请备份世界，并把 JS More `1.0.0` 视为全新的附属模组安装。
+完整矩阵、独服检查和制品审计见 [开发说明](docs/DEVELOPMENT.md)，设计边界见 [架构](docs/ARCHITECTURE.md) 与 [兼容性](docs/COMPATIBILITY.md)。更新记录见 [CHANGELOG](CHANGELOG.md)，发布材料见 [Modrinth 介绍](MODRINTH_DESCRIPTION.md) 与 [发布清单](MODRINTH_RELEASE.md)。
 
-后续实质版本从 `1.0.1` 开始递增。详细变化见 [CHANGELOG](CHANGELOG.md)。
+## 许可证
 
-## 许可证、来源与隐私
-
-- 代码、测试、构建与 CI、普通数据、语言、配方、标签和文档使用 [MIT](LICENSES/MIT.txt)。
-- 仅在来源台账中标记为 ARR-VERIFIED 的项目原创视觉资产适用 [JS More Visual Assets License](LICENSES/LicenseRef-JSMore-Visual-Assets.txt)。
-- 上游衍生、参考或第三方内容不属于 Palos 原创视觉资产授权范围。
-- 完整范围见 [LICENSE](LICENSE)、[第三方通知](THIRD_PARTY_NOTICES.md) 与 [素材来源台账](ASSET_PROVENANCE.md)。
-- 本模组不包含遥测或隐私收集功能。提交公开日志前仍应移除本机路径、账户标识与凭据。
-
-项目主页与问题跟踪：[PalosJ/JS-More](https://github.com/PalosJ/JS-More)
+代码、普通数据、语言及文档采用 [MIT](LICENSES/MIT.txt)。台账明确列出的原创视觉资产适用 [JS More Visual Assets License](LICENSES/LicenseRef-JSMore-Visual-Assets.txt)，第三方及上游参考内容保留各自条款。完整范围见 [LICENSE](LICENSE)、[第三方通知](THIRD_PARTY_NOTICES.md) 和 [素材来源](ASSET_PROVENANCE.md)。

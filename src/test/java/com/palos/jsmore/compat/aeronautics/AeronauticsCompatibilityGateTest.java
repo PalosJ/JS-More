@@ -38,12 +38,25 @@ class AeronauticsCompatibilityGateTest {
 
         assertEquals(AeronauticsCompatibilityGate.Status.SUPPORTED, report.status(), report.diagnostics().toString());
         assertTrue(report.supported());
-        assertEquals(
-                AeronauticsCompatibilityGate.AERONAUTICS_BUNDLE_SHA256,
-                AeronauticsCompatibilityGate.sha256(aeronautics)
-        );
-        assertEquals(AeronauticsCompatibilityGate.SABLE_JAR_SHA256, AeronauticsCompatibilityGate.sha256(sable));
+        boolean current = AeronauticsCompatibilityGate.CURRENT_AERONAUTICS_BUNDLE_SHA256.equals(
+                AeronauticsCompatibilityGate.sha256(aeronautics));
+        assertEquals(current ? AeronauticsCompatibilityGate.CURRENT_AERONAUTICS_BUNDLE_SHA256
+                        : AeronauticsCompatibilityGate.AERONAUTICS_BUNDLE_SHA256,
+                AeronauticsCompatibilityGate.sha256(aeronautics));
+        assertEquals(current ? AeronauticsCompatibilityGate.CURRENT_SABLE_JAR_SHA256
+                        : AeronauticsCompatibilityGate.SABLE_JAR_SHA256,
+                AeronauticsCompatibilityGate.sha256(sable));
         assertEquals(AeronauticsCompatibilityGate.CREATE_JAR_SHA256, AeronauticsCompatibilityGate.sha256(create));
+    }
+
+    @Test
+    void runtimeRequiresWholeApprovedPairs() {
+        assertTrue(AeronauticsCompatibilityGate.supportsVersions("1.3.0", "1.3.0", "2.0.3", "6.0.10"));
+        assertTrue(AeronauticsCompatibilityGate.supportsVersions("1.3.2", "1.3.2", "2.0.5", "6.0.10"));
+        org.junit.jupiter.api.Assertions.assertFalse(
+                AeronauticsCompatibilityGate.supportsVersions("1.3.2", "1.3.2", "2.0.3", "6.0.10"));
+        org.junit.jupiter.api.Assertions.assertFalse(
+                AeronauticsCompatibilityGate.supportsVersions("1.3.3", "1.3.3", "2.0.5", "6.0.10"));
     }
 
     @Test

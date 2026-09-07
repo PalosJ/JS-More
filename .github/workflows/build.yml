@@ -13,14 +13,34 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - profile: minimal-runtime
-            arguments: -PruntimeProfile=minimal
-          - profile: default
-            arguments: -PruntimeProfile=default
-          - profile: aeronautics-exact
-            arguments: -PruntimeProfile=aeronautics
-          - profile: pack-interop
-            arguments: -PruntimeProfile=pack-interop
+          - profile: legacy-minimal
+            arguments: -PupstreamProfile=legacy -PruntimeProfile=minimal -PphysicsProfile=legacy
+          - profile: legacy-default
+            arguments: -PupstreamProfile=legacy -PruntimeProfile=default -PphysicsProfile=legacy
+          - profile: legacy-aeronautics-legacy
+            arguments: -PupstreamProfile=legacy -PruntimeProfile=aeronautics -PphysicsProfile=legacy
+          - profile: legacy-aeronautics-current
+            arguments: -PupstreamProfile=legacy -PruntimeProfile=aeronautics -PphysicsProfile=current
+          - profile: legacy-pack-interop-legacy
+            arguments: -PupstreamProfile=legacy -PruntimeProfile=pack-interop -PphysicsProfile=legacy
+          - profile: legacy-pack-interop-current
+            arguments: -PupstreamProfile=legacy -PruntimeProfile=pack-interop -PphysicsProfile=current
+          - profile: legacy-minimal-neo-21.1.250
+            arguments: -PupstreamProfile=legacy -PruntimeProfile=minimal -Pneo_version=21.1.250
+          - profile: current-minimal
+            arguments: -PupstreamProfile=current -PruntimeProfile=minimal -PphysicsProfile=current
+          - profile: current-default
+            arguments: -PupstreamProfile=current -PruntimeProfile=default -PphysicsProfile=current
+          - profile: current-aeronautics-legacy
+            arguments: -PupstreamProfile=current -PruntimeProfile=aeronautics -PphysicsProfile=legacy
+          - profile: current-aeronautics-current
+            arguments: -PupstreamProfile=current -PruntimeProfile=aeronautics -PphysicsProfile=current
+          - profile: current-pack-interop-legacy
+            arguments: -PupstreamProfile=current -PruntimeProfile=pack-interop -PphysicsProfile=legacy
+          - profile: current-pack-interop-current
+            arguments: -PupstreamProfile=current -PruntimeProfile=pack-interop -PphysicsProfile=current
+          - profile: current-minimal-neo-21.1.250
+            arguments: -PupstreamProfile=current -PruntimeProfile=minimal -Pneo_version=21.1.250
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -52,7 +72,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        travelers: ['0.7.1', '0.7.2']
+        travelers: ['0.7.1']
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -72,7 +92,7 @@ jobs:
       - name: Start GameTest dedicated server with exact Travelers binary
         run: >-
           ./gradlew runGameTestServer
-          -PruntimeProfile=minimal
+          -PruntimeProfile=minimal -PupstreamProfile=legacy
           -PtravelersRuntimeVersion=${{ matrix.travelers }}
           --rerun-tasks --warning-mode all --console=plain
 

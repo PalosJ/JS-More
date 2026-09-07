@@ -1,6 +1,6 @@
 package com.palos.jsmore.compat.jurassicsaga;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -17,7 +17,7 @@ public final class JurassicSagaFoodCandidateSorter {
     private JurassicSagaFoodCandidateSorter() {
     }
 
-    public static void sort(ArrayList<Entity> candidates, Vec3 origin) {
+    public static void sort(List<Entity> candidates, Vec3 origin) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         sort(
                 candidates,
@@ -28,7 +28,7 @@ public final class JurassicSagaFoodCandidateSorter {
     }
 
     static <T> void sort(
-            ArrayList<T> candidates,
+            List<T> candidates,
             ToDoubleFunction<T> distanceSquared,
             ToIntFunction<T> entityId,
             DoubleSupplier randomSample

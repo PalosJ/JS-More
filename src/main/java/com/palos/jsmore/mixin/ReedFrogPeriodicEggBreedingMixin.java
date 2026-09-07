@@ -26,6 +26,9 @@ public abstract class ReedFrogPeriodicEggBreedingMixin {
             ItemStack stack,
             CallbackInfo callbackInfo
     ) {
+        if (!com.palos.jsmore.config.JSMoreServerConfig.playerFedBreeding()) {
+            return;
+        }
         DinosaurBreedingService.handlePeriodicPlayerFeed(
                 (ReedFrogEntity) (Object) this,
                 player,

@@ -29,7 +29,7 @@ classes on a dedicated server.
   sleeping, AI suppression, fluid contact, collision-aware floating, and
   server synchronization.
 - **Capture** owns the capture transaction, entity snapshot, original UUID,
-  supplies, durability, item/block-entity transfer, safe release, broken-box
+  supplies, durability, item/block-entity transfer, release, broken-box
   conversion, recovery carriers, and multiblock integrity.
 - **Profiles and age** derive safe species-independent defaults and apply
   narrow known-species precision overrides. A species list is never a general
@@ -38,6 +38,14 @@ classes on a dedicated server.
   game-state authority to the client.
 - **World generation and configuration** isolate Jurassic Saga biome controls
   and optional integration behavior from unrelated gameplay systems.
+- **Breeding and despawn rules** have separate Mixins and independent SERVER
+  settings. COMMON handles biome generation and one-time configuration format
+  migration. NeoForge synchronizes SERVER values and caches them until the
+  world restarts; pending breeding state remains intact while disabled.
+
+Release first searches suitable nearby positions and retains the approved
+forced-nearby fallback. It is not a guarantee against hazardous terrain. The
+fallback may expose the animal to damage; it must still preserve one authority.
 
 ### Client presentation
 
@@ -96,7 +104,7 @@ protection.
 
 ### Network identity
 
-The JS More 1.0.0 breaking identity uses network protocol `7`. Payload field layouts
+JS More 1.0.0 Alpha and Release both use network protocol `7`. Payload field layouts
 remain deliberately small and validated, but payload IDs, attachments,
 registries, configuration, resources, and GameTest data all use the `jsmore`
 namespace. Protocol changes require coordinated registration, codec, test,

@@ -26,6 +26,9 @@ public abstract class OstrichPeriodicEggBreedingMixin {
             ItemStack stack,
             CallbackInfo callbackInfo
     ) {
+        if (!com.palos.jsmore.config.JSMoreServerConfig.playerFedBreeding()) {
+            return;
+        }
         DinosaurBreedingService.handlePeriodicPlayerFeed(
                 (OstrichEntity) (Object) this,
                 player,

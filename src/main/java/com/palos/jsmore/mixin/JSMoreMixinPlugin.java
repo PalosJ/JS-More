@@ -40,9 +40,9 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
             "jp.jurassicsaga.server.animal.entity.obj.tasks.metabolism.JSFindFoodTask";
     private static final Map<String, String> JURASSIC_SAGA_BREEDING_TARGETS =
             Map.of(
-                    "com.palos.jsmore.mixin.JSAnimalBaseSystemsMixin",
+                    "com.palos.jsmore.mixin.JSAnimalBreedingMixin",
                     "jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase",
-                    "com.palos.jsmore.mixin.JSEntityDataHolderSystemsMixin",
+                    "com.palos.jsmore.mixin.JSEntityBreedingMixin",
                     "jp.jurassicsaga.server.animal.entity.obj.bases.JSEntityDataHolder",
                     "com.palos.jsmore.mixin.OstrichPeriodicEggBreedingMixin",
                     "jp.jurassicsaga.server.animal.entity.misc.misc_extant.OstrichEntity",
@@ -70,6 +70,10 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if ("com.palos.jsmore.mixin.client.JurassicSagaJadePluginMixin".equals(mixinClassName)) {
+            return com.palos.jsmore.compat.jade.JurassicSagaJadeCompatibilityGate.TARGET.equals(targetClassName)
+                    && com.palos.jsmore.compat.jade.JurassicSagaJadeCompatibilityGate.shouldPatchRuntime();
+        }
         String breedingTarget = JURASSIC_SAGA_BREEDING_TARGETS.get(mixinClassName);
         if (breedingTarget != null) {
             return shouldApplyJurassicSagaBreedingMixin(
@@ -78,8 +82,9 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
                     breedingTarget
             );
         }
-        if (JURASSIC_SAGA_FOOD_SORT_MARKER.equals(mixinClassName)) {
-            return shouldApplyJurassicSagaFoodSortMixin(targetClassName);
+        if (JURASSIC_SAGA_FOOD_SORT_MARKER.equals(mixinClassName)
+                || "com.palos.jsmore.mixin.JurassicSagaGatherCandidatesMixin".equals(mixinClassName)) {
+            return shouldApplyJurassicSagaFoodSortMixin(targetClassName, mixinClassName);
         }
         if (TERRABLENDER_MARKER.equals(mixinClassName)) {
             return shouldApplyTerraBlenderMixin(targetClassName);
@@ -165,7 +170,7 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
         return shouldApplyTerraBlenderReport(report);
     }
 
-    private static boolean shouldApplyJurassicSagaFoodSortMixin(String targetClassName) {
+    private static boolean shouldApplyJurassicSagaFoodSortMixin(String targetClassName, String mixinClassName) {
         if (!JURASSIC_SAGA_FOOD_SORT_TARGET.equals(targetClassName)) {
             warnJurassicSagaFoodSortOnce("marker targeted unexpected class " + targetClassName);
             return false;
@@ -178,7 +183,10 @@ public final class JSMoreMixinPlugin implements IMixinConfigPlugin {
                     + exception.getClass().getSimpleName());
             return false;
         }
-        return shouldApplyJurassicSagaFoodSortReport(report);
+        return shouldApplyJurassicSagaFoodSortReport(report)
+                && (report.variant() == JurassicSagaFoodSortCompatibilityGate.Variant.LEGACY
+                    ? JURASSIC_SAGA_FOOD_SORT_MARKER.equals(mixinClassName)
+                    : "com.palos.jsmore.mixin.JurassicSagaGatherCandidatesMixin".equals(mixinClassName));
     }
 
     private static boolean shouldApplyJurassicSagaBreedingMixin(

@@ -69,11 +69,82 @@ public final class DinosaurBreedingGameTests {
     private DinosaurBreedingGameTests() {
     }
 
+    @GameTest(template = "profile_compatibility", batch = "server_config_switches", timeoutTicks = 100)
+    public static void serverSwitchesAreIndependentAndRetainPendingEggs(GameTestHelper helper) {
+        var breeding = com.palos.jsmore.config.JSMoreServerConfig.ENABLE_PLAYER_FED_BREEDING;
+        var despawn = com.palos.jsmore.config.JSMoreServerConfig.PREVENT_ANIMAL_DESPAWN;
+        boolean originalBreeding = breeding.get();
+        boolean originalDespawn = despawn.get();
+        OstrichEntity animal = create(helper, JSAnimals.getAnimal("jurassicsaga:ostrich"),
+                OstrichEntity.class, new BlockPos(8, 2, 8));
+        try {
+            prepareAdult(animal, false, true);
+            PeriodicEggBreedingData pending = animal.getData(JSMoreAttachments.PERIODIC_EGG_BREEDING);
+            if (!pending.arm(animal.getModules().getGeneticModule().getGeneData(), animal.getAnimal())) {
+                helper.fail("Could not prepare a real pending egg for configuration regression");
+                return;
+            }
+            java.lang.reflect.Method removal = java.util.Arrays.stream(JSAnimalBase.class.getDeclaredMethods())
+                    .filter(method -> method.getName().contains("jsmore$keepFarmAnimalsInWorld"))
+                    .findFirst().orElseThrow();
+            java.lang.reflect.Method randomMate = java.util.Arrays.stream(JSAnimalBase.class.getDeclaredMethods())
+                    .filter(method -> method.getName().contains("jsmore$blockRandomMateSearch"))
+                    .findFirst().orElseThrow();
+            removal.setAccessible(true);
+            randomMate.setAccessible(true);
+            for (boolean breedEnabled : new boolean[] {false, true}) {
+                for (boolean despawnPrevented : new boolean[] {false, true}) {
+                    breeding.set(breedEnabled);
+                    despawn.set(despawnPrevented);
+                    // A real restart clears WORLD caches. Isolate that transition to this dedicated batch.
+                    breeding.clearCache();
+                    despawn.clearCache();
+                    animal.setLookingForMate(false);
+                    randomMate.invoke(animal, animal, true);
+                    if (animal.isLookingForMate() == breedEnabled
+                            || (boolean) removal.invoke(animal, animal, 40000.0D)
+                                != (!despawnPrevented && animal.removeWhenFarAway(40000.0D))) {
+                        helper.fail("One server switch changed another rule or failed to restore upstream behavior");
+                        return;
+                    }
+                    animal.setLookingForMate(true);
+                    DinosaurBreedingService.validateLoadedPeriodicBreedingState(animal);
+                    if (!pending.isPending() || animal.isLookingForMate() == breedEnabled) {
+                        helper.fail("Loading while disabled lost pending data or changed upstream mate state");
+                        return;
+                    }
+                    if (!breedEnabled) {
+                        ItemEntity dropped = DinosaurBreedingService.replacePeriodicItemEgg(animal, JSItems.OSTRICH_EGG.get());
+                        if (dropped == null || !pending.isPending()) {
+                            helper.fail("Disabled breeding consumed pending data or blocked the upstream item egg");
+                            return;
+                        }
+                        dropped.discard();
+                    }
+                }
+            }
+            if (!DinosaurBreedingService.completePendingLay(pending, animal.getAnimal(), genes -> true)
+                    || pending.isPending()) {
+                helper.fail("Re-enabling breeding failed to validate and complete the preserved egg");
+                return;
+            }
+            helper.succeed();
+        } catch (ReflectiveOperationException exception) {
+            helper.fail("Could not inspect transformed independent rules: " + exception);
+        } finally {
+            breeding.set(originalBreeding);
+            despawn.set(originalDespawn);
+            breeding.clearCache();
+            despawn.clearCache();
+            animal.discard();
+        }
+    }
+
     @GameTest(template = "profile_compatibility", timeoutTicks = 100)
     public static void ostrichArmedTimerCreatesGeneEgg(GameTestHelper helper) {
         verifyPeriodicLay(
                 helper,
-                JSAnimals.OSTRICH,
+                JSAnimals.getAnimal("jurassicsaga:ostrich"),
                 OstrichEntity.class,
                 Items.WHEAT_SEEDS,
                 JSItems.OSTRICH_EGG.get()
@@ -84,7 +155,7 @@ public final class DinosaurBreedingGameTests {
     public static void alligatorArmedTimerCreatesGeneEgg(GameTestHelper helper) {
         verifyPeriodicLay(
                 helper,
-                JSAnimals.ALLIGATOR,
+                JSAnimals.getAnimal("jurassicsaga:alligator"),
                 AlligatorEntity.class,
                 Items.COD,
                 JSItems.ALLIGATOR_EGG.get()
@@ -95,7 +166,7 @@ public final class DinosaurBreedingGameTests {
     public static void reedFrogArmedTimerCreatesGeneEgg(GameTestHelper helper) {
         verifyPeriodicLay(
                 helper,
-                JSAnimals.REED_FROG,
+                JSAnimals.getAnimal("jurassicsaga:reed_frog"),
                 ReedFrogEntity.class,
                 JSItems.MOSQUITO.get(),
                 JSItems.FROG_EGG.get()
@@ -106,7 +177,7 @@ public final class DinosaurBreedingGameTests {
     public static void basiliskArmedTimerCreatesGeneEgg(GameTestHelper helper) {
         verifyPeriodicLay(
                 helper,
-                JSAnimals.BASILISK,
+                JSAnimals.getAnimal("jurassicsaga:basilisk"),
                 BasiliskEntity.class,
                 JSItems.MOSQUITO.get(),
                 JSItems.BASILISK_EGG.get()
@@ -117,7 +188,7 @@ public final class DinosaurBreedingGameTests {
     public static void periodicInvalidAndRepeatFeedsNeverConsume(GameTestHelper helper) {
         OstrichEntity animal = create(
                 helper,
-                JSAnimals.OSTRICH,
+                JSAnimals.getAnimal("jurassicsaga:ostrich"),
                 OstrichEntity.class,
                 new BlockPos(8, 2, 8)
         );
@@ -171,7 +242,7 @@ public final class DinosaurBreedingGameTests {
 
         OstrichEntity creativeAnimal = create(
                 helper,
-                JSAnimals.OSTRICH,
+                JSAnimals.getAnimal("jurassicsaga:ostrich"),
                 OstrichEntity.class,
                 new BlockPos(11, 2, 8)
         );
@@ -194,25 +265,25 @@ public final class DinosaurBreedingGameTests {
     ) {
         GoatEntity female = create(
                 helper,
-                JSAnimals.GOAT,
+                JSAnimals.getAnimal("jurassicsaga:goat"),
                 GoatEntity.class,
                 new BlockPos(7, 2, 8)
         );
         GoatEntity male = create(
                 helper,
-                JSAnimals.GOAT,
+                JSAnimals.getAnimal("jurassicsaga:goat"),
                 GoatEntity.class,
                 new BlockPos(10, 2, 8)
         );
         GoatEntity sameSex = create(
                 helper,
-                JSAnimals.GOAT,
+                JSAnimals.getAnimal("jurassicsaga:goat"),
                 GoatEntity.class,
                 new BlockPos(13, 2, 8)
         );
         OstrichEntity differentSpecies = create(
                 helper,
-                JSAnimals.OSTRICH,
+                JSAnimals.getAnimal("jurassicsaga:ostrich"),
                 OstrichEntity.class,
                 new BlockPos(16, 2, 8)
         );
@@ -360,7 +431,7 @@ public final class DinosaurBreedingGameTests {
     ) {
         OstrichEntity source = create(
                 helper,
-                JSAnimals.OSTRICH,
+                JSAnimals.getAnimal("jurassicsaga:ostrich"),
                 OstrichEntity.class,
                 new BlockPos(8, 2, 8)
         );
@@ -425,7 +496,7 @@ public final class DinosaurBreedingGameTests {
     ) {
         GoatEntity clean = create(
                 helper,
-                JSAnimals.GOAT,
+                JSAnimals.getAnimal("jurassicsaga:goat"),
                 GoatEntity.class,
                 new BlockPos(7, 2, 8)
         );
@@ -453,7 +524,7 @@ public final class DinosaurBreedingGameTests {
 
         GoatEntity tainted = create(
                 helper,
-                JSAnimals.GOAT,
+                JSAnimals.getAnimal("jurassicsaga:goat"),
                 GoatEntity.class,
                 new BlockPos(12, 2, 8)
         );
@@ -509,13 +580,13 @@ public final class DinosaurBreedingGameTests {
     ) {
         OstrichEntity ostrich = create(
                 helper,
-                JSAnimals.OSTRICH,
+                JSAnimals.getAnimal("jurassicsaga:ostrich"),
                 OstrichEntity.class,
                 new BlockPos(7, 2, 8)
         );
         AlligatorEntity alligator = create(
                 helper,
-                JSAnimals.ALLIGATOR,
+                JSAnimals.getAnimal("jurassicsaga:alligator"),
                 AlligatorEntity.class,
                 new BlockPos(12, 2, 8)
         );
@@ -616,7 +687,7 @@ public final class DinosaurBreedingGameTests {
     ) {
         OstrichEntity animal = create(
                 helper,
-                JSAnimals.OSTRICH,
+                JSAnimals.getAnimal("jurassicsaga:ostrich"),
                 OstrichEntity.class,
                 new BlockPos(8, 2, 8)
         );
@@ -677,13 +748,13 @@ public final class DinosaurBreedingGameTests {
     ) {
         OstrichEntity ostrich = create(
                 helper,
-                JSAnimals.OSTRICH,
+                JSAnimals.getAnimal("jurassicsaga:ostrich"),
                 OstrichEntity.class,
                 new BlockPos(7, 2, 8)
         );
         BasiliskEntity basilisk = create(
                 helper,
-                JSAnimals.BASILISK,
+                JSAnimals.getAnimal("jurassicsaga:basilisk"),
                 BasiliskEntity.class,
                 new BlockPos(12, 2, 8)
         );
@@ -824,12 +895,11 @@ public final class DinosaurBreedingGameTests {
                     continue;
                 }
                 MobCategory category = animal.getType().getCategory();
-                if (category != MobCategory.CREATURE
-                        && category != MobCategory.WATER_CREATURE) {
+                if (!com.palos.jsmore.server.system.DinosaurDespawnPolicy.protectsCategory(category)) {
                     animal.discard();
                     continue;
                 }
-                if (category == MobCategory.CREATURE) {
+                if (category == MobCategory.CREATURE || "jurassicsaga:js_land".equals(category.getName())) {
                     creatures++;
                 } else {
                     waterCreatures++;
@@ -931,7 +1001,7 @@ public final class DinosaurBreedingGameTests {
 
             OstrichEntity idleCandidate = create(
                     helper,
-                    JSAnimals.OSTRICH,
+                    JSAnimals.getAnimal("jurassicsaga:ostrich"),
                     OstrichEntity.class,
                     new BlockPos(8, 2, 8)
             );
@@ -951,7 +1021,7 @@ public final class DinosaurBreedingGameTests {
             distancePlayer.moveTo(Vec3.atCenterOf(despawnPos.offset(192, 0, 0)));
             ButterflyEntity nonTarget = create(
                     helper,
-                    JSAnimals.BUTTERFLY,
+                    JSAnimals.getAnimal("jurassicsaga:butterfly"),
                     ButterflyEntity.class,
                     new BlockPos(8, 2, 8)
             );
@@ -969,23 +1039,27 @@ public final class DinosaurBreedingGameTests {
                     || nonTargetCategory == MobCategory.CREATURE
                     || nonTargetCategory == MobCategory.WATER_CREATURE
                     || nonTarget.isPersistenceRequired()
-                    || nonTarget.requiresCustomPersistence()
-                    || animalPropertiesPersistent) {
-                helper.fail("Real butterfly did not satisfy the original"
-                        + " non-target distance-removal preconditions");
+                    || nonTarget.requiresCustomPersistence()) {
+                helper.fail("Real butterfly non-target preconditions: category=" + nonTargetCategory.getName()
+                        + ", nearest=" + (nearestPlayer != null)
+                        + ", distance=" + (nearestPlayer == null ? -1 : nonTarget.distanceToSqr(nearestPlayer))
+                        + ", persistence=" + nonTarget.isPersistenceRequired()
+                        + ", custom=" + nonTarget.requiresCustomPersistence()
+                        + ", properties=" + animalPropertiesPersistent);
                 return;
             }
             nonTarget.checkDespawn();
-            if (!nonTarget.isRemoved()) {
+            if (nonTarget.isRemoved() == animalPropertiesPersistent) {
                 nonTarget.discard();
-                helper.fail("Non-target category did not execute the original"
-                        + " distance-removal branch");
+                helper.fail("Non-target category did not preserve upstream persistent="
+                        + animalPropertiesPersistent + " during distance removal");
                 return;
             }
+            nonTarget.discard();
 
             OstrichEntity persistentTarget = create(
                     helper,
-                    JSAnimals.OSTRICH,
+                    JSAnimals.getAnimal("jurassicsaga:ostrich"),
                     OstrichEntity.class,
                     new BlockPos(8, 2, 8)
             );
@@ -1006,7 +1080,7 @@ public final class DinosaurBreedingGameTests {
         try {
             GoatEntity creature = create(
                     helper,
-                    JSAnimals.GOAT,
+                    JSAnimals.getAnimal("jurassicsaga:goat"),
                     GoatEntity.class,
                     new BlockPos(8, 2, 8)
             );
@@ -1037,10 +1111,10 @@ public final class DinosaurBreedingGameTests {
     public static void periodicTimerPersistenceMatchesEveryUpstreamSpecies(
             GameTestHelper helper
     ) {
-        verifyTimerReload(helper, JSAnimals.OSTRICH, OstrichEntity.class, false);
-        verifyTimerReload(helper, JSAnimals.ALLIGATOR, AlligatorEntity.class, false);
-        verifyTimerReload(helper, JSAnimals.REED_FROG, ReedFrogEntity.class, false);
-        verifyTimerReload(helper, JSAnimals.BASILISK, BasiliskEntity.class, true);
+        verifyTimerReload(helper, JSAnimals.getAnimal("jurassicsaga:ostrich"), OstrichEntity.class, false);
+        verifyTimerReload(helper, JSAnimals.getAnimal("jurassicsaga:alligator"), AlligatorEntity.class, false);
+        verifyTimerReload(helper, JSAnimals.getAnimal("jurassicsaga:reed_frog"), ReedFrogEntity.class, false);
+        verifyTimerReload(helper, JSAnimals.getAnimal("jurassicsaga:basilisk"), BasiliskEntity.class, true);
         helper.succeed();
     }
 

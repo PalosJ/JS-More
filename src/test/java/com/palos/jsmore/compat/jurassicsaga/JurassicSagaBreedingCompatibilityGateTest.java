@@ -208,9 +208,9 @@ class JurassicSagaBreedingCompatibilityGateTest {
         try (InputStream stream = JurassicSagaBreedingCompatibilityGateTest.class
                 .getClassLoader()
                 .getResourceAsStream(
-                        "com/palos/jsmore/mixin/JSAnimalBaseSystemsMixin.class"
+                        "com/palos/jsmore/mixin/JSAnimalDespawnMixin.class"
                 )) {
-            assertNotNull(stream, "compiled JSAnimalBaseSystemsMixin must be available");
+            assertNotNull(stream, "compiled JSAnimalDespawnMixin must be available");
             mixin = read(stream.readAllBytes());
         }
 
@@ -250,8 +250,8 @@ class JurassicSagaBreedingCompatibilityGateTest {
                 StandardCharsets.UTF_8
         );
         for (String name : List.of(
-                "JSAnimalBaseSystemsMixin",
-                "JSEntityDataHolderSystemsMixin",
+                "JSAnimalBreedingMixin",
+                "JSEntityBreedingMixin",
                 "OstrichPeriodicEggBreedingMixin",
                 "AlligatorPeriodicEggBreedingMixin",
                 "ReedFrogPeriodicEggBreedingMixin",

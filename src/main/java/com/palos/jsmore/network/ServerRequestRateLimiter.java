@@ -9,6 +9,8 @@ final class ServerRequestRateLimiter {
     private final long cooldownTicks;
     private final int maxTrackers;
     private final Map<UUID, Tracker> trackers = new HashMap<>();
+    private long lastCleanupTick;
+    private boolean hasCleaned;
 
     ServerRequestRateLimiter(long cooldownTicks, int maxTrackers) {
         this.cooldownTicks = Math.max(0L, cooldownTicks);
@@ -20,7 +22,12 @@ final class ServerRequestRateLimiter {
             return false;
         }
         synchronized (this.trackers) {
-            cleanupExpired(gameTime);
+            // Expiry cannot change during one game tick. A rollback still cleans immediately.
+            if (!this.hasCleaned || gameTime != this.lastCleanupTick) {
+                cleanupExpired(gameTime);
+                this.lastCleanupTick = gameTime;
+                this.hasCleaned = true;
+            }
             Tracker tracker = this.trackers.get(playerId);
             if (tracker != null && gameTime < tracker.nextAllowedTick()) {
                 this.trackers.put(playerId, new Tracker(tracker.nextAllowedTick(), gameTime));
@@ -37,6 +44,7 @@ final class ServerRequestRateLimiter {
     void clear() {
         synchronized (this.trackers) {
             this.trackers.clear();
+            this.hasCleaned = false;
         }
     }
 

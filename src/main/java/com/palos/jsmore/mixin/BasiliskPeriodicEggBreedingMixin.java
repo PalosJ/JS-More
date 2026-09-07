@@ -26,6 +26,9 @@ public abstract class BasiliskPeriodicEggBreedingMixin {
             ItemStack stack,
             CallbackInfo callbackInfo
     ) {
+        if (!com.palos.jsmore.config.JSMoreServerConfig.playerFedBreeding()) {
+            return;
+        }
         DinosaurBreedingService.handlePeriodicPlayerFeed(
                 (BasiliskEntity) (Object) this,
                 player,

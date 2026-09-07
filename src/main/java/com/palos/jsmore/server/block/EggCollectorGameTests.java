@@ -68,6 +68,34 @@ public final class EggCollectorGameTests {
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 100)
+    public static void denseFullCollectorRetainsEveryEgg(GameTestHelper helper) {
+        BlockPos pos = helper.absolutePos(new BlockPos(8, 2, 8));
+        EggCollectorBlockEntity collector = placeCollector(helper, pos, Direction.NORTH);
+        for (int slot = 0; slot < collector.getContainerSize(); slot++) {
+            collector.setItem(slot, new ItemStack(Items.EGG, Items.EGG.getDefaultMaxStackSize()));
+        }
+        List<ItemEntity> eggs = new java.util.ArrayList<>();
+        for (int index = 0; index < 512; index++) {
+            eggs.add(spawnItem(helper, Vec3.atCenterOf(pos).add((index % 8) * 0.1D, 1, 1), Items.EGG, 1, 100));
+        }
+        long started = System.nanoTime();
+        int transferred = 0;
+        for (int pass = 0; pass < 40; pass++) {
+            transferred += EggCollectorService.collect(helper.getLevel(), pos, collector);
+        }
+        JSMore.LOGGER.info("JS More performance: full collector, 512 eggs, 40 scans: {} ns",
+                System.nanoTime() - started);
+        boolean preserved = transferred == 0 && eggs.stream().allMatch(egg ->
+                !egg.isRemoved() && egg.getItem().getCount() == 1);
+        eggs.forEach(ItemEntity::discard);
+        if (!preserved) {
+            helper.fail("Dense full collector lost or changed an egg");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 100)
     public static void approvedBaseEggTagAndTickerCollectEveryConfiguredEgg(GameTestHelper helper) {
         BlockPos pos = helper.absolutePos(new BlockPos(8, 2, 8));
         EggCollectorBlockEntity collector = placeCollector(helper, pos, Direction.NORTH);

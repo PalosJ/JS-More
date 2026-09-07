@@ -10,11 +10,15 @@
     "EntityTypeSpawnEggMixin",
     "JSAnimalAnimationSystemsMixin",
     "JSAnimalBaseSystemsMixin",
+    "JSAnimalBreedingMixin",
+    "JSAnimalDespawnMixin",
     "JSAquaticBaseSystemsMixin",
     "JSAvianBaseSystemsMixin",
     "JurassicSagaFindFoodTaskMixin",
+    "JurassicSagaGatherCandidatesMixin",
     "JSTerrablenderMixin",
     "JSEntityDataHolderSystemsMixin",
+    "JSEntityBreedingMixin",
     "LivingEntityTravelMixin",
     "MultiNoiseBiomeSourceMixin",
     "OstrichPeriodicEggBreedingMixin",
@@ -28,6 +32,7 @@
   "client": [
     "client.AzEntityDispatchCommandPacketMixin",
     "client.CustomHeadLayerMixin",
+    "client.JurassicSagaJadePluginMixin",
     "client.LevelRendererDestroyProgressMixin",
     "client.TravelersClientAnimatorMixin",
     "client.TravelersAzureModelRendererMixin"

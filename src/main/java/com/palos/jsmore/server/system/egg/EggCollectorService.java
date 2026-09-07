@@ -40,6 +40,10 @@ public final class EggCollectorService {
     }
 
     public static int collect(ServerLevel level, BlockPos collectorPos, EggCollectorBlockEntity collector) {
+        IItemHandler inventory = collector.getItemHandler();
+        if (!hasSpace(inventory)) {
+            return 0;
+        }
         Vec3 center = Vec3.atCenterOf(collectorPos);
         AABB bounds = new AABB(center, center).inflate(COLLECTION_RADIUS);
         List<ItemEntity> candidates = level.getEntitiesOfClass(
@@ -49,9 +53,19 @@ public final class EggCollectorService {
         );
         int collected = 0;
         for (ItemEntity itemEntity : candidates) {
-            collected += transferToInventory(itemEntity, collector.getItemHandler());
+            collected += transferToInventory(itemEntity, inventory);
         }
         return collected;
+    }
+
+    static boolean hasSpace(IItemHandler inventory) {
+        for (int slot = 0; slot < inventory.getSlots(); slot++) {
+            ItemStack stack = inventory.getStackInSlot(slot);
+            if (stack.isEmpty() || stack.getCount() < Math.min(inventory.getSlotLimit(slot), stack.getMaxStackSize())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static int transferToInventory(ItemEntity itemEntity, IItemHandler itemHandler) {

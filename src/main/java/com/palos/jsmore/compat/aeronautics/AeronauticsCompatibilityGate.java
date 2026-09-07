@@ -37,6 +37,14 @@ public final class AeronauticsCompatibilityGate {
 
     public static final String AERONAUTICS_BUNDLE_SHA256 =
             "482C90E0E6FE72F33FE7ABB079E5FDA581CD660EE53C38C44448A64283E1044C";
+    public static final String CURRENT_AERONAUTICS_BUNDLE_SHA256 =
+            "A3F330D4757640F8715D991A43EEDB826E4D0E51558D859C843AE6693BD35F1E";
+    public static final String CURRENT_SABLE_JAR_SHA256 =
+            "C8710F85BC780BBF523E6726CEAAF76DD0B8C61479DB497B382C6BB34317E7AB";
+    private static final String CURRENT_AERONAUTICS_NESTED_SHA256 =
+            "97FBF1E27F38674145B8521B140613DC8258BEA7EFCA456DC2686E22BD683933";
+    private static final String CURRENT_SIMULATED_NESTED_SHA256 =
+            "FDF9D250996A084B52FCED3A5B0089E879A5CAC05DC7BCF295AC1F4EBE5E2BFF";
     public static final String AERONAUTICS_NESTED_SHA256 =
             "2059443A3F601E167E6090AF0A44AE8B18CA67E46F3A234A4C231F0D46C3979C";
     public static final String SIMULATED_NESTED_SHA256 =
@@ -145,9 +153,33 @@ public final class AeronauticsCompatibilityGate {
                 return cached;
             }
             Report inspected = inspectClassResources(defaultResources());
+            if (inspected.supported()) {
+                inspected = inspectRuntimeVersions(inspected);
+            }
             RUNTIME_CACHED.set(inspected);
             return inspected;
         }
+    }
+
+    private static Report inspectRuntimeVersions(Report structurallySupported) {
+        var loadingMods = net.neoforged.fml.loading.LoadingModList.get();
+        if (loadingMods == null) {
+            return Report.drift(List.of("Optional stack versions are unavailable"));
+        }
+        java.util.Map<String, String> versions = new java.util.HashMap<>();
+        for (var mod : loadingMods.getMods()) {
+            versions.put(mod.getModId(), mod.getVersion().toString());
+        }
+        return supportsVersions(versions.get("aeronautics"), versions.get("simulated"),
+                versions.get("sable"), versions.get("create"))
+                ? structurallySupported
+                : Report.drift(List.of("Optional stack is not an approved Aeronautics/Simulated/Sable/Create pair"));
+    }
+
+    static boolean supportsVersions(String aeronautics, String simulated, String sable, String create) {
+        return "6.0.10".equals(create)
+                && (("1.3.0".equals(aeronautics) && "1.3.0".equals(simulated) && "2.0.3".equals(sable))
+                || ("1.3.2".equals(aeronautics) && "1.3.2".equals(simulated) && "2.0.5".equals(sable)));
     }
 
     public static Report inspectArchives(Path aeronauticsBundle, Path sableJar, Path createJar) {
@@ -169,22 +201,26 @@ public final class AeronauticsCompatibilityGate {
         }
 
         try {
-            checkHash("Aeronautics bundle", sha256(aeronauticsBundle), AERONAUTICS_BUNDLE_SHA256, problems);
-            checkHash("Sable JAR", sha256(sableJar), SABLE_JAR_SHA256, problems);
+            boolean current = CURRENT_AERONAUTICS_BUNDLE_SHA256.equals(sha256(aeronauticsBundle));
+            checkHash("Aeronautics bundle", sha256(aeronauticsBundle),
+                    current ? CURRENT_AERONAUTICS_BUNDLE_SHA256 : AERONAUTICS_BUNDLE_SHA256, problems);
+            checkHash("Sable JAR", sha256(sableJar),
+                    current ? CURRENT_SABLE_JAR_SHA256 : SABLE_JAR_SHA256, problems);
             checkHash("Create JAR", sha256(createJar), CREATE_JAR_SHA256, problems);
             if (!problems.isEmpty()) {
                 return Report.drift(problems);
             }
 
-            byte[] aeronauticsNested = readZipEntry(aeronauticsBundle, AERONAUTICS_NESTED_JAR);
-            byte[] simulatedNested = readZipEntry(aeronauticsBundle, SIMULATED_NESTED_JAR);
+            byte[] aeronauticsNested = readZipEntry(aeronauticsBundle, current ? AERONAUTICS_NESTED_JAR.replace("1.3.0", "1.3.2") : AERONAUTICS_NESTED_JAR);
+            byte[] simulatedNested = readZipEntry(aeronauticsBundle, current ? SIMULATED_NESTED_JAR.replace("1.3.0", "1.3.2") : SIMULATED_NESTED_JAR);
             checkHash(
                     "nested Aeronautics JAR",
                     sha256(aeronauticsNested),
-                    AERONAUTICS_NESTED_SHA256,
+                    current ? CURRENT_AERONAUTICS_NESTED_SHA256 : AERONAUTICS_NESTED_SHA256,
                     problems
             );
-            checkHash("nested Simulated JAR", sha256(simulatedNested), SIMULATED_NESTED_SHA256, problems);
+            checkHash("nested Simulated JAR", sha256(simulatedNested),
+                    current ? CURRENT_SIMULATED_NESTED_SHA256 : SIMULATED_NESTED_SHA256, problems);
             checkNestedClass(
                     "Aeronautics movement checks",
                     aeronauticsNested,

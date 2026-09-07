@@ -167,6 +167,15 @@ class ClientAnestheticAnimationFallbackTest {
     private static SleepAnimationCapability classifyResource(String relativePath) throws IOException {
         String resourcePath = ANIMATION_ROOT + relativePath;
         try (InputStream stream = jurassicSagaAnchor().getResourceAsStream(resourcePath)) {
+            // These two legacy files were removed from the reviewed 0.2.3 JAR. Missing resources
+            // must still take the existing NONE fallback; other missing assets remain failures.
+            if (stream == null && Set.of("jw4/hainosaurus/hainosaurus.animation.json",
+                    "misc_legacy/mawsonia/mawsonia.animation.json").contains(relativePath)
+                    && com.palos.jsmore.compat.jurassicsaga.JurassicSagaFoodSortCompatibilityGate
+                        .probeRuntimeOnce().variant() == com.palos.jsmore.compat.jurassicsaga
+                        .JurassicSagaFoodSortCompatibilityGate.Variant.CURRENT) {
+                return ClientAnestheticAnimationFallback.classifyAnimationJson(null);
+            }
             assertNotNull(stream, "Jurassic Saga animation resource is missing: " + resourcePath);
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 return ClientAnestheticAnimationFallback.classifyAnimationJson(reader);

@@ -18,6 +18,24 @@ import org.junit.jupiter.api.Test;
 
 class DinosaurCaptureTickHandlerTest {
     @Test
+    void settlementKeepsTwentyTickCadenceAndDistributesAdjacentEntities() {
+        for (long start : new long[] {0, -100, Long.MAX_VALUE - 40}) {
+            int[] load = new int[20];
+            for (int entity = -100; entity < 300; entity++) {
+                int calls = 0;
+                for (int tick = 0; tick < 40; tick++) {
+                    if (DinosaurCaptureTickHandler.shouldSettle(start + tick, entity)) {
+                        calls++;
+                        if (tick < 20) load[tick]++;
+                    }
+                }
+                assertEquals(2, calls);
+            }
+            for (int count : load) assertEquals(20, count);
+        }
+    }
+
+    @Test
     void brokenSettlementDoesNotRequestDroppedCarrierDiscard() {
         DinosaurCaptureService.StackSettlementResult result = DinosaurCaptureService.StackSettlementResult.BROKEN;
 

@@ -50,6 +50,29 @@ class JurassicSagaFoodSortCompatibilityGateTest {
     }
 
     @Test
+    void detectsCurrentGatheringAndRejectsChangedJitterWithoutReplacingPathfinding() throws IOException {
+        Path current = Path.of(System.getProperty("jsmore.test.jurassicsaga.current.jar"));
+        byte[] base = readEntry(current, TASK_BASE_ENTRY);
+        byte[] targetBytes = readEntry(current, TARGET_ENTRY);
+        var report = JurassicSagaFoodSortCompatibilityGate.probe(targetBytes, base);
+        assertEquals(JurassicSagaFoodSortCompatibilityGate.Status.PATCH, report.status(), report.diagnostics().toString());
+        assertEquals(JurassicSagaFoodSortCompatibilityGate.Variant.CURRENT, report.variant());
+
+        ClassNode target = new ClassNode();
+        new ClassReader(targetBytes).accept(target, 0);
+        MethodNode score = target.methods.stream().filter(method -> "jitteredDistSqr".equals(method.name))
+                .findFirst().orElseThrow();
+        for (AbstractInsnNode instruction : score.instructions) {
+            if (instruction instanceof org.objectweb.asm.tree.LdcInsnNode constant
+                    && Double.valueOf(0.25D).equals(constant.cst)) {
+                constant.cst = 0.5D;
+            }
+        }
+        assertEquals(JurassicSagaFoodSortCompatibilityGate.Status.DRIFT,
+                JurassicSagaFoodSortCompatibilityGate.probe(write(target), base).status());
+    }
+
+    @Test
     void acceptsRenamedComparatorHandleAndNonSemanticResourceEstimateGrowth() throws IOException {
         ClassNode renamed = readTarget();
         MethodNode renamedComparator = comparator(renamed);

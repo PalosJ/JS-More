@@ -13,13 +13,13 @@ final class FormalAeronauticsClassBytes {
 
     static byte[] simulatedClass(String classEntry) throws IOException {
         Path bundle = requiredPath(AeronauticsCompatibilityGate.AERONAUTICS_BUNDLE_PROPERTY);
-        byte[] nested = zipEntry(bundle, AeronauticsCompatibilityGate.SIMULATED_NESTED_JAR);
+        byte[] nested = zipEntry(bundle, nestedName(bundle, AeronauticsCompatibilityGate.SIMULATED_NESTED_JAR));
         return nestedEntry(nested, classEntry);
     }
 
     static byte[] aeronauticsClass(String classEntry) throws IOException {
         Path bundle = requiredPath(AeronauticsCompatibilityGate.AERONAUTICS_BUNDLE_PROPERTY);
-        byte[] nested = zipEntry(bundle, AeronauticsCompatibilityGate.AERONAUTICS_NESTED_JAR);
+        byte[] nested = zipEntry(bundle, nestedName(bundle, AeronauticsCompatibilityGate.AERONAUTICS_NESTED_JAR));
         return nestedEntry(nested, classEntry);
     }
 
@@ -29,6 +29,11 @@ final class FormalAeronauticsClassBytes {
 
     static byte[] createClass(String classEntry) throws IOException {
         return zipEntry(requiredPath(AeronauticsCompatibilityGate.CREATE_JAR_PROPERTY), classEntry);
+    }
+
+    private static String nestedName(Path bundle, String legacyName) throws IOException {
+        return AeronauticsCompatibilityGate.CURRENT_AERONAUTICS_BUNDLE_SHA256.equals(
+                AeronauticsCompatibilityGate.sha256(bundle)) ? legacyName.replace("1.3.0", "1.3.2") : legacyName;
     }
 
     private static Path requiredPath(String property) {

@@ -43,7 +43,7 @@ public final class DinosaurCaptureTickHandler {
         if (RecoveryCarrierService.maintain(itemEntity, level)) {
             return;
         }
-        if (level.getGameTime() % 20L != 0L) {
+        if (!shouldSettle(level.getGameTime(), itemEntity.getId())) {
             return;
         }
         ItemStack stack = itemEntity.getItem();
@@ -70,11 +70,16 @@ public final class DinosaurCaptureTickHandler {
     }
 
     public static void onPlayerTickPost(PlayerTickEvent.Post event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || player.level().getGameTime() % 20L != 0L) {
+        if (!(event.getEntity() instanceof ServerPlayer player)
+                || !shouldSettle(player.level().getGameTime(), player.getId())) {
             return;
         }
         settlePlayerInventory(player);
         settleOpenContainer(player);
+    }
+
+    static boolean shouldSettle(long gameTime, int entityId) {
+        return Math.floorMod(gameTime, 20L) == Math.floorMod(entityId, 20);
     }
 
     public static void onPlayerContainerOpen(PlayerContainerEvent.Open event) {
@@ -235,15 +240,6 @@ public final class DinosaurCaptureTickHandler {
             slot.setChanged();
             slot.container.setChanged();
         }
-    }
-
-    private static DinosaurCaptureService.StackSettlementResult settleStack(
-            ItemStack stack,
-            ServerLevel level,
-            Vec3 releaseOrigin,
-            float yRot
-    ) {
-        return settleStack(stack, level, releaseOrigin, yRot, Vec3.ZERO);
     }
 
     private static DinosaurCaptureService.StackSettlementResult settleStack(

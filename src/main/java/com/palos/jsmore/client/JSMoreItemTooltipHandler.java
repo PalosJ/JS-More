@@ -45,6 +45,10 @@ public final class JSMoreItemTooltipHandler {
         List<Component> tooltip = event.getToolTip();
         tooltip.add(Math.min(1, tooltip.size()), line);
         if (item instanceof DinosaurCaptureCageItem) {
+            if (Screen.hasShiftDown()) {
+                tooltip.add(Component.translatable("tooltip.jsmore.dinosaur_capture_box.release_warning")
+                        .withStyle(ChatFormatting.GOLD));
+            }
             addCaptureCageRuntimeTooltip(event);
         }
     }
