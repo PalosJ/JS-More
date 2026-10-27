@@ -115,6 +115,26 @@ public final class DinosaurBreedingGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "profile_compatibility", timeoutTicks = 100)
+    public static void validLegacyReproductionSurvivesAnUnreadableNewRecord(GameTestHelper helper) {
+        JSAnimalBase animal = create(helper, "goat");
+        CompoundTag tag = animal.saveWithoutId(new CompoundTag());
+        tag.putString("js.reproduction", "unreadable-new-record");
+        tag.remove("js.reproduction.father");
+        tag.getCompound("js.metabolism").putInt("js.metabolism.gestation", 1234);
+        tag.getCompound("js.metabolism").putInt("js.metabolism.breedingcooldown", 5678);
+        tag.put("js.metabolism.data.father", animal.getModules().getGeneticModule().getGeneData().saveToNbt(new CompoundTag()));
+        animal.load(tag);
+        helper.assertTrue(animal.getModules().getReproductionModule().getGestation() == 1234,
+                "Invalid new record discarded an otherwise usable legacy pregnancy");
+        helper.assertTrue(animal.getModules().getReproductionModule().getBreedingCooldown() == 5678,
+                "Legacy reproduction cooldown was lost during fallback");
+        helper.assertTrue(animal.getPersistentData().getCompound("jsmore:unreadable_reproduction")
+                .getString("js.reproduction").equals("unreadable-new-record"), "Unreadable new raw data was not preserved");
+        animal.discard();
+        helper.succeed();
+    }
+
     private static JSAnimalBase create(GameTestHelper helper, String id) {
         var animal = (JSAnimalBase) JSAnimals.getAnimal("jurassicsaga:" + id).getEntityType().get().create(helper.getLevel());
         animal.moveTo(helper.absolutePos(new BlockPos(8, 2, 8)).getCenter());

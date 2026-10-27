@@ -42,6 +42,8 @@
 
 实机追加修复箱体观察请求丢弃后界面冻结，以及 Travelers 1.0 寻路线程阻止独服正常退出的问题；未改变寻路算法。
 
+复审进一步修复高延迟下动物眼镜信息持续空白、迟到麻醉重新延长、乱序待生效剂量结算、损坏新繁殖记录遮蔽合法旧记录，以及手持箱释放未扣结算补给的问题。
+
 旧合法待产蛋只兑现一次，无法解析的数据继续保全；旧箱可证明捕获历史，升级前已经释放的动物无法追溯。需要保护旧围栏时选择新 ALL 模式，或成功重捕一次。协议更新为 8，客户端和服务器一起升级。旧依赖请继续使用 1.0.0，未来上游版本仍需实际检查。
 
 ## English release notes
@@ -52,16 +54,22 @@ Fixes captured growth and chronological supply settlement, starvation duration, 
 
 Also fixes frozen box observations after a dropped request and Travelers 1.0 path workers preventing a saved server from exiting, without changing pathfinding.
 
+The follow-up review also fixes blank goggles under high latency, overdue doses restarting, out-of-order restored dose settlement, invalid new breeding data hiding valid legacy data, and manual box release retaining consumed reserves.
+
 Valid legacy pending eggs complete once; unreadable data is retained. Old occupied boxes prove capture history; animals released before upgrading do not. Select the new ALL mode or recapture old enclosure animals if needed. Protocol 8 requires both sides to update. Keep public 1.0.0 for older dependency pairs; future upstream versions remain subject to verification.
 
 ## 制品与验收记录
 
 - 本地制品与以下验收记录已就绪。GitHub 源码同步不代表已创建 GitHub / Modrinth Release，在线制品发布和自动安装验收仍需另行完成。
-- 最终 JAR：`jsmore-1.1.0.jar`；SHA-256：`d9efb350fe9e3f26d5a5d6222de6b779061b990a8337896389fb2ebbbafaa763`。
-- 2026-10-27，Java 21 / 当前 Wrapper：七组新基线矩阵通过，包括最小、普通、两组航空学、两组共存环境和 NeoForge 21.1.250 最小环境，其余使用 21.1.232。每组发现 484 项 JUnit 测试，失败/错误为 0；非共存环境各有 1 项按环境条件跳过，共存环境无跳过。每组 162 项 GameTest 通过；构建、POM 和制品审计通过。
-- 同一最终 JAR 在七组真实独服中完成启动、生成动物并触发寻路、保存及正常退出；公开 1.0.0 的两个旧组合另行启动退出回归通过。旧布尔值 true/false、COMMON 值保留及新 ALL/OFF 两次重启，共六次配置实机运行通过。
-- 最终候选 JFR 连续记录 65 分 44 秒，服务器正常退出。平均 tick 2.76 ms，99 分位 27.47 ms；有五次短时落后警告，不能描述为无卡顿。首次约 27 分钟无客户端并与其他验证并行，后续客户端实际完成运输与显示验收。小型隔离世界的结果不代表大型整合包容量。
-- 实机确认捕获箱掉落物保存重载、容器储存与区块卸载结算、重新放置和释放；原动物 UUID、基因数据、年龄身份和捕获历史保留，最终只有一个动物实体且没有遗留动物载体。确认 Jade 显示/隐藏、完整眼镜模式、箱体信息持续刷新、水生浮水及苏醒游动、飞行动物麻醉落地。低血量重复中镖在同轮前候选实机确认，最终候选仍有对应 GameTest。
-- 尚未逐物种进行完整繁殖周期的客户端观察，也未完成人工操纵大型航空学载具、多人长时间压力或其他操作系统的视觉验收；这些不能由本轮服务器回归代替。飞行动物醒后飞行状态已由服务器确认，未单独录下恢复飞行动画。
+- 最终 JAR：`jsmore-1.1.0.jar`；SHA-256：`bf8d7cb95b7ee8ac43ecb4d41f4db33f4eee11a7d3b496562618a8ba02bce0bf`。
+- 2026-10-28，Java 21 / 当前 Wrapper：七组新基线矩阵通过，包括最小、普通、两组航空学、两组共存环境和 NeoForge 21.1.250 最小环境，其余使用 21.1.232。每组发现 489 项 JUnit 测试，失败/错误为 0；非共存环境各有 1 项按环境条件跳过，共存环境无跳过。每组 165 项必需 GameTest 通过；构建、POM 和制品审计通过。
+- 同一最终 JAR 在七组真实独服中完成启动、生成动物并触发寻路、保存及正常退出；未修改的公开 1.0.0 在两个旧组合上的启动退出回归通过。前轮六次配置实机记录保留为基线，本轮三档策略仍由最终 GameTest 覆盖。
+- 最终候选 JFR 连续记录 60 分 48 秒，服务器正常退出。平均 tick 样本 8.97 ms，99 分位 76.45 ms；完整进程日志有 16 次落后警告，不能描述为无卡顿。GC 合计约 54.67 秒，约占记录时长 1.50%；服务端 RSS 采样峰值约 574 MiB。首次约 17 分钟无客户端并与其他验证并行，之后有客户端重连；这些全模组汇总数据不代表 JS More 单独开销或大型整合包容量。
+- 最终候选实机完成生存装填/射击消耗、0.4 HP 重复中镖、清醒捕获失败、真实补给、占用掉落物超过五分钟、拾取及下界释放。原动物 UUID、两项基因、年龄标记和捕获历史保留，释放后只有一个动物且空箱只保留剩余补给。实际区块卸载后已过期的待生效药剂未重新启动。
+- Jade 显示/隐藏回退及经过核实的 1.25 秒服务端至客户端延迟下眼镜刷新通过。观察水生浮水、苏醒下潜、飞行动物麻醉落地；醒后飞行由服务端状态确认，未单独录下恢复飞行动画。完整眼镜选项和 Curios 佩戴的前轮视觉结果不改记成本轮重测。
+- 鸵鸟在未强制求偶/孵化计时的情况下产生两个新 UUID 后代，普通蛋收集至 20 个并通过实际界面取出。未拍到破壳瞬间，不能代表每个物种的完整繁殖周期。
+- 当前批准物理组合实机完成小平台命令组装/移动、玩家补给、拆箱拾取、再次放置及最终地面释放，身份与储备保留。没有把命令移动当成人工驾驶；大型载具旋转/拆装、旧物理组合和完整共存环境客户端仍未人工验收。
+- 普通及物理客户端曾出现音频通道耗尽和新声音创建失败。随后安装/不安装 JS More 的配对短测各播放 300 次间隔音效，均未复现，因此原触发条件与来源仍未确定，不能列为已修复。该现象可能导致声音缺失，需与其他未完成项一起评估正式发布。
+- 尚未完成逐物种繁殖及幼体跨阶段运输的客户端流程、多人并发/长时间压力和其他操作系统视觉验收；自动化回归不能替代这些项目。
 - 保留既有 Alpha、1.0.0 Release 及其制品，不替换旧文件。
 - 人工发布后仍需验证 Modrinth 自动安装取得正确平台的依赖；本地校验不替代这一项。

@@ -184,20 +184,21 @@ public final class AnestheticData implements INBTSerializable<CompoundTag> {
     }
 
     public boolean promoteReadyDoses(long currentGameTime) {
-        long promotedDuration = 0L;
+        boolean promoted = false;
         Iterator<PendingDose> iterator = this.pendingDoses.iterator();
         while (iterator.hasNext()) {
             PendingDose dose = iterator.next();
             if (dose.activationTick() <= currentGameTime) {
-                promotedDuration = saturatingAdd(promotedDuration, dose.durationTicks());
+                // A chunk can load long after activation. Settle at the original event time,
+                // just like captured transport, instead of granting a fresh dose on arrival.
+                long previousExpiry = this.activeUntil;
+                extend(dose.activationTick(), dose.durationTicks());
+                this.activeUntil = Math.max(previousExpiry, this.activeUntil);
                 iterator.remove();
+                promoted = true;
             }
         }
-        if (promotedDuration <= 0L) {
-            return false;
-        }
-        extend(currentGameTime, promotedDuration);
-        return true;
+        return promoted;
     }
 
     @Override
@@ -280,15 +281,11 @@ public final class AnestheticData implements INBTSerializable<CompoundTag> {
             }
             long activationTick = safeAdd(safeBaseGameTime, sanitizeRelativeTicks(doseTag.getLong("DelayTicks")));
             int safeDuration = sanitizeDuration(durationTicks);
-            if (activationTick <= safeCurrentGameTime) {
-                long extensionBase = Math.max(activationTick, this.activeUntil);
-                this.activeUntil = safeAdd(extensionBase, safeDuration);
-            } else {
-                this.pendingDoses.add(new PendingDose(activationTick, safeDuration));
-            }
+            this.pendingDoses.add(new PendingDose(activationTick, safeDuration));
         }
 
         normalize();
+        promoteReadyDoses(safeCurrentGameTime);
         sanitizeForGameTime(safeCurrentGameTime);
         if (this.activeUntil <= safeCurrentGameTime) {
             clearActive();

@@ -16,6 +16,10 @@ This log compares public releases. Internal candidate versions are not separate 
 - Retries timed-out capture-box observation requests with dimension-bound nonces and expires stale HUD snapshots. Rejects unsafe upstream gene counts/enums without discarding the raw carrier.
 - Uses protocol 8 for rate-limited, UUID/dimension/request-bound server observation. Removes the stamina-as-thirst fallback, labels estimated ages/pending doses, and adds concise interaction failure feedback.
 - Keeps upstream Jade information and suppresses matching goggles fields only after confirmed rendering. Adds an optional full-display CLIENT setting.
+- Keeps delayed animal observations pending until a bounded timeout, so responses slower than the refresh interval can still populate goggles.
+- Settles overdue live-animal doses at their original activation times and sorts restored doses before applying elapsed time; reloading no longer restarts expired effects.
+- Falls back to valid legacy reproduction data when a newer record is unreadable, retaining the damaged raw record for recovery.
+- Commits elapsed care and consumed reserves before manual item-box release, so the reusable empty box cannot retain already-used supplies.
 - Removes obsolete Travelers server-init and Jade duplicate-registration patches; adapts stable food sorting and per-animal animation guards to current APIs.
 
 Upgrade both sides together. Old occupied boxes establish capture history; animals already released before upgrading do not. Select the new `ALL` mode or recapture old enclosure animals when needed. Future upstream versions are not automatically verified.

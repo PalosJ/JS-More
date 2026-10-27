@@ -63,7 +63,7 @@ Old occupied boxes prove prior capture. Animals already released by older versio
 
 Despawn protection does not cap breeding or the total animal population. Enclosures still need population management; `CAPTURED_ONLY` does not make every wild animal permanent.
 
-Unloaded boxes settle anesthesia, supplies, hunger/thirst and durability against elapsed server game time, without loading chunks or counting shutdown time. Automatic care retains up to four future pending injections. Occupied normal box drops cannot expire from item age, but still consume supplies and durability and retain environmental damage rules. Dart-hit damage is at most 1 HP and nonlethal for that hit; other damage can still kill.
+Unloaded boxes settle anesthesia, supplies, hunger/thirst and durability against elapsed server game time, without loading chunks or counting shutdown time. Automatic care retains up to four future pending injections. Reloading an animal does not restart expired doses; manual item-box release also deducts supplies consumed during elapsed-time settlement. Occupied normal box drops cannot expire from item age, but still consume supplies and durability and retain environmental damage rules. Dart-hit damage is at most 1 HP and nonlethal for that hit; other damage can still kill.
 
 1.1.0 uses network protocol `8`: update both client and server. Use public 1.0.0 for the older dependency pairs. 1.1.0 cannot run on Jurassic Saga 0.2.x; future binaries still require actual interface and behavior checks.
 

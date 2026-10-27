@@ -873,6 +873,39 @@ public final class DinosaurCaptureSupplyGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "profile_compatibility", timeoutTicks = 100)
+    public static void manualReleaseConsumesCareSettledSinceTheLastCarrierUpdate(GameTestHelper helper) {
+        JSAnimalBase animal = createSmallAnimalWithHunger(helper);
+        if (animal == null) {
+            helper.fail("Could not prepare a hungry transport animal");
+            return;
+        }
+        JSMetabolismModule metabolism = animal.getModules().getMetabolismModule();
+        int initialHunger = metabolism.getMaxHunger() * 79 / 100;
+        metabolism.setHunger(initialHunger);
+        CapturedDinosaurData captured = CapturedDinosaurData.capture(animal).orElseThrow();
+        ItemStack stack = new ItemStack(JSMoreItems.DINOSAUR_CAPTURE_CAGE.get());
+        DinosaurCaptureSupplies original = new DinosaurCaptureSupplies(0, 0, 5, 5);
+        DinosaurCaptureItemData.setContents(stack, captured, original);
+        BlockPos releaseBase = helper.absolutePos(new BlockPos(8, 3, 8));
+        prepareReleaseArea(helper, releaseBase);
+        helper.runAfterDelay(40, () -> {
+            InteractionResult result = DinosaurCaptureService.releaseFromStack(stack,
+                    helper.makeMockPlayer(GameType.SURVIVAL), releaseBase.below(), Direction.UP);
+            Entity released = helper.getLevel().getEntity(captured.originalUuid());
+            DinosaurCaptureSupplies remaining = DinosaurCaptureItemData.getSupplies(stack);
+            helper.assertTrue(result.consumesAction() && released instanceof JSAnimalBase,
+                    "The transported animal must be released");
+            helper.assertTrue(((JSAnimalBase) released).getModules().getMetabolismModule().getHunger() > initialHunger,
+                    "Elapsed care must restore hunger before release");
+            helper.assertTrue(remaining.carnivore() + remaining.herbivore() < 10,
+                    "Released animals must not receive food while the reusable box retains the consumed reserves");
+            helper.assertTrue(stack.getCount() == 1 && !DinosaurCaptureItemData.hasRawCaptureKey(stack),
+                    "Successful release must keep exactly one empty carrier");
+            helper.succeed();
+        });
+    }
+
     @GameTest(template = "profile_compatibility", timeoutTicks = 200)
     public static void validSuppliesSurvivePlaceReloadPartDropAndManualRelease(GameTestHelper helper) {
         JSAnimalBase animal = createSmallAnimalWithHunger(helper);

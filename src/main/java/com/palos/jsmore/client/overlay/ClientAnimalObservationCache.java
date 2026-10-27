@@ -14,12 +14,14 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 /** One observed target and one in-flight nonce; old worlds and recycled entity IDs cannot match. */
 public final class ClientAnimalObservationCache {
+    private static final long REQUEST_TIMEOUT_TICKS = 80L;
     private static Object session;
     private static AnimalObservationRequestPayload pending;
     private static UUID target;
     private static DinosaurObservationSnapshot snapshot;
     private static long receivedAt;
     private static long nextRequest;
+    private static long requestedAt;
     private static long lastTime = Long.MIN_VALUE;
 
     private ClientAnimalObservationCache() { }
@@ -41,8 +43,10 @@ public final class ClientAnimalObservationCache {
             snapshot = null;
             nextRequest = Math.min(nextRequest, saturatedAdd(now, 5L));
         }
-        if (nextRequest != Long.MAX_VALUE && now >= nextRequest) {
+        if (pending != null && now - requestedAt >= REQUEST_TIMEOUT_TICKS) pending = null;
+        if (pending == null && nextRequest != Long.MAX_VALUE && now >= nextRequest) {
             pending = new AnimalObservationRequestPayload(id, target, dimension, UUID.randomUUID());
+            requestedAt = now;
             sender.accept(pending);
             nextRequest = saturatedAdd(now, 20L);
         }
@@ -57,6 +61,10 @@ public final class ClientAnimalObservationCache {
     static void remember(Object world, ResourceLocation dimension, UUID actualUuid, long now, AnimalObservationPayload payload) {
         if (session != world || pending == null || !pending.equals(payload.request()) || now < lastTime
                 || !dimension.equals(pending.dimension()) || !actualUuid.equals(pending.entityUuid())) return;
+        if (now - requestedAt >= REQUEST_TIMEOUT_TICKS) {
+            pending = null;
+            return;
+        }
         snapshot = CaptureCageObservationSnapshot.deserializeNBT(payload.snapshotTag())
                 .map(CaptureCageObservationSnapshot::observation).orElse(null);
         receivedAt = now;
@@ -70,7 +78,7 @@ public final class ClientAnimalObservationCache {
     public static void stopObserving() { target = null; pending = null; snapshot = null; }
 
     public static void clearCache() {
-        stopObserving(); session = null; receivedAt = 0L; nextRequest = 0L; lastTime = Long.MIN_VALUE;
+        stopObserving(); session = null; receivedAt = 0L; requestedAt = 0L; nextRequest = 0L; lastTime = Long.MIN_VALUE;
     }
 
     private static long saturatedAdd(long value, long increment) {

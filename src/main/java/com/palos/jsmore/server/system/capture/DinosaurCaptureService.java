@@ -301,6 +301,12 @@ public final class DinosaurCaptureService {
                 true
         );
         CapturedDinosaurData settled = settledContents.data();
+        // Commit elapsed care and its costs together before transferring animal authority.
+        // The reusable empty carrier must keep only the reserves left after settlement.
+        if (settledContents.changed()
+                && !DinosaurCaptureItemData.setContents(stack, settled, settledContents.supplies())) {
+            return InteractionResult.FAIL;
+        }
         WorldReleaseContext releaseContext = worldRelease.orElseThrow();
         Vec3 releaseTarget = findManualReleasePosition(
                 level,
@@ -315,9 +321,6 @@ public final class DinosaurCaptureService {
                 releaseContext.yRot(),
                 releaseContext.initialVelocity()
         )) {
-            if (settledContents.changed()) {
-                DinosaurCaptureItemData.setContents(stack, settled, settledContents.supplies());
-            }
             return InteractionResult.FAIL;
         }
         clearManuallyReleasedStack(stack, false);

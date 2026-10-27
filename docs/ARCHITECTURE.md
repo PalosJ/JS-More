@@ -109,6 +109,13 @@ growth and break events. Work is bounded by stored reserves/doses and a fixed
 safety budget, not elapsed ticks. Exhausting the budget or failing to serialize
 leaves the original carrier and supplies authoritative. Deposits first settle
 existing contents, so newly inserted items cannot cover historical shortages.
+Manual item-box release commits the settled animal and remaining reserves together
+before spawning; success removes only the animal payload, leaving the actual
+remaining reserves in the reusable empty box.
+
+Live and captured doses use their original activation times when settling overdue
+events. Restored pending records are normalized into chronological order before
+promotion, and an older due dose cannot shorten an already active effect.
 
 Upstream growth is invoked through a narrow Mixin bridge. Snapshot saves cannot
 silently advance its last-seen anchor without applying growth. During transport,

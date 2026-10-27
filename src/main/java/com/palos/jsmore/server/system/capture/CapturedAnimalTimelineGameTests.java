@@ -70,6 +70,29 @@ public final class CapturedAnimalTimelineGameTests {
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 100)
+    public static void clockRollbackRebasesSettlementAndFutureTimeStillConsumesDurability(GameTestHelper helper) {
+        var clock = helper.getLevel().getServer().getWorldData().overworldData();
+        long originalTime = clock.getGameTime();
+        try {
+            clock.setGameTime(100_000L);
+            CapturedDinosaurData captured = CapturedDinosaurData.capture(animal(helper)).orElseThrow();
+            clock.setGameTime(100_200L);
+            CapturedDinosaurData before = DinosaurCaptureService.settleCapturedData(helper.getLevel(), captured);
+            clock.setGameTime(50_000L);
+            CapturedDinosaurData rebased = DinosaurCaptureService.settleCapturedData(helper.getLevel(), before);
+            helper.assertTrue(rebased.lastSettledGameTime() == 50_000L,
+                    "Rollback left a future settlement anchor, freezing later transport time");
+            helper.assertTrue(rebased.durability() == before.durability(), "Rollback charged negative elapsed time");
+            clock.setGameTime(50_200L);
+            CapturedDinosaurData after = DinosaurCaptureService.settleCapturedData(helper.getLevel(), rebased);
+            helper.assertTrue(after.durability() == rebased.durability() - 10,
+                    "Forward elapsed time after rollback did not resume normal wear");
+            helper.assertTrue(after.originalUuid().equals(captured.originalUuid()), "Rollback changed capture identity");
+        } finally { clock.setGameTime(originalTime); }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 100)
     public static void starvationChargesOnlyTheEmptyIntervalAndNeverHealsLowHealth(GameTestHelper helper) {
         var clock = helper.getLevel().getServer().getWorldData().overworldData();
         long originalTime = clock.getGameTime();

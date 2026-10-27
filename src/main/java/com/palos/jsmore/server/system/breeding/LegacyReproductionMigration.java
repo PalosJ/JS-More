@@ -16,36 +16,49 @@ public final class LegacyReproductionMigration {
     public static CompoundTag prepare(JSAnimalBase animal, CompoundTag original) {
         if (animal.level().isClientSide) return original;
         CompoundTag result = original.copy();
-        CompoundTag data = original.contains(NEW) ? original.getCompound(NEW) : original.getCompound("js.metabolism");
-        String gestation = original.contains(NEW) ? "gestation" : "js.metabolism.gestation";
-        String cooldown = original.contains(NEW) ? "cooldown" : "js.metabolism.breedingcooldown";
-        String father = original.contains(NEW) || original.contains(NEW_FATHER) ? NEW_FATHER : OLD_FATHER;
-        if (original.contains(NEW)) result.remove(OLD_FATHER);
-        boolean valid = (!original.contains(NEW) || original.contains(NEW, Tag.TAG_COMPOUND))
-                && (original.contains(NEW) || !original.contains("js.metabolism") || original.contains("js.metabolism", Tag.TAG_COMPOUND))
+        boolean hasNew = original.contains(NEW);
+        if (hasNew && validRecord(original, NEW, "gestation", "cooldown", NEW_FATHER)) {
+            result.remove(OLD_FATHER);
+            return result;
+        }
+        if (hasNew) preserveRaw(animal, original);
+
+        // An invalid new record must not take priority over usable legacy data.
+        // Once a new record exists, its father belongs to that record, not the fallback.
+        String father = !hasNew && original.contains(NEW_FATHER) ? NEW_FATHER : OLD_FATHER;
+        CompoundTag old = original.getCompound("js.metabolism");
+        if (validRecord(original, "js.metabolism", "js.metabolism.gestation", "js.metabolism.breedingcooldown", father)) {
+            CompoundTag migrated = new CompoundTag();
+            migrated.putInt("gestation", old.getInt("js.metabolism.gestation"));
+            migrated.putInt("cooldown", old.getInt("js.metabolism.breedingcooldown"));
+            result.put(NEW, migrated);
+            result.remove(NEW_FATHER);
+            if (original.contains(father)) result.put(NEW_FATHER, original.get(father).copy());
+        } else {
+            preserveRaw(animal, original);
+            result.put(NEW, new CompoundTag());
+            result.remove(NEW_FATHER);
+        }
+        result.remove(OLD_FATHER);
+        return result;
+    }
+
+    private static boolean validRecord(CompoundTag original, String record, String gestation, String cooldown, String father) {
+        CompoundTag data = original.getCompound(record);
+        return (!original.contains(record) || original.contains(record, Tag.TAG_COMPOUND))
                 && validTicks(data, gestation) && validTicks(data, cooldown)
                 && (data.getInt(gestation) <= 0 || original.contains(father, Tag.TAG_COMPOUND))
                 && (!original.contains(father) || (original.contains(father, Tag.TAG_COMPOUND)
                     && PeriodicEggBreedingData.decodeGenes(original.getCompound(father)).isPresent()));
-        if (!valid) {
-            CompoundTag raw = new CompoundTag();
-            for (String key : new String[] {NEW, NEW_FATHER, "js.metabolism", OLD_FATHER}) {
-                if (original.contains(key)) raw.put(key, original.get(key).copy());
-            }
-            // One retained record per animal, no repeated attempts to decode unsafe genes.
-            if (!animal.getPersistentData().contains(RAW)) animal.getPersistentData().put(RAW, raw);
-            result.put(NEW, new CompoundTag());
-            result.remove(NEW_FATHER);
-            result.remove(OLD_FATHER);
-            return result;
+    }
+
+    private static void preserveRaw(JSAnimalBase animal, CompoundTag original) {
+        if (animal.getPersistentData().contains(RAW)) return;
+        CompoundTag raw = new CompoundTag();
+        for (String key : new String[] {NEW, NEW_FATHER, "js.metabolism", OLD_FATHER}) {
+            if (original.contains(key)) raw.put(key, original.get(key).copy());
         }
-        if (!original.contains(NEW)) {
-            CompoundTag migrated = new CompoundTag();
-            migrated.putInt("gestation", data.getInt(gestation));
-            migrated.putInt("cooldown", data.getInt(cooldown));
-            result.put(NEW, migrated);
-        }
-        return result;
+        animal.getPersistentData().put(RAW, raw);
     }
 
     private static boolean validTicks(CompoundTag data, String key) {

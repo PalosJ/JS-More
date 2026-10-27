@@ -74,8 +74,10 @@ previously released animals cannot be inferred. This is not a population cap.
 All upstream breeding behavior is restored. Legacy gestation and module cooldown
 fields in `js.metabolism` load into `js.reproduction`, with valid new data taking
 priority. The animal-base mate-search cooldown is a separate field. Malformed
-records retain recoverable raw data. Historical maternal eggs clear only after a
-successful spawn; no new such records are created by ordinary feeding.
+records retain recoverable raw data; an unreadable new record falls back to a
+valid legacy record instead of discarding its pending gestation/cooldown.
+Historical maternal eggs clear only after a successful spawn; no new such
+records are created by ordinary feeding.
 
 ## Jurassic Saga food-task compatibility
 
@@ -106,6 +108,9 @@ CLIENT `show_full_goggles_information=true` keeps everything. Hidden/disabled Ja
 must not leave both displays empty. Capture-box requests also carry unique
 request IDs and dimensions; timed-out requests retry, late replies cannot consume
 a newer request, and old snapshots expire instead of remaining visibly frozen.
+Animal observations keep one request pending for up to 80 ticks, rather than
+replacing it at the 20-tick refresh interval; a delayed valid response remains
+usable while lost requests still retry.
 
 ## World generation
 
@@ -154,6 +159,12 @@ Older internal namespaces remain unsupported; that is separate from updating
 the public Alpha to the stable release.
 
 ## Support expectations
+
+Local 1.1.0 acceptance found intermittent sound-pool exhaustion in longer
+client sessions. Short paired tests, with and without JS More, each played
+300 spaced vanilla sounds without reproducing it. The original trigger and
+responsible layer remain unresolved; this is a possible missing-audio issue,
+not a fixed defect or evidence that one particular mod caused it.
 
 When reporting a compatibility problem, include the exact Minecraft,
 NeoForge, Jurassic Saga, Travelers, and optional-integration versions, plus the

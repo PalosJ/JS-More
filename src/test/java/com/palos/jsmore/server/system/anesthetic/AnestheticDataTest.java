@@ -48,6 +48,43 @@ class AnestheticDataTest {
     }
 
     @Test
+    void overdueDosesUseTheirActivationTimeInsteadOfRestartingWhenTheAnimalLoads() {
+        AnestheticData data = new AnestheticData();
+        data.queueDose(1_000L, 100, 200);
+        assertTrue(data.promoteReadyDoses(1_400L));
+        assertEquals(0L, data.remainingTicks(1_400L),
+                "A dose that expired while unloaded must not restart with a full duration");
+        assertEquals(0, data.pendingDoseCount());
+    }
+
+    @Test
+    void anOlderDueDoseDoesNotShortenAnAlreadyActiveEffect() {
+        AnestheticData data = new AnestheticData();
+        data.extend(10_000_000L, 1_200L);
+        data.queueDose(0L, 100, 200);
+        data.promoteReadyDoses(10_000_000L);
+        assertEquals(1_200L, data.remainingTicks(10_000_000L));
+    }
+
+    @Test
+    void relativeSettlementOrdersDosesBeforeApplyingElapsedTime() {
+        CompoundTag earlier = new CompoundTag(), later = new CompoundTag();
+        earlier.putLong("DelayTicks", 100L); earlier.putInt("DurationTicks", 100);
+        later.putLong("DelayTicks", 400L); later.putInt("DurationTicks", 100);
+        ListTag ordered = new ListTag(), reversed = new ListTag();
+        ordered.add(earlier); ordered.add(later);
+        reversed.add(later.copy()); reversed.add(earlier.copy());
+        CompoundTag a = new CompoundTag(), b = new CompoundTag();
+        a.put("PendingDoses", ordered); b.put("PendingDoses", reversed);
+        AnestheticData first = new AnestheticData(), second = new AnestheticData();
+        first.deserializeRelativeNBT(null, a, 1_000L, 1_500L);
+        second.deserializeRelativeNBT(null, b, 1_000L, 1_500L);
+        assertEquals(first.serializeRelativeNBT(1_500L), second.serializeRelativeNBT(1_500L),
+                "Stored list order must not change the pharmacological timeline");
+        assertEquals(0L, second.remainingTicks(1_500L));
+    }
+
+    @Test
     void treatsReadyPendingDoseAsSleepBridgeWithoutPromotingIt() {
         AnestheticData data = new AnestheticData();
         data.queueDose(1_000L, 20, 200);

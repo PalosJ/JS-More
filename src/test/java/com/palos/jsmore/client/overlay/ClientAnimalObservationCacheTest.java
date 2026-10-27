@@ -22,6 +22,7 @@ class ClientAnimalObservationCacheTest {
     @Test void refreshIsBoundedAndClockRollbackStartsANewSession() {
         observe(world, animal, 100L); observe(world, animal, 119L);
         assertEquals(1, requests.size());
+        ClientAnimalObservationCache.remember(world, DIM, animal, 119L, response(requests.getFirst()));
         observe(world, animal, 120L);
         assertEquals(2, requests.size());
         observe(world, animal, 3L);
@@ -55,6 +56,29 @@ class ClientAnimalObservationCacheTest {
         observe(world, animal, Long.MAX_VALUE - 1L);
         observe(world, animal, Long.MAX_VALUE); observe(world, animal, Long.MAX_VALUE);
         assertEquals(1, requests.size());
+    }
+
+    @Test void aResponseSlowerThanTheRefreshIntervalStillBecomesVisible() {
+        observe(world, animal, 100L);
+        var delayed = response(requests.getFirst());
+        observe(world, animal, 120L);
+        observe(world, animal, 140L);
+        ClientAnimalObservationCache.remember(world, DIM, animal, 150L, delayed);
+        assertTrue(observe(world, animal, 151L).isPresent(),
+                "A healthy delayed connection must not lose every reply to periodic replacement");
+    }
+
+    @Test void aLostRequestRetriesAfterTimeoutAndRejectsItsLateReply() {
+        observe(world, animal, 100L);
+        var lost = response(requests.getFirst());
+        observe(world, animal, 179L);
+        assertEquals(1, requests.size(), "Do not replace a request still within its bounded wait");
+        observe(world, animal, 180L);
+        assertEquals(2, requests.size());
+        ClientAnimalObservationCache.remember(world, DIM, animal, 181L, lost);
+        assertTrue(observe(world, animal, 181L).isEmpty());
+        ClientAnimalObservationCache.remember(world, DIM, animal, 182L, response(requests.getLast()));
+        assertTrue(observe(world, animal, 183L).isPresent());
     }
 
     private java.util.Optional<?> observe(Object session, UUID uuid, long time) {
