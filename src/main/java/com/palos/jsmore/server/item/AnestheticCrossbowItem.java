@@ -101,6 +101,8 @@ public final class AnestheticCrossbowItem extends CrossbowItem {
     }
 
     public boolean tryFireLoadedDart(Level level, Player player, InteractionHand hand) {
+        if (level == null || level.isClientSide || player == null || !player.isAlive()
+                || player.isSpectator() || player.level() != level || hand == null) return false;
         ItemStack weapon = player.getItemInHand(hand);
         if (weapon.getItem() != this) {
             return false;

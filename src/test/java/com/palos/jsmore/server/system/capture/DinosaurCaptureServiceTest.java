@@ -69,41 +69,18 @@ class DinosaurCaptureServiceTest {
     }
 
     @Test
-    void depositUsesPerTypeCapacityAndWaterBucketSaturatesByTen() {
+    void detachedControllersCannotAcceptAuthoritativeSupplyWrites() {
         DinosaurCaptureCageBlock block = JSMoreBlocks.DINOSAUR_CAPTURE_CAGE.get();
         DinosaurCaptureCageBlockEntity cage = new DinosaurCaptureCageBlockEntity(
-                BlockPos.ZERO,
-                block.partState(Direction.NORTH, 0, 0, 0)
-        );
-        ItemStack syringe = new ItemStack(JSMoreItems.ANESTHETIC_SYRINGE.get());
-        for (int count = 0; count < DinosaurCaptureSupplies.MAX_ANESTHETIC; count++) {
-            assertEquals(
-                    DinosaurCaptureService.SupplyDepositResult.ADDED,
-                    DinosaurCaptureService.depositPlacedCage(cage, syringe)
-            );
-        }
-        assertEquals(DinosaurCaptureSupplies.MAX_ANESTHETIC, cage.getSupplies().anesthetic());
-        assertEquals(
-                DinosaurCaptureService.SupplyDepositResult.REJECTED,
-                DinosaurCaptureService.depositPlacedCage(cage, syringe)
-        );
-
-        DinosaurCaptureCageBlockEntity waterCage = new DinosaurCaptureCageBlockEntity(
-                BlockPos.ZERO,
-                block.partState(Direction.NORTH, 0, 0, 0)
-        );
-        waterCage.setSupplies(new DinosaurCaptureSupplies(0, 17, 0, 0));
-        assertEquals(
-                DinosaurCaptureService.SupplyDepositResult.ADDED,
-                DinosaurCaptureService.depositPlacedCage(waterCage, new ItemStack(Items.WATER_BUCKET))
-        );
-        assertEquals(20, waterCage.getSupplies().water());
-
-        cage.setUnreadableSupplies(net.minecraft.nbt.IntTag.valueOf(3));
-        assertEquals(
-                DinosaurCaptureService.SupplyDepositResult.REJECTED,
-                DinosaurCaptureService.depositPlacedCage(cage, syringe)
-        );
+                BlockPos.ZERO, block.partState(Direction.NORTH, 0, 0, 0));
+        DinosaurCaptureSupplies before = new DinosaurCaptureSupplies(4, 17, 3, 2);
+        cage.setSupplies(before);
+        assertEquals(DinosaurCaptureService.SupplyDepositResult.REJECTED,
+                DinosaurCaptureService.depositPlacedCage(cage, new ItemStack(Items.WATER_BUCKET)));
+        assertEquals(before, cage.getSupplies());
+        assertEquals(DinosaurCaptureService.SupplyDepositResult.REJECTED,
+                DinosaurCaptureService.depositPlacedCage(cage, new ItemStack(JSMoreItems.ANESTHETIC_SYRINGE.get())));
+        assertEquals(before, cage.getSupplies());
     }
 
     @Test

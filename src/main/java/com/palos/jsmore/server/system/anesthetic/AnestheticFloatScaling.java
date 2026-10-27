@@ -1,9 +1,9 @@
 package com.palos.jsmore.server.system.anesthetic;
 
 import com.palos.jsmore.server.system.size.DinosaurSizeProfile;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAquaticBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAvianBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAquaticBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAvianBase;
 import net.minecraft.util.Mth;
 
 final class AnestheticFloatScaling {

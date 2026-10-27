@@ -5,8 +5,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import jp.jurassicsaga.server.animal.JSAnimals;
-import jp.jurassicsaga.server.animal.animals.obj.JSAnimal;
+import jp.jurassicsaga.server.entity.animal.JSAnimals;
+import jp.jurassicsaga.server.entity.animal.animals.obj.JSAnimal;
 import jp.jurassicsaga.server.generic.gene.JSGene;
 import jp.jurassicsaga.server.generic.gene.JSGenetics;
 import jp.jurassicsaga.server.generic.gene.obj.GeneType;
@@ -40,6 +40,7 @@ public final class PeriodicEggBreedingData implements INBTSerializable<CompoundT
     private static final float MAX_SIZE_DIMORPHISM = 1.0F;
     private static final int MAX_SERIALIZED_BYTES = 64 * 1024;
 
+    private CompoundTag retainedRaw;
     private State state = State.IDLE;
     private CompoundTag maternalGenes = new CompoundTag();
 
@@ -52,7 +53,7 @@ public final class PeriodicEggBreedingData implements INBTSerializable<CompoundT
     }
 
     public boolean arm(JSGeneData genes, JSAnimal<?> expectedOwner) {
-        if (isPending()
+        if (retainedRaw != null || isPending()
                 || genes == null
                 || expectedOwner == null
                 || genes.getAnimal() != expectedOwner) {
@@ -77,7 +78,6 @@ public final class PeriodicEggBreedingData implements INBTSerializable<CompoundT
         }
         Optional<JSGeneData> decoded = decodeGenes(this.maternalGenes);
         if (decoded.isEmpty() || decoded.get().getAnimal() != expectedOwner) {
-            clear();
             return Optional.empty();
         }
         return decoded;
@@ -95,12 +95,14 @@ public final class PeriodicEggBreedingData implements INBTSerializable<CompoundT
     }
 
     public void clear() {
+        this.retainedRaw = null;
         this.state = State.IDLE;
         this.maternalGenes = new CompoundTag();
     }
 
     @Override
     public CompoundTag serializeNBT(HolderLookup.Provider provider) {
+        if (this.retainedRaw != null) return this.retainedRaw.copy();
         CompoundTag tag = new CompoundTag();
         if (!isPending()) {
             tag.putString(STATE_KEY, State.IDLE.name());
@@ -120,6 +122,7 @@ public final class PeriodicEggBreedingData implements INBTSerializable<CompoundT
     @Override
     public void deserializeNBT(HolderLookup.Provider provider, CompoundTag tag) {
         clear();
+        this.retainedRaw = tag == null ? null : tag.copy();
         if (tag == null
                 || tag.sizeInBytes() > MAX_SERIALIZED_BYTES
                 || !tag.contains(STATE_KEY, Tag.TAG_STRING)
@@ -154,7 +157,7 @@ public final class PeriodicEggBreedingData implements INBTSerializable<CompoundT
         }
     }
 
-    private static Optional<JSGeneData> decodeGenes(CompoundTag tag) {
+    static Optional<JSGeneData> decodeGenes(CompoundTag tag) {
         if (tag == null
                 || tag.isEmpty()
                 || tag.sizeInBytes() > MAX_SERIALIZED_BYTES

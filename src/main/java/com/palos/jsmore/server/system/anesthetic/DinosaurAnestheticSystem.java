@@ -17,10 +17,10 @@ import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAquaticBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAvianBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSEntityDataHolder;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAquaticBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAvianBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSEntityDataHolder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -74,6 +74,14 @@ public final class DinosaurAnestheticSystem {
             return false;
         }
         applyAnestheticInjection(animal);
+        return true;
+    }
+
+    /** Historical care for a detached capture snapshot; no packets or live-world effects. */
+    public static boolean tryApplyCapturedInjection(JSAnimalBase animal, long gameTime) {
+        if (!isUsable(animal) || animal.level().isClientSide || gameTime < 0L
+                || gameTime > animal.level().getGameTime()) return false;
+        AnestheticStateService.queueCapturedInjection(animal, gameTime);
         return true;
     }
 

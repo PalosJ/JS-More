@@ -26,12 +26,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import jp.jurassicsaga.server.animal.JSAnimals;
-import jp.jurassicsaga.server.animal.animals.obj.JSAnimal;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAquaticBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAvianBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSEntityDataHolder;
+import jp.jurassicsaga.server.entity.animal.JSAnimals;
+import jp.jurassicsaga.server.entity.animal.animals.obj.JSAnimal;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAquaticBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAvianBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSEntityDataHolder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
@@ -50,20 +50,20 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @PrefixGameTestTemplate(false)
 public final class JSAnimalProfileGameTests {
     private static final List<String> BASILISK_EGG_TIMER_CLASSES = List.of(
-            "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.BasiliskEntity",
-            "jp.jurassicsaga.server.animal.entity.misc.misc_extant.BasiliskEntity"
+            "jp.jurassicsaga.server.entity.animal.entity.extant.terrestial.v1.BasiliskEntity",
+            "jp.jurassicsaga.server.entity.animal.entity.misc.misc_extant.BasiliskEntity"
     );
     private static final List<String> REED_FROG_EGG_TIMER_CLASSES = List.of(
-            "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.ReedFrogEntity",
-            "jp.jurassicsaga.server.animal.entity.misc.misc_extant.ReedFrogEntity"
+            "jp.jurassicsaga.server.entity.animal.entity.extant.terrestial.v1.ReedFrogEntity",
+            "jp.jurassicsaga.server.entity.animal.entity.misc.misc_extant.ReedFrogEntity"
     );
     private static final List<String> ALLIGATOR_EGG_TIMER_CLASSES = List.of(
-            "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.AlligatorEntity",
-            "jp.jurassicsaga.server.animal.entity.misc.misc_extant.AlligatorEntity"
+            "jp.jurassicsaga.server.entity.animal.entity.extant.terrestial.v1.AlligatorEntity",
+            "jp.jurassicsaga.server.entity.animal.entity.misc.misc_extant.AlligatorEntity"
     );
     private static final List<String> OSTRICH_EGG_TIMER_CLASSES = List.of(
-            "jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.OstrichEntity",
-            "jp.jurassicsaga.server.animal.entity.misc.misc_extant.OstrichEntity"
+            "jp.jurassicsaga.server.entity.animal.entity.extant.terrestial.v1.OstrichEntity",
+            "jp.jurassicsaga.server.entity.animal.entity.misc.misc_extant.OstrichEntity"
     );
 
     private JSAnimalProfileGameTests() {
@@ -253,10 +253,10 @@ public final class JSAnimalProfileGameTests {
                         || Math.abs(neutralizedMotion.z) > 1.0E-9D) {
                     failures.add(registeredAnimal + ": pre-anesthetic active motion was retained");
                 }
-                if (trackingTask.isRunning() || !trackingTask.wasStopped()) {
+                if (trackingTask.isRunning() || !trackingTask.wasStopped() || trackingTask.stopCount != 1) {
                     failures.add(registeredAnimal + ": active Travelers task was not cleanly stopped");
                 }
-                if (!animal.getTaskController().isGoalOccupied(TaskPriority.HIGH, TaskGoal.ATTACK)) {
+                if (animal.getTaskController().isGoalOccupied(TaskPriority.HIGH, TaskGoal.ATTACK)) {
                     failures.add(registeredAnimal + ": stopped Travelers task retained its goal occupation");
                 }
                 if (animal instanceof JSAvianBase avian
@@ -1316,6 +1316,7 @@ public final class JSAnimalProfileGameTests {
 
     private static final class TrackingTask extends TravelerTaskBase {
         private boolean stopped;
+        private int stopCount;
 
         private TrackingTask(SmartAnimalBase animal) {
             super(animal);
@@ -1334,6 +1335,7 @@ public final class JSAnimalProfileGameTests {
         @Override
         public void onStop() {
             this.stopped = true;
+            this.stopCount++;
         }
 
         private boolean wasStopped() {

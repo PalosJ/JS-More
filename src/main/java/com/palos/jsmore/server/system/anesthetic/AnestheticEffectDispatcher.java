@@ -1,7 +1,7 @@
 package com.palos.jsmore.server.system.anesthetic;
 
 import com.palos.jsmore.network.SurfaceEffectPayload;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 final class AnestheticEffectDispatcher {

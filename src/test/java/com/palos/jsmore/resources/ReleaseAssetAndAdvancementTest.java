@@ -728,13 +728,13 @@ class ReleaseAssetAndAdvancementTest {
     }
 
     private static Path findProjectRoot() {
-        Path candidate = Path.of("").toAbsolutePath();
+        Path candidate = Path.of(System.getProperty("jsmore.test.project-root", "")).toAbsolutePath();
         while (candidate != null) {
             if (Files.isRegularFile(candidate.resolve("build.gradle"))) {
                 return candidate;
             }
             candidate = candidate.getParent();
         }
-        throw new IllegalStateException("Could not locate JS More project root from " + Path.of("").toAbsolutePath());
+        throw new IllegalStateException("Could not locate JS More project root from " + Path.of(System.getProperty("jsmore.test.project-root", "")).toAbsolutePath());
     }
 }

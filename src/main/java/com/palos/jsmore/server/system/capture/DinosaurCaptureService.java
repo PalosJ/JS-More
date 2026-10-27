@@ -9,6 +9,8 @@ import com.palos.jsmore.server.registry.JSMoreBlocks;
 import com.palos.jsmore.server.registry.JSMoreItems;
 import com.palos.jsmore.server.system.age.DinosaurAgeSystem;
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
+import com.palos.jsmore.server.registry.JSMoreAttachments;
+import com.palos.jsmore.server.system.anesthetic.AnestheticData;
 import com.palos.jsmore.system.observation.CaptureCageObservationSnapshot;
 import com.palos.jsmore.system.observation.DinosaurObservationSystem;
 import java.util.ArrayList;
@@ -17,11 +19,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAquaticBase;
-import jp.jurassicsaga.server.animal.entity.obj.diet.Diet;
-import jp.jurassicsaga.server.animal.entity.obj.diet.Diets;
-import jp.jurassicsaga.server.animal.entity.obj.modules.obj.JSMetabolismModule;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAquaticBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.diet.Diet;
+import jp.jurassicsaga.server.entity.animal.entity.obj.diet.Diets;
+import jp.jurassicsaga.server.entity.animal.entity.obj.modules.obj.JSMetabolismModule;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -163,11 +165,28 @@ public final class DinosaurCaptureService {
                 || cage.getSupplies().isFull(type)) {
             return SupplyDepositResult.REJECTED;
         }
+        if (!prepareSupplyInput(cage) || cage.getSupplies().isFull(type)) return SupplyDepositResult.REJECTED;
         int amount = classification == SupplyInputClassification.WATER ? 10 : 1;
         DinosaurCaptureSupplies updated = cage.getSupplies().add(type, amount);
         return cage.setContents(cage.getCapturedDinosaur(), updated)
                 ? SupplyDepositResult.ADDED
                 : SupplyDepositResult.REJECTED;
+    }
+
+    static boolean prepareSupplyInput(DinosaurCaptureCageBlockEntity cage) {
+        if (cage == null || !(cage.getLevel() instanceof ServerLevel level) || cage.isRemoved()
+                || cage.hasUnreadableContents()) return false;
+        if (cage.getCapturedDinosaur() != null) {
+            CapturedDinosaurData old = cage.getCapturedDinosaur();
+            ContentsSettlement result = settleCapturedContents(level, old, cage.getSupplies(), true);
+            if (old.lastSettledGameTime() < level.getGameTime() && !result.changed()) return false;
+            if (!cage.setContents(result.data(), result.supplies())) return false;
+            if (result.data().durability() <= 0) {
+                releaseFromCage(cage);
+                return false;
+            }
+        }
+        return !cage.isRemoved() && level.getBlockEntity(cage.getBlockPos()) == cage;
     }
 
     public static InteractionResult captureIntoPlacedCage(
@@ -178,7 +197,7 @@ public final class DinosaurCaptureService {
         if (stack == null
                 || stack.isEmpty()
                 || CaptureBoxAuthority.hasRecoveryMarker(stack)
-                || player == null
+                || player == null || !player.isAlive() || player.isSpectator()
                 || animal == null
                 || player.level().isClientSide
                 || DinosaurCaptureItemData.inspectContents(stack).isUnreadable()
@@ -453,7 +472,8 @@ public final class DinosaurCaptureService {
                 || cage.hasUnreadableContents()) {
             return false;
         }
-        CapturedDinosaurData settled = settleCapturedDataExact(level, cage.getCapturedDinosaur());
+        if (!prepareSupplyInput(cage) || cage.getCapturedDinosaur() == null) return false;
+        CapturedDinosaurData settled = cage.getCapturedDinosaur();
         Optional<JSAnimalBase> animal = createTemporaryAnimal(level, settled);
         if (animal.isEmpty() || !DinosaurAnestheticSystem.tryApplyAnestheticInjection(animal.get())) {
             return false;
@@ -483,7 +503,8 @@ public final class DinosaurCaptureService {
                 || foodStack.isEmpty()) {
             return false;
         }
-        CapturedDinosaurData settled = settleCapturedDataExact(level, cage.getCapturedDinosaur());
+        if (!prepareSupplyInput(cage) || cage.getCapturedDinosaur() == null) return false;
+        CapturedDinosaurData settled = cage.getCapturedDinosaur();
         Optional<JSAnimalBase> animal = createTemporaryAnimal(level, settled);
         if (animal.isEmpty()) {
             return false;
@@ -522,10 +543,6 @@ public final class DinosaurCaptureService {
         return settleCapturedContents(level, data, DinosaurCaptureSupplies.EMPTY, false).data();
     }
 
-    private static CapturedDinosaurData settleCapturedDataExact(ServerLevel level, CapturedDinosaurData data) {
-        return settleCapturedContents(level, data, DinosaurCaptureSupplies.EMPTY, true).data();
-    }
-
     private static ContentsSettlement settleCapturedContents(
             ServerLevel level,
             CapturedDinosaurData data,
@@ -540,55 +557,26 @@ public final class DinosaurCaptureService {
         long elapsedTicks = Math.max(0L, currentGameTime - data.lastSettledGameTime());
         boolean settleHistory = elapsedTicks > 0L && (exact || elapsedTicks >= SETTLEMENT_INTERVAL_TICKS);
         boolean needsCare = needsAutoCareMaterialization(data, currentSupplies, currentGameTime);
-        boolean needsAgeMigration = DinosaurAgeSystem.requiresLegacyAgeMigration(data.entityNbt());
+        boolean needsAgeMigration = DinosaurAgeSystem.requiresLegacyAgeMigration(data.entityNbt())
+                || data.lastSettledGameTime() > currentGameTime;
         if (!settleHistory && !needsCare && !needsAgeMigration) {
             return new ContentsSettlement(data, currentSupplies, false);
         }
-        Optional<JSAnimalBase> animal = createTemporaryAnimal(level, data);
-        if (animal.isEmpty()) {
+        Optional<JSAnimalBase> animal = createTemporaryAnimalAt(level, data, Math.min(currentGameTime, data.lastSettledGameTime()));
+        if (animal.isEmpty()) return new ContentsSettlement(data, currentSupplies, false);
+        try {
+            CapturedAnimalTimeline.Result result = CapturedAnimalTimeline.settle(animal.get(), data, currentSupplies, currentGameTime);
+            Optional<CapturedDinosaurData> snapshot = snapshotFromTemporaryAnimal(
+                    animal.get(), currentGameTime, result.durability(), result.durabilityRemainder(),
+                    result.vitalRemainder(), data, result.lastCare());
+            if (snapshot.isEmpty()) return new ContentsSettlement(data, currentSupplies, false);
+            CapturedDinosaurData updated = snapshot.get();
+            return new ContentsSettlement(updated, result.supplies(),
+                    !updated.equals(data) || !result.supplies().equals(currentSupplies));
+        } catch (RuntimeException exception) {
+            // Neither the detached animal nor its calculated reserves have been committed yet.
             return new ContentsSettlement(data, currentSupplies, false);
         }
-        boolean advanceHistory = elapsedTicks > 0L && (settleHistory || needsCare);
-        int durability = advanceHistory
-                ? DinosaurCaptureItemData.projectedDurability(data, currentGameTime)
-                : data.durability();
-        int durabilityRemainderTicks = advanceHistory
-                ? DinosaurCaptureItemData.durabilityRemainderTicksForSettlement(data, currentGameTime)
-                : data.durabilityRemainderTicks();
-        int capturedRelativeTicks = advanceHistory
-                ? applyOfflineVitalsDrift(animal.get(), elapsedTicks, data.vitals().capturedRelativeTicks())
-                : data.vitals().capturedRelativeTicks();
-
-        OptionalLong careTime = data.vitals().lastAutoCareGameTime();
-        DinosaurCaptureSupplies updatedSupplies = currentSupplies;
-        boolean shouldMarkCarePass = false;
-        if (durability > 0 && !currentSupplies.isEmpty()) {
-            if (careTime.isPresent() && careTime.getAsLong() > currentGameTime) {
-                shouldMarkCarePass = true;
-            } else if (careTime.isEmpty()
-                    || currentGameTime - careTime.getAsLong() >= SETTLEMENT_INTERVAL_TICKS) {
-                updatedSupplies = applyAutoCare(animal.get(), currentSupplies);
-                shouldMarkCarePass = true;
-            }
-        }
-        Optional<CapturedDinosaurData> snapshot = snapshotFromTemporaryAnimal(
-                animal.get(),
-                currentGameTime,
-                durability,
-                durabilityRemainderTicks,
-                capturedRelativeTicks,
-                data,
-                shouldMarkCarePass ? OptionalLong.of(currentGameTime) : OptionalLong.empty()
-        );
-        if (snapshot.isEmpty()) {
-            return new ContentsSettlement(data, currentSupplies, false);
-        }
-        CapturedDinosaurData updated = snapshot.get();
-        return new ContentsSettlement(
-                updated,
-                updatedSupplies,
-                !updated.equals(data) || !updatedSupplies.equals(currentSupplies)
-        );
     }
 
     static long durabilityElapsedTicksForSettlement(
@@ -816,21 +804,25 @@ public final class DinosaurCaptureService {
     }
 
     public static Optional<JSAnimalBase> createTemporaryAnimal(ServerLevel level, CapturedDinosaurData data) {
-        if (level == null || data == null) {
-            return Optional.empty();
-        }
+        if (level == null) return Optional.empty();
+        Optional<JSAnimalBase> animal = createTemporaryAnimalAt(level, data, level.getGameTime());
+        animal.ifPresent(value -> ((CapturedGrowthAccess) value.getModules().getGrowthStageModule())
+                .jsmore$settleGrowthAt(level.getGameTime()));
+        return animal;
+    }
+
+    private static Optional<JSAnimalBase> createTemporaryAnimalAt(ServerLevel level, CapturedDinosaurData data, long logicalTime) {
+        if (level == null || data == null || !CapturedAnimalNbtSafety.canRestore(data.entityNbt())) return Optional.empty();
         try {
-            CompoundTag entityNbt = data.sanitizedEntityNbt();
-            Entity loaded = EntityType.loadEntityRecursive(entityNbt, level, entity -> entity);
-            if (!(loaded instanceof JSAnimalBase animal)) {
-                return Optional.empty();
-            }
+            Entity loaded = EntityType.loadEntityRecursive(data.sanitizedEntityNbt(), level, entity -> entity);
+            if (!(loaded instanceof JSAnimalBase animal) || !animal.isAlive()
+                    || !Float.isFinite(animal.getHealth()) || !Float.isFinite(animal.getMaxHealth())
+                    || animal.getMaxHealth() <= 0.0F
+                    || !Float.isFinite(animal.getModules().getGrowthStageModule().getGrowthProgress())) return Optional.empty();
             animal.setUUID(data.originalUuid());
-            DinosaurAnestheticSystem.restoreRelativeAnestheticState(
-                    animal,
-                    data.relativeAnestheticNbt(),
-                    data.anestheticReferenceGameTime()
-            );
+            DinosaurCaptureHistory.markRestoredAnimal(animal);
+            AnestheticData drug = animal.getData(JSMoreAttachments.ANESTHETIC);
+            drug.deserializeRelativeNBT(null, data.relativeAnestheticNbt(), data.anestheticReferenceGameTime(), logicalTime);
             DinosaurAgeSystem.migrateLegacyAgeIfNeeded(animal);
             return Optional.of(animal);
         } catch (RuntimeException exception) {
@@ -1915,53 +1907,6 @@ public final class DinosaurCaptureService {
         return false;
     }
 
-    private static DinosaurCaptureSupplies applyAutoCare(
-            JSAnimalBase animal,
-            DinosaurCaptureSupplies supplies
-    ) {
-        DinosaurCaptureSupplies updated = supplies;
-        JSMetabolismModule metabolism = metabolism(animal).orElse(null);
-        if (metabolism != null
-                && metabolism.isHungerEnabled()
-                && isBelowAutoCareThreshold(metabolism.getHunger(), metabolism.getMaxHunger())) {
-            DinosaurCaptureSupplies.Type foodType = selectFoodSupply(
-                    CapturedDinosaurVitals.resolveReserveDiet(animal, metabolism),
-                    updated
-            );
-            if (foodType != null) {
-                long restored = Math.min(
-                        Math.max(0, metabolism.getMaxHunger()),
-                        (long) Math.max(0, metabolism.getHunger()) + FOOD_RESERVE_HUNGER_POINTS
-                );
-                metabolism.setHunger((int) restored);
-                updated = updated.consume(foodType);
-            }
-        }
-        if (metabolism != null
-                && updated.water() > 0
-                && metabolism.isThirstEnabled()
-                && isBelowAutoCareThreshold(metabolism.getThirst(), metabolism.getMaxThirst())) {
-            int maxThirst = Math.max(0, metabolism.getMaxThirst());
-            if (maxThirst > 0) {
-                long restoredPerPoint = ((long) maxThirst + WATER_RESERVE_RESTORE_PERCENT - 1L)
-                        / WATER_RESERVE_RESTORE_PERCENT;
-                long restored = Math.min(
-                        maxThirst,
-                        (long) Math.max(0, metabolism.getThirst()) + restoredPerPoint
-                );
-                metabolism.setThirst((int) restored);
-                updated = updated.consume(DinosaurCaptureSupplies.Type.WATER);
-            }
-        }
-        if (updated.anesthetic() > 0
-                && DinosaurAnestheticSystem.getRemainingAnestheticTicks(animal) < AUTO_ANESTHETIC_THRESHOLD_TICKS
-                && DinosaurAnestheticSystem.getPendingAnestheticDoseCount(animal) < MAX_CAPTURE_PENDING_DOSES
-                && DinosaurAnestheticSystem.tryApplyAnestheticInjection(animal)) {
-            updated = updated.consume(DinosaurCaptureSupplies.Type.ANESTHETIC);
-        }
-        return updated;
-    }
-
     private static boolean canDietEat(java.util.function.Supplier<Diet> dietSupplier, ItemStack stack) {
         try {
             Diet diet = dietSupplier == null ? null : dietSupplier.get();
@@ -2000,7 +1945,7 @@ public final class DinosaurCaptureService {
                     previous.entityTypeId(),
                     previous.originalUuid(),
                     previous.displayName(),
-                    previous.capturedGameTime(),
+                    Math.min(previous.capturedGameTime(), currentGameTime),
                     currentGameTime,
                     currentGameTime,
                     durability,
@@ -2017,34 +1962,6 @@ public final class DinosaurCaptureService {
         } catch (RuntimeException exception) {
             return Optional.empty();
         }
-    }
-
-    private static int applyOfflineVitalsDrift(
-            JSAnimalBase animal,
-            long elapsedTicks,
-            int previousRelativeTicks
-    ) {
-        int safePreviousRelativeTicks = Math.max(0, Math.min(199, previousRelativeTicks));
-        long totalRelativeTicks = elapsedTicks > Long.MAX_VALUE - safePreviousRelativeTicks
-                ? Long.MAX_VALUE
-                : Math.max(0L, elapsedTicks) + safePreviousRelativeTicks;
-        JSMetabolismModule metabolism = metabolism(animal).orElse(null);
-        if (metabolism == null) {
-            return safePreviousRelativeTicks;
-        }
-        long driftIntervalTicks = HUNGER_THIRST_SETTLEMENT_SECONDS * 20L;
-        int drift = (int) Math.min(Integer.MAX_VALUE, totalRelativeTicks / driftIntervalTicks);
-        if (drift > 0 && metabolism.isHungerEnabled()) {
-            metabolism.setHunger(Math.max(0, metabolism.getHunger() - drift));
-        }
-        if (drift > 0 && metabolism.isThirstEnabled()) {
-            metabolism.setThirst(Math.max(0, metabolism.getThirst() - drift));
-        }
-        if ((metabolism.isHungerEnabled() && metabolism.getHunger() <= 0)
-                || (metabolism.isThirstEnabled() && metabolism.getThirst() <= 0)) {
-            animal.setHealth(Math.max(1.0F, animal.getHealth() - (Math.max(0L, elapsedTicks) / 1200.0F)));
-        }
-        return (int) (totalRelativeTicks % driftIntervalTicks);
     }
 
     private static Optional<JSMetabolismModule> metabolism(JSAnimalBase animal) {

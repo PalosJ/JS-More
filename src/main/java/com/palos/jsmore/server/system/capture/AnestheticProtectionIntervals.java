@@ -18,18 +18,16 @@ final class AnestheticProtectionIntervals {
         if (data == null) {
             return 0L;
         }
-        long endTick = Math.max(0L, currentGameTime);
-        long startTick = Math.min(Math.max(0L, data.lastSettledGameTime()), endTick);
-        long elapsedTicks = endTick - startTick;
-        if (elapsedTicks <= 0L) {
-            return 0L;
-        }
+        return unprotectedTicks(data.relativeAnestheticNbt(), data.anestheticReferenceGameTime(),
+                data.lastSettledGameTime(), currentGameTime);
+    }
 
-        CompoundTag relativeTag = data.relativeAnestheticNbt();
-        if (relativeTag == null || relativeTag.isEmpty()) {
-            return elapsedTicks;
-        }
-        long baseTick = Math.min(Math.max(0L, data.anestheticReferenceGameTime()), endTick);
+    static long unprotectedTicks(CompoundTag relativeTag, long referenceTime, long start, long end) {
+        long endTick = Math.max(0L, end);
+        long startTick = Math.min(Math.max(0L, start), endTick);
+        long elapsedTicks = endTick - startTick;
+        if (elapsedTicks <= 0L || relativeTag == null || relativeTag.isEmpty()) return elapsedTicks;
+        long baseTick = Math.min(Math.max(0L, referenceTime), endTick);
         List<PendingInterval> pendingIntervals = pendingIntervals(relativeTag, baseTick);
         List<ProtectionInterval> merged = new ArrayList<>(pendingIntervals.size() + 1);
 

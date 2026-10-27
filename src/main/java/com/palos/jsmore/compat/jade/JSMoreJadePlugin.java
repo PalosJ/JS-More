@@ -9,7 +9,7 @@ import snownee.jade.api.WailaPlugin;
 public final class JSMoreJadePlugin implements IWailaPlugin {
     @Override
     public void registerClient(IWailaClientRegistration registration) {
-        registration.addTooltipCollectedCallback(100, JSMoreJadeTooltipFilter::filterAnimalTooltip);
+        registration.addAfterRenderCallback(100, JadeRenderedAnimalInformation::afterRender);
         registration.registerBlockComponent(JSMoreJadeCaptureBoxProvider.INSTANCE, DinosaurCaptureCageBlock.class);
     }
 }

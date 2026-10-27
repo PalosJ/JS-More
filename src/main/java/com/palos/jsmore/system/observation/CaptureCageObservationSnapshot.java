@@ -74,7 +74,11 @@ public record CaptureCageObservationSnapshot(
     public CompoundTag serializeNBT() {
         CompoundTag tag = new CompoundTag();
         tag.putString(ENTITY_TYPE, this.entityTypeId.toString());
-        tag.putString(DISPLAY_NAME, this.observation.displayName().getString());
+        tag.putString(DISPLAY_NAME, ObservedGene.boundedText(this.observation.displayName().getString(), 256));
+        this.observation.eggLayingProgress().ifPresent(progress -> {
+            tag.putInt("EggRemaining", progress.remainingTicks());
+            tag.putInt("EggMaximum", progress.maxTicks());
+        });
         tag.put(AGE, serializeAge(this.observation.ageEstimate()));
         putOptionalDouble(tag, CURRENT_HEALTH, this.observation.currentHealth());
         putOptionalDouble(tag, MAX_HEALTH, this.observation.maxHealth());
@@ -112,7 +116,7 @@ public record CaptureCageObservationSnapshot(
     }
 
     public static Optional<CaptureCageObservationSnapshot> deserializeNBT(CompoundTag tag) {
-        if (tag == null || !tag.contains(ENTITY_TYPE, Tag.TAG_STRING) || !tag.contains(AGE, Tag.TAG_COMPOUND)) {
+        if (tag == null || tag.sizeInBytes() > 64 * 1024 || !tag.contains(ENTITY_TYPE, Tag.TAG_STRING) || !tag.contains(AGE, Tag.TAG_COMPOUND)) {
             return Optional.empty();
         }
         ResourceLocation entityTypeId = ResourceLocation.tryParse(tag.getString(ENTITY_TYPE));
@@ -121,7 +125,7 @@ public record CaptureCageObservationSnapshot(
             return Optional.empty();
         }
         DinosaurObservationSnapshot observation = new DinosaurObservationSnapshot(
-                Component.literal(tag.contains(DISPLAY_NAME, Tag.TAG_STRING) ? tag.getString(DISPLAY_NAME) : ""),
+                Component.literal(ObservedGene.boundedText(tag.contains(DISPLAY_NAME, Tag.TAG_STRING) ? tag.getString(DISPLAY_NAME) : "", 256)),
                 ageEstimate,
                 readOptionalDouble(tag, CURRENT_HEALTH),
                 readOptionalDouble(tag, MAX_HEALTH),
@@ -132,7 +136,8 @@ public record CaptureCageObservationSnapshot(
                 readOptionalLong(tag, PENDING_ANESTHETIC_TICKS),
                 readOptionalLong(tag, REMAINING_ANESTHETIC_TICKS),
                 readOptionalLong(tag, QUEUED_ANESTHETIC_TICKS),
-                Optional.empty(),
+                tag.contains("EggRemaining", Tag.TAG_INT) && tag.contains("EggMaximum", Tag.TAG_INT)
+                        ? EggLayingProgress.create(tag.getInt("EggRemaining"), tag.getInt("EggMaximum")) : Optional.empty(),
                 readGenes(tag.getList(GENES, Tag.TAG_COMPOUND))
         );
         return Optional.of(new CaptureCageObservationSnapshot(
@@ -184,7 +189,7 @@ public record CaptureCageObservationSnapshot(
 
     private static List<ObservedGene> readGenes(ListTag genesTag) {
         List<ObservedGene> genes = new ArrayList<>();
-        for (int index = 0; index < genesTag.size() && genes.size() < ObservedGene.MAX_COUNT; index++) {
+        for (int index = 0; index < genesTag.size() && index < ObservedGene.MAX_COUNT; index++) {
             CompoundTag geneTag = genesTag.getCompound(index);
             String geneId = ObservedGene.boundedId(geneTag.getString(GENE_ID));
             if (geneId.isBlank()) {

@@ -22,6 +22,12 @@ public record DinosaurObservationSnapshot(
         Optional<EggLayingProgress> eggLayingProgress,
         List<ObservedGene> genes
 ) {
+    public DinosaurObservationSnapshot withoutGenes() {
+        return new DinosaurObservationSnapshot(displayName, ageEstimate, currentHealth, maxHealth, male,
+                hungerPercent, thirstPercent, moodPercent, pendingAnestheticTicks, remainingAnestheticTicks,
+                queuedAnestheticTicks, eggLayingProgress, List.of());
+    }
+
     public DinosaurObservationSnapshot withEggLayingProgress(Optional<EggLayingProgress> progress) {
         return new DinosaurObservationSnapshot(
                 displayName,

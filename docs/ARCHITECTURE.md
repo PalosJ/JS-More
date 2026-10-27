@@ -5,7 +5,7 @@
 JS More is a NeoForge 1.21.1 add-on for Jurassic Saga. Its primary design
 goal is a server-authoritative survival loop in which players anesthetize a
 living dinosaur, capture it without cloning or losing its identity, transport
-it, maintain its supplies, and release it safely.
+it, maintain its supplies, and release it without duplicating or losing its identity.
 
 The public identity is:
 
@@ -38,10 +38,12 @@ classes on a dedicated server.
   game-state authority to the client.
 - **World generation and configuration** isolate Jurassic Saga biome controls
   and optional integration behavior from unrelated gameplay systems.
-- **Breeding and despawn rules** have separate Mixins and independent SERVER
-  settings. COMMON handles biome generation and one-time configuration format
-  migration. NeoForge synchronizes SERVER values and caches them until the
-  world restarts; pending breeding state remains intact while disabled.
+- **Breeding** belongs to upstream. The addon only retains a reader/executor for
+  historical pending maternal eggs and adapts legacy saved reproduction fields.
+- **Despawn policy** uses a synchronized SERVER enum and independent persistent
+  capture history. It never writes vanilla `PersistenceRequired`; children do not
+  inherit the capture marker. COMMON owns biome/debug options, CLIENT owns goggles
+  display. Old booleans are not migrated and biome settings are no longer reset.
 
 Release first searches suitable nearby positions and retains the approved
 forced-nearby fallback. It is not a guarantee against hazardous terrain. The
@@ -52,7 +54,15 @@ fallback may expose the animal to damage; it must still preserve one authority.
 Client packages render the Dino Doctor HUD, item/entity models, particles,
 and safe animation fallbacks. Client caches are bounded and are cleared on
 session, world, or resource lifecycle changes. Client prediction may improve
-presentation but never commits persistent gameplay state.
+presentation but never commits persistent gameplay state. Live-animal observations
+come from bounded server snapshots checked against player state, range, line of
+sight, UUID and dimension. A request nonce and one-target cache reject stale replies.
+Capture-box observation uses its projected-space identity plus a dimension-bound
+request nonce. A lost request expires after a bounded wait and can be retried;
+late replies cannot consume the replacement request. Old HUD snapshots have a
+hard freshness limit rather than remaining visible forever.
+Jade's after-render callback records only fields actually rendered for that entity
+and frame. The goggles render afterwards and keep unknown/unconfirmed information.
 
 ### Optional compatibility
 
@@ -92,6 +102,26 @@ The original dinosaur UUID is part of the authority invariant. At any
 transaction boundary, the source entity, target box, and protected recovery
 carrier must resolve to exactly one canonical authority.
 
+### Captured time
+
+`CapturedAnimalTimeline` advances a detached snapshot at dose, care, vital,
+growth and break events. Work is bounded by stored reserves/doses and a fixed
+safety budget, not elapsed ticks. Exhausting the budget or failing to serialize
+leaves the original carrier and supplies authoritative. Deposits first settle
+existing contents, so newly inserted items cannot cover historical shortages.
+
+Upstream growth is invoked through a narrow Mixin bridge. Snapshot saves cannot
+silently advance its last-seen anchor without applying growth. During transport,
+growth healing and starvation are integrated over constant-state intervals before
+health clamping; starvation never raises health. Growth dimensions are rebuilt
+before release tests. Legacy captures without an upstream growth anchor are not
+given invented retrospective growth.
+
+Occupied normal capture-box ItemEntities receive only unlimited item-age lifetime.
+Their contents continue settling and environmental damage remains effective. Empty
+or ordinary broken boxes lose this lifetime protection. This is separate from the
+stronger validated recovery-carrier rules below.
+
 ### Recovery carrier
 
 If a moving-structure transaction cannot restore a canonical box safely, a
@@ -104,7 +134,7 @@ protection.
 
 ### Network identity
 
-JS More 1.0.0 Alpha and Release both use network protocol `7`. Payload field layouts
+JS More 1.1.0 uses network protocol `8`; public 1.0.0 uses `7`. Payload field layouts
 remain deliberately small and validated, but payload IDs, attachments,
 registries, configuration, resources, and GameTest data all use the `jsmore`
 namespace. Protocol changes require coordinated registration, codec, test,

@@ -4,7 +4,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class JSMoreNetworking {
-    static final String NETWORK_VERSION = "7";
+    static final String NETWORK_VERSION = "8";
 
     private JSMoreNetworking() {
     }
@@ -17,9 +17,9 @@ public final class JSMoreNetworking {
                 FireAnestheticCrossbowPayload::handleOnMain
         );
         registrar.playToServer(
-                EggLayingProgressRequestPayload.TYPE,
-                EggLayingProgressRequestPayload.STREAM_CODEC,
-                EggLayingProgressRequestPayload::handleOnMain
+                AnimalObservationRequestPayload.TYPE,
+                AnimalObservationRequestPayload.STREAM_CODEC,
+                AnimalObservationRequestPayload::handleOnMain
         );
         registrar.playToServer(
                 CaptureCageObservationRequestPayload.TYPE,
@@ -37,9 +37,9 @@ public final class JSMoreNetworking {
                 SleepAnimationGuardPayload::handleOnClient
         );
         registrar.playToClient(
-                EggLayingProgressPayload.TYPE,
-                EggLayingProgressPayload.STREAM_CODEC,
-                EggLayingProgressPayload::handleOnClient
+                AnimalObservationPayload.TYPE,
+                AnimalObservationPayload.STREAM_CODEC,
+                AnimalObservationPayload::handleOnClient
         );
         registrar.playToClient(
                 CaptureCageObservationPayload.TYPE,

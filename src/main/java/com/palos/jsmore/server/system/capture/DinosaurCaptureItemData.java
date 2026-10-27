@@ -434,7 +434,7 @@ public final class DinosaurCaptureItemData {
         );
     }
 
-    private static boolean hasCaptureTag(ItemStack stack) {
+    static boolean hasCaptureTag(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return false;
         }

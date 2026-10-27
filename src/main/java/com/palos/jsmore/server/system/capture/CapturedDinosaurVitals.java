@@ -6,10 +6,10 @@ import com.palos.jsmore.system.observation.DinosaurObservationSystem;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
-import jp.jurassicsaga.server.animal.entity.obj.diet.Diet;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.info.AnimalDietType;
-import jp.jurassicsaga.server.animal.entity.obj.modules.obj.JSMetabolismModule;
+import jp.jurassicsaga.server.entity.animal.entity.obj.diet.Diet;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.info.AnimalDietType;
+import jp.jurassicsaga.server.entity.animal.entity.obj.modules.obj.JSMetabolismModule;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 
@@ -78,7 +78,7 @@ public record CapturedDinosaurVitals(CompoundTag tag) {
             CapturedDinosaurVitals previous,
             OptionalLong lastAutoCareGameTime
     ) {
-        DinosaurObservationSnapshot snapshot = DinosaurObservationSystem.capture(animal);
+        DinosaurObservationSnapshot snapshot = DinosaurObservationSystem.captureFresh(animal);
         CompoundTag tag = new CompoundTag();
         snapshot.currentHealth().ifPresent(value -> putNonNegativeDouble(tag, HEALTH, value));
         snapshot.maxHealth().ifPresent(value -> putNonNegativeDouble(tag, MAX_HEALTH, value));

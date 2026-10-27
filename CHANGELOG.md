@@ -2,6 +2,24 @@
 
 This log compares public releases. Internal candidate versions are not separate public upgrades.
 
+## 1.1.0 — Jurassic Saga 0.3 compatibility
+
+- Moves to Jurassic Saga 0.3 / Travelers 1.0 for NeoForge 1.21.1. Public 1.0.0 remains the older-host release.
+- Restores upstream breeding in full. Legacy valid pending maternal eggs complete once; failed or unreadable records are retained. Old gestation/cooldown data loads into the new reproduction module without replacing valid new fields.
+- Replaces the despawn boolean with SERVER `OFF`, `CAPTURED_ONLY` (default), and `ALL`. Successful capture history survives transport/reload and is not inherited. Native upstream persistence remains intact.
+- Does not migrate old boolean configuration. Removes the feeding switch and biome-reset migration; preserves valid common biome/debug settings.
+- Settles unloaded transport by bounded chronological events, including existing reserves, pending doses, hunger/thirst and durability. New supplies are added after settling prior history. Starvation only charges time actually spent without food/water and cannot raise low health.
+- Applies upstream offline growth before rewriting captured snapshots and uses the grown hitbox for release. Preserves UUIDs, genes and existing age-migration markers.
+- Protects occupied ordinary capture-box drops from item-age expiry, without environmental invulnerability. Retains four future pending automatic doses and forced-nearby release consequences.
+- Limits dart-hit damage to a nonlethal maximum of 1 HP; validates alive/non-spectator firing on the server.
+- Fixes a Travelers 1.0 shutdown leak: its audited path executor creates daemon workers, preserving the upstream queue and pathfinding behavior while allowing a saved server to exit.
+- Retries timed-out capture-box observation requests with dimension-bound nonces and expires stale HUD snapshots. Rejects unsafe upstream gene counts/enums without discarding the raw carrier.
+- Uses protocol 8 for rate-limited, UUID/dimension/request-bound server observation. Removes the stamina-as-thirst fallback, labels estimated ages/pending doses, and adds concise interaction failure feedback.
+- Keeps upstream Jade information and suppresses matching goggles fields only after confirmed rendering. Adds an optional full-display CLIENT setting.
+- Removes obsolete Travelers server-init and Jade duplicate-registration patches; adapts stable food sorting and per-animal animation guards to current APIs.
+
+Upgrade both sides together. Old occupied boxes establish capture history; animals already released before upgrading do not. Select the new `ALL` mode or recapture old enclosure animals when needed. Future upstream versions are not automatically verified.
+
 ## 1.0.0 — Release
 
 Changes since the public **1.0.0 Alpha**:

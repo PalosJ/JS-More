@@ -4,7 +4,7 @@ import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -112,6 +112,7 @@ public record CapturedDinosaurData(
         if (entityTypeId == null) {
             return Optional.empty();
         }
+        ((CapturedGrowthAccess) animal.getModules().getGrowthStageModule()).jsmore$settlePendingGrowth();
         UUID uuid = animal.getUUID();
         long gameTime = animal.level().getGameTime();
         Optional<CompoundTag> entityNbt = sanitizeEntityNbtForCapture(
@@ -122,6 +123,7 @@ public record CapturedDinosaurData(
         if (entityNbt.isEmpty()) {
             return Optional.empty();
         }
+        DinosaurCaptureHistory.markCapturedPayload(entityNbt.get());
         return Optional.of(new CapturedDinosaurData(
                 entityTypeId,
                 uuid,
@@ -252,7 +254,8 @@ public record CapturedDinosaurData(
             return Optional.empty();
         }
         CompoundTag entityNbt = tag.getCompound(ENTITY_NBT).copy();
-        if (entityNbt.isEmpty() || estimatedNbtSize(entityNbt) > MAX_ENTITY_NBT_BYTES) {
+        if (entityNbt.isEmpty() || estimatedNbtSize(entityNbt) > MAX_ENTITY_NBT_BYTES
+                || !CapturedAnimalNbtSafety.canRestore(entityNbt)) {
             return Optional.empty();
         }
         UUID uuid = tag.getUUID(ORIGINAL_UUID);
@@ -364,7 +367,8 @@ public record CapturedDinosaurData(
     }
 
     static Optional<CompoundTag> sanitizeEntityNbtForCapture(ResourceLocation entityTypeId, UUID uuid, CompoundTag source) {
-        if (source == null || source.isEmpty() || estimatedNbtSize(source) > MAX_ENTITY_NBT_BYTES) {
+        if (source == null || source.isEmpty() || estimatedNbtSize(source) > MAX_ENTITY_NBT_BYTES
+                || !CapturedAnimalNbtSafety.canRestore(source)) {
             return Optional.empty();
         }
         CompoundTag safe = sanitizeEntityNbt(entityTypeId, uuid, source);

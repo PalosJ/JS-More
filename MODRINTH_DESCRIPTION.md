@@ -20,7 +20,7 @@ JS More 是 [Jurassic Saga](https://modrinth.com/mod/jurassic-saga) 的附属模
 
 ### 养殖与集蛋
 
-JS More 调整了主模组中鸵鸟、鳄鱼等动物的自然消失和繁殖机制，让你也能像养原版动物一样圈养它们。它们不会因为你离开就自然消失，还能通过喂食繁殖，慢慢扩大养殖规模。
+1.1.0 完整采用主模组的繁殖机制。默认仅保护被捕获箱成功捕获过的动物，服务器也可选择关闭防自然清理，或保护陆生、水生及所有已捕获个体。
 
 在养殖场放上集蛋器，就能自动收起附近掉落的蛋，为吃蛋的恐龙备好食物。接上漏斗，还能把蛋送进储存箱。孵化中的蛋会留在原处，方便继续扩繁。
 
@@ -34,7 +34,7 @@ JS More 调整了主模组中鸵鸟、鳄鱼等动物的自然消失和繁殖机
 
 ---
 
-适用于 **Minecraft 1.21.1 NeoForge**，需要同时安装 **Jurassic Saga** 和 **[Travelers Lib](https://modrinth.com/mod/travelers-lib)**。多人游戏时，客户端和服务器都需要安装。
+适用于 **Minecraft 1.21.1 NeoForge**，1.1.0 需要同时安装 **Jurassic Saga 0.3** 和 **[Travelers Lib 1.0](https://modrinth.com/mod/travelers-lib)**。多人游戏时，客户端和服务器都需要安装。
 
 [使用与兼容说明](https://github.com/PalosJ/JS-More#readme) · [问题反馈](https://github.com/PalosJ/JS-More/issues) · [使用许可](https://github.com/PalosJ/JS-More/blob/main/LICENSE)
 
@@ -60,7 +60,7 @@ Keep the box stocked with anesthetic, water, and food, and watch its condition a
 
 ### Raising animals and collecting eggs
 
-JS More changes how Jurassic Saga animals such as ostriches and alligators despawn and breed, so you can keep them much like vanilla farm animals. They won't despawn just because you leave, and feeding them lets you breed more and grow your farm.
+1.1.0 follows Jurassic Saga breeding in full. By default only successfully captured animals gain natural-despawn protection. Servers may disable this protection or extend it to land/water categories and all captured animals.
 
 Place an Egg Collector nearby to gather dropped eggs for your egg-eating dinosaurs. Connect a hopper to send them into storage. Eggs that are still hatching stay where they are, so you can raise more animals.
 
@@ -74,7 +74,7 @@ Jurassic Saga biomes generate normally by default. If they clash with other biom
 
 ---
 
-For **Minecraft 1.21.1 NeoForge**. Requires **Jurassic Saga** and **[Travelers Lib](https://modrinth.com/mod/travelers-lib)**. Install on both the client and server for multiplayer.
+For **Minecraft 1.21.1 NeoForge**. 1.1.0 requires **Jurassic Saga 0.3** and **[Travelers Lib 1.0](https://modrinth.com/mod/travelers-lib)**. Install on both the client and server for multiplayer.
 
 [Usage and compatibility](https://github.com/PalosJ/JS-More#readme) · [Report an issue](https://github.com/PalosJ/JS-More/issues) · [License](https://github.com/PalosJ/JS-More/blob/main/LICENSE)
 

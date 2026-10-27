@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;

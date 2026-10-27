@@ -26,7 +26,7 @@ public record FireAnestheticCrossbowPayload(boolean mainHand) implements CustomP
     }
 
     public static void handleOnMain(FireAnestheticCrossbowPayload payload, IPayloadContext context) {
-        if (!(context.player() instanceof ServerPlayer player)) {
+        if (!(context.player() instanceof ServerPlayer player) || !player.isAlive() || player.isSpectator()) {
             return;
         }
 

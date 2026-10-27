@@ -4,7 +4,7 @@ import com.palos.jsmore.client.system.anesthetic.ClientSleepAnimationCommandGuar
 import collinvht.travelers.client.azure.common.animation.dispatch.command.AzCommand;
 import collinvht.travelers.client.azure.common.network.packet.AzEntityDispatchCommandPacket;
 import collinvht.travelers.client.azure.common.util.client.ClientUtils;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;

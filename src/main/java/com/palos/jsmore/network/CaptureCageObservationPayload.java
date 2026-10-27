@@ -5,6 +5,8 @@ import com.palos.jsmore.client.overlay.ClientCaptureCageObservationCache;
 import com.palos.jsmore.system.observation.CaptureCageObservationSnapshot;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -12,7 +14,7 @@ import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public record CaptureCageObservationPayload(
-        BlockPos pos,
+        CaptureCageObservationRequestPayload request,
         boolean available,
         CompoundTag snapshotTag
 ) implements CustomPacketPayload {
@@ -20,12 +22,12 @@ public record CaptureCageObservationPayload(
     public static final StreamCodec<RegistryFriendlyByteBuf, CaptureCageObservationPayload> STREAM_CODEC =
             StreamCodec.of(
                     (buffer, payload) -> {
-                        buffer.writeBlockPos(payload.pos);
+                        CaptureCageObservationRequestPayload.STREAM_CODEC.encode(buffer, payload.request);
                         buffer.writeBoolean(payload.available);
                         buffer.writeNbt(payload.snapshotTag);
                     },
                     buffer -> new CaptureCageObservationPayload(
-                            buffer.readBlockPos(),
+                            CaptureCageObservationRequestPayload.STREAM_CODEC.decode(buffer),
                             buffer.readBoolean(),
                             safeReadTag(buffer)
                     )
@@ -34,20 +36,22 @@ public record CaptureCageObservationPayload(
     public CaptureCageObservationPayload {
         if (!available) {
             snapshotTag = new CompoundTag();
-        } else if (snapshotTag == null) {
+        } else if (snapshotTag == null || snapshotTag.sizeInBytes() > AnimalObservationPayload.MAX_SNAPSHOT_BYTES) {
             snapshotTag = new CompoundTag();
         } else {
             snapshotTag = snapshotTag.copy();
         }
     }
 
-    public static CaptureCageObservationPayload available(BlockPos pos, CaptureCageObservationSnapshot snapshot) {
-        return new CaptureCageObservationPayload(pos, true, snapshot.serializeNBT());
+    public static CaptureCageObservationPayload available(CaptureCageObservationRequestPayload request, CaptureCageObservationSnapshot snapshot) {
+        return new CaptureCageObservationPayload(request, true, snapshot.serializeNBT());
     }
 
-    public static CaptureCageObservationPayload unavailable(BlockPos pos) {
-        return new CaptureCageObservationPayload(pos, false, new CompoundTag());
+    public static CaptureCageObservationPayload unavailable(CaptureCageObservationRequestPayload request) {
+        return new CaptureCageObservationPayload(request, false, new CompoundTag());
     }
+
+    public BlockPos pos() { return request.pos(); }
 
     @Override
     public Type<? extends CustomPacketPayload> type() {
@@ -64,7 +68,7 @@ public record CaptureCageObservationPayload(
     }
 
     private static CompoundTag safeReadTag(RegistryFriendlyByteBuf buffer) {
-        CompoundTag tag = buffer.readNbt();
-        return tag == null ? new CompoundTag() : tag;
+        Tag tag = buffer.readNbt(NbtAccounter.create(AnimalObservationPayload.MAX_SNAPSHOT_BYTES));
+        return tag instanceof CompoundTag compound ? compound : new CompoundTag();
     }
 }

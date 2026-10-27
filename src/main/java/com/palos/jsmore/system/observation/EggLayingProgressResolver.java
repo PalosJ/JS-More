@@ -3,7 +3,7 @@ package com.palos.jsmore.system.observation;
 import java.util.Optional;
 import java.util.OptionalInt;
 import jp.jurassicsaga.JSCommon;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 
 public final class EggLayingProgressResolver {
     private static final String EGG_TIME_FIELD = "eggTime";

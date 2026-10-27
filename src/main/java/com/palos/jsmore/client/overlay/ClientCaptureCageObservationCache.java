@@ -19,6 +19,8 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public final class ClientCaptureCageObservationCache {
     private static final long NO_TICK = -1L;
     private static final long FRESH_TTL_TICKS = 20L;
+    private static final long REQUEST_TIMEOUT_TICKS = 80L;
+    private static final long MAX_STALE_TICKS = 100L;
     private static final long NON_CURRENT_TTL_TICKS = 200L;
     private static final long REQUEST_COOLDOWN_TICKS = 20L;
     private static final long UNAVAILABLE_TTL_TICKS = 20L;
@@ -55,13 +57,8 @@ public final class ClientCaptureCageObservationCache {
             return Optional.empty();
         }
         ClientOverlaySessionClock.Stamp stamp = ClientOverlaySessionClock.current(level);
-        return getOrRequest(
-                stamp,
-                target.controller(),
-                target.spaceIdentity(),
-                target.isOccupiedAndReadable(),
-                requestPos -> PacketDistributor.sendToServer(new CaptureCageObservationRequestPayload(requestPos))
-        );
+        return getOrRequestTracked(stamp, target.controller(), target.spaceIdentity(),
+                target.isOccupiedAndReadable(), PacketDistributor::sendToServer);
     }
 
     static Optional<CaptureCageObservationSnapshot> getOrRequest(
@@ -88,6 +85,15 @@ public final class ClientCaptureCageObservationCache {
             boolean locallyOccupiedAndReadable,
             Consumer<BlockPos> requestSender
     ) {
+        return getOrRequestTracked(stamp, pos, spaceIdentity, locallyOccupiedAndReadable,
+                request -> requestSender.accept(request.pos()));
+    }
+
+    static Optional<CaptureCageObservationSnapshot> getOrRequestTracked(
+            ClientOverlaySessionClock.Stamp stamp, BlockPos pos,
+            CaptureBoxWorldContext.SpaceIdentity spaceIdentity, boolean locallyOccupiedAndReadable,
+            Consumer<CaptureCageObservationRequestPayload> requestSender
+    ) {
         if (stamp == null || pos == null || spaceIdentity == null || requestSender == null
                 || !stamp.dimensionId().equals(spaceIdentity.dimensionId())) {
             return Optional.empty();
@@ -96,6 +102,8 @@ public final class ClientCaptureCageObservationCache {
         long logicalTick = stamp.logicalTick();
         Key key = new Key(spaceIdentity, pos.immutable());
         WireKey wireKey = key.wireKey();
+        WIRE_REQUESTS.computeIfPresent(wireKey, (ignored, pending) ->
+                elapsed(logicalTick, pending.sentAtTick()) >= REQUEST_TIMEOUT_TICKS ? null : pending);
         tombstoneDifferentIdentity(wireKey, key);
         removeOtherIdentities(wireKey, key);
 
@@ -132,7 +140,8 @@ public final class ClientCaptureCageObservationCache {
             if (elapsed(logicalTick, cached.receivedAtTick()) > FRESH_TTL_TICKS) {
                 requestIfAllowed(key, logicalTick, requestSender);
             }
-            return cached.lastKnownGood();
+            return elapsed(logicalTick, cached.receivedAtTick()) <= MAX_STALE_TICKS
+                    ? cached.lastKnownGood() : Optional.empty();
         }
         if (cached.receivedAtTick() != NO_TICK
                 && elapsed(logicalTick, cached.receivedAtTick()) <= UNAVAILABLE_TTL_TICKS) {
@@ -147,6 +156,7 @@ public final class ClientCaptureCageObservationCache {
             return;
         }
         ClientOverlaySessionClock.Stamp stamp = ClientOverlaySessionClock.current(level);
+        if (!acceptsReply(stamp, payload.request())) return;
         Optional<CaptureBoxObservationTarget.Target> target = CaptureBoxObservationTarget.resolve(level, payload.pos());
         if (target.isEmpty()) {
             consumeRejectedReply(stamp, payload.pos());
@@ -164,6 +174,14 @@ public final class ClientCaptureCageObservationCache {
                 payload.available(),
                 localTarget.isOccupiedAndReadable()
         );
+    }
+
+    static boolean acceptsReply(ClientOverlaySessionClock.Stamp stamp, CaptureCageObservationRequestPayload reply) {
+        if (stamp == null || reply == null || !stamp.dimensionId().equals(reply.dimension())) return false;
+        prepareSession(stamp);
+        WireRequest pending = WIRE_REQUESTS.get(new WireKey(reply.dimension(), reply.pos()));
+        return pending != null && pending.request().equals(reply)
+                && elapsed(stamp.logicalTick(), pending.sentAtTick()) < REQUEST_TIMEOUT_TICKS;
     }
 
     static void remember(
@@ -310,7 +328,7 @@ public final class ClientCaptureCageObservationCache {
     private static void requestIfAllowed(
             Key key,
             long logicalTick,
-            Consumer<BlockPos> requestSender
+            Consumer<CaptureCageObservationRequestPayload> requestSender
     ) {
         CacheEntry cached = CACHE.get(key);
         if (cached == null || WIRE_REQUESTS.containsKey(key.wireKey())) {
@@ -323,12 +341,14 @@ public final class ClientCaptureCageObservationCache {
         if (WIRE_REQUESTS.size() >= MAX_WIRE_REQUESTS) {
             return;
         }
-        WireRequest request = new WireRequest(key, logicalTick, false);
+        CaptureCageObservationRequestPayload payload = new CaptureCageObservationRequestPayload(
+                key.pos(), key.spaceIdentity().dimensionId(), UUID.randomUUID());
+        WireRequest request = new WireRequest(key, logicalTick, false, payload);
         if (WIRE_REQUESTS.putIfAbsent(key.wireKey(), request) != null) {
             return;
         }
         CACHE.put(key, cached.withRequest(logicalTick));
-        requestSender.accept(key.pos());
+        requestSender.accept(payload);
     }
 
     private static void consumeRejectedReply(ClientOverlaySessionClock.Stamp stamp, BlockPos pos) {
@@ -391,6 +411,7 @@ public final class ClientCaptureCageObservationCache {
             return;
         }
         lastCleanupAtTick = logicalTick;
+        WIRE_REQUESTS.entrySet().removeIf(entry -> elapsed(logicalTick, entry.getValue().sentAtTick()) >= REQUEST_TIMEOUT_TICKS);
         CACHE.entrySet().removeIf(entry -> !entry.getKey().equals(currentKey)
                 && !hasWireRequest(entry.getKey())
                 && elapsed(logicalTick, entry.getValue().lastObservedAtTick()) > NON_CURRENT_TTL_TICKS);
@@ -454,9 +475,9 @@ public final class ClientCaptureCageObservationCache {
         }
     }
 
-    private record WireRequest(Key expectedKey, long sentAtTick, boolean tombstone) {
+    private record WireRequest(Key expectedKey, long sentAtTick, boolean tombstone, CaptureCageObservationRequestPayload request) {
         private WireRequest asTombstone() {
-            return this.tombstone ? this : new WireRequest(this.expectedKey, this.sentAtTick, true);
+            return this.tombstone ? this : new WireRequest(this.expectedKey, this.sentAtTick, true, this.request);
         }
     }
 

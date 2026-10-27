@@ -6,7 +6,7 @@ import com.palos.jsmore.client.AnestheticCrossbowItemProperties;
 import com.palos.jsmore.client.ClientFloatingEffects;
 import com.palos.jsmore.client.JSMoreItemTooltipHandler;
 import com.palos.jsmore.client.overlay.ClientCaptureCageObservationCache;
-import com.palos.jsmore.client.overlay.ClientEggLayingProgressCache;
+import com.palos.jsmore.client.overlay.ClientAnimalObservationCache;
 import com.palos.jsmore.client.overlay.ClientOverlaySessionClock;
 import com.palos.jsmore.client.overlay.DinoDoctorOverlayRenderer;
 import com.palos.jsmore.client.render.BrokenDinosaurCaptureBoxRenderer;
@@ -19,7 +19,7 @@ import com.palos.jsmore.server.registry.JSMoreBlockEntityTypes;
 import com.palos.jsmore.server.registry.JSMoreEntityTypes;
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
 import com.palos.jsmore.system.observation.DinosaurObservationSystem;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -44,7 +44,8 @@ public final class JSMoreNeoClient {
         eventBus.addListener(JSMoreNeoClient::onClientSetup);
         eventBus.addListener(JSMoreNeoClient::registerEntityRenderers);
         eventBus.addListener(JSMoreNeoClient::registerLayerDefinitions);
-        eventBus.addListener(JSMoreNeoClient::registerGuiLayers);
+        NeoForge.EVENT_BUS.addListener(net.neoforged.bus.api.EventPriority.HIGHEST, JSMoreNeoClient::onGuiPre);
+        NeoForge.EVENT_BUS.addListener(net.neoforged.bus.api.EventPriority.LOWEST, JSMoreNeoClient::onGuiPost);
         eventBus.addListener(JSMoreNeoClient::registerClientReloadListeners);
         NeoForge.EVENT_BUS.addListener(AnestheticCrossbowInputHandler::onInteractionKeyMappingTriggered);
         NeoForge.EVENT_BUS.addListener(ClientFloatingEffects::onEntityTickPost);
@@ -77,8 +78,12 @@ public final class JSMoreNeoClient {
         event.registerLayerDefinition(AnestheticDartModel.LAYER_LOCATION, AnestheticDartModel::createLayer);
     }
 
-    private static void registerGuiLayers(RegisterGuiLayersEvent event) {
-        event.registerAbove(VanillaGuiLayers.HOTBAR, JSMore.id("dino_doctor_overlay"), DinoDoctorOverlayRenderer.OVERLAY);
+    private static void onGuiPre(net.neoforged.neoforge.client.event.RenderGuiEvent.Pre event) {
+        com.palos.jsmore.compat.jade.JadeAnimalTooltipPolicy.clearFrame();
+    }
+
+    private static void onGuiPost(net.neoforged.neoforge.client.event.RenderGuiEvent.Post event) {
+        DinoDoctorOverlayRenderer.renderOverlay(event.getGuiGraphics(), event.getPartialTick());
     }
 
     private static void registerClientReloadListeners(RegisterClientReloadListenersEvent event) {
@@ -104,18 +109,19 @@ public final class JSMoreNeoClient {
             DinosaurAnestheticSystem.forgetClientSleepAnimationGuard(animal);
             ClientAnestheticAnimationFallback.forget(animal);
             DinosaurObservationSystem.invalidate(animal.getUUID());
-            ClientEggLayingProgressCache.invalidate(animal);
+            ClientAnimalObservationCache.invalidate(animal);
         }
     }
 
     private static void clearClientCaches() {
+        com.palos.jsmore.compat.jade.JadeAnimalTooltipPolicy.clearFrame();
         DinoDoctorOverlayRenderer.clearCache();
         ClientFloatingEffects.clearCache();
         DinosaurAnestheticSystem.clearClientSleepAnimationGuards();
         ClientAnestheticAnimationFallback.clearCache();
         FloatingModelGeometryResolver.clearCache();
         DinosaurObservationSystem.clearCache();
-        ClientEggLayingProgressCache.clearCache();
+        ClientAnimalObservationCache.clearCache();
         ClientCaptureCageObservationCache.clearCache();
         ClientOverlaySessionClock.clear();
     }

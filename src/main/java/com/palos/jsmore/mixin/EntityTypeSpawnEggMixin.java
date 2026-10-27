@@ -1,8 +1,8 @@
 package com.palos.jsmore.mixin;
 
 import com.palos.jsmore.server.system.age.DinosaurAgeSystem;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.info.AnimalGrowthStage;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.info.AnimalGrowthStage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;

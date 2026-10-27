@@ -9,7 +9,7 @@ import collinvht.travelers.client.azure.common.animation.dispatch.command.stage.
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
 import java.util.ArrayList;
 import java.util.List;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 
 public final class ClientSleepAnimationCommandGuard {
     private ClientSleepAnimationCommandGuard() {

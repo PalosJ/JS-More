@@ -60,7 +60,7 @@ class TravelersAzureModelRendererApiTest {
         ));
 
         ClassNode jsAnimations = readClass(
-                "jp.jurassicsaga.server.animal.animations.obj.JSAnimations"
+                "jp.jurassicsaga.server.entity.animal.animations.obj.JSAnimations"
         );
         assertTrue(jsAnimations.fields.stream().anyMatch(field ->
                 "IDLE".equals(field.name)

@@ -3,11 +3,12 @@ package com.palos.jsmore.server.item;
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
 import com.palos.jsmore.server.system.capture.CapturedDinosaurData;
 import com.palos.jsmore.server.system.capture.CaptureBoxAuthority;
+import com.palos.jsmore.server.system.capture.CaptureInteractionFeedback;
 import com.palos.jsmore.server.system.capture.DinosaurCaptureItemData;
 import com.palos.jsmore.server.system.capture.DinosaurCaptureService;
 import java.util.List;
 import java.util.OptionalInt;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -34,23 +35,23 @@ public final class DinosaurCaptureCageItem extends BlockItem {
         ItemStack stack = context.getItemInHand();
         boolean recoveryCarrier = CaptureBoxAuthority.isProtectedRecoveryCarrier(stack);
         if (CaptureBoxAuthority.hasRecoveryMarker(stack) && !recoveryCarrier) {
-            return InteractionResult.FAIL;
+            return CaptureInteractionFeedback.fail(context.getPlayer(), "unreadable");
         }
         if (!recoveryCarrier && DinosaurCaptureItemData.inspectContents(stack).isUnreadable()) {
-            return InteractionResult.FAIL;
+            return CaptureInteractionFeedback.fail(context.getPlayer(), "unreadable");
         }
         if (!recoveryCarrier
                 && DinosaurCaptureItemData.hasCapturedDinosaur(stack)
                 && context.getPlayer() != null
                 && context.getPlayer().isShiftKeyDown()) {
-            return DinosaurCaptureService.releaseFromStack(
+            return CaptureInteractionFeedback.explain(context.getPlayer(), DinosaurCaptureService.releaseFromStack(
                     stack,
                     context.getPlayer(),
                     context.getClickedPos(),
                     context.getClickedFace()
-            );
+            ), "release_blocked");
         }
-        return DinosaurCaptureService.placeCage(new BlockPlaceContext(context));
+        return CaptureInteractionFeedback.explain(context.getPlayer(), DinosaurCaptureService.placeCage(new BlockPlaceContext(context)), "placement_blocked");
     }
 
     @Override
@@ -61,24 +62,24 @@ public final class DinosaurCaptureCageItem extends BlockItem {
             InteractionHand usedHand
     ) {
         if (CaptureBoxAuthority.hasRecoveryMarker(stack)) {
-            return InteractionResult.FAIL;
+            return CaptureInteractionFeedback.fail(player, "unreadable");
         }
         if (DinosaurCaptureItemData.inspectContents(stack).isUnreadable()) {
-            return InteractionResult.FAIL;
+            return CaptureInteractionFeedback.fail(player, "unreadable");
         }
         if (!(interactionTarget instanceof JSAnimalBase animal)) {
             return InteractionResult.PASS;
         }
         if (DinosaurCaptureItemData.hasCapturedDinosaur(stack)) {
-            return InteractionResult.FAIL;
+            return CaptureInteractionFeedback.fail(player, "occupied");
         }
         if (!DinosaurAnestheticSystem.isAnesthetized(animal)) {
-            return InteractionResult.FAIL;
+            return CaptureInteractionFeedback.fail(player, "not_asleep");
         }
         if (player.level().isClientSide) {
             return InteractionResult.SUCCESS;
         }
-        return DinosaurCaptureService.captureIntoPlacedCage(stack, player, animal);
+        return CaptureInteractionFeedback.explain(player, DinosaurCaptureService.captureIntoPlacedCage(stack, player, animal), "capture_blocked");
     }
 
     @Override

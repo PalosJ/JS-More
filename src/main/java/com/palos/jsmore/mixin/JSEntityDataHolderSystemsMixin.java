@@ -1,8 +1,8 @@
 package com.palos.jsmore.mixin;
 
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSEntityDataHolder;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSEntityDataHolder;
 import net.minecraft.nbt.CompoundTag;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

@@ -16,7 +16,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalLong;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.DeltaTracker;
@@ -134,6 +134,7 @@ public final class DinoDoctorOverlayRenderer {
 
         ObservedTarget target = resolveObservedTargetCached(minecraft);
         if (target == null) {
+            ClientAnimalObservationCache.stopObserving();
             ClientCaptureCageObservationCache.stopObserving(minecraft.level);
             return;
         }
@@ -142,14 +143,17 @@ public final class DinoDoctorOverlayRenderer {
             renderAnimalOverlay(guiGraphics, minecraft, target.animal());
             return;
         }
+        ClientAnimalObservationCache.stopObserving();
         renderCaptureBoxOverlay(guiGraphics, minecraft, target.cageTarget());
     }
 
     private static void renderAnimalOverlay(GuiGraphics guiGraphics, Minecraft minecraft, JSAnimalBase animal) {
-        DinosaurObservationSnapshot snapshot = DinosaurObservationSystem.capture(animal)
-                .withEggLayingProgress(ClientEggLayingProgressCache.getOrRequest(animal));
+        DinosaurObservationSnapshot snapshot = ClientAnimalObservationCache.getOrRequest(animal).orElse(null);
+        if (snapshot == null) return;
+        var visible = com.palos.jsmore.compat.jade.JadeAnimalTooltipPolicy.visibleFields(guiGraphics, animal.level(), animal.getUUID());
+        if (visible.genes()) snapshot = snapshot.withoutGenes();
         DinosaurDnaVisualResolver.DnaVisual dnaVisual = DinosaurDnaVisualResolver.resolve(animal);
-        List<OverlayLine> lines = createObservationLines(snapshot);
+        List<OverlayLine> lines = createObservationLines(snapshot, visible);
         Optional<OverlayLine> eggProgressLine = createEggProgressLine(snapshot);
         PanelMeasurements measurements = measureObservationPanel(minecraft, snapshot, lines, eggProgressLine);
         int virtualWidth = Mth.floor(guiGraphics.guiWidth() / OVERLAY_SCALE);
@@ -292,11 +296,16 @@ public final class DinoDoctorOverlayRenderer {
     }
 
     static List<OverlayLine> createObservationLines(DinosaurObservationSnapshot snapshot) {
+        return createObservationLines(snapshot, com.palos.jsmore.compat.jade.JadeAnimalTooltipPolicy.Fields.NONE);
+    }
+
+    private static List<OverlayLine> createObservationLines(DinosaurObservationSnapshot snapshot,
+            com.palos.jsmore.compat.jade.JadeAnimalTooltipPolicy.Fields visible) {
         List<OverlayLine> lines = new ArrayList<>();
         lines.add(OverlayLine.title(snapshot.displayName(), 0xDDEEFF));
         lines.add(OverlayLine.labeled(Component.translatable("overlay.jsmore.age.label"), formatAge(snapshot), 0xBFD1E6));
-        lines.add(OverlayLine.labeled(Component.translatable("overlay.jsmore.health"), formatHealth(snapshot), 0xBFD1E6));
-        lines.add(OverlayLine.labeled(Component.translatable("overlay.jsmore.gender"), formatGender(snapshot), 0xBFD1E6));
+        if (!visible.health()) lines.add(OverlayLine.labeled(Component.translatable("overlay.jsmore.health"), formatHealth(snapshot), 0xBFD1E6));
+        if (!visible.sex()) lines.add(OverlayLine.labeled(Component.translatable("overlay.jsmore.gender"), formatGender(snapshot), 0xBFD1E6));
         lines.add(createVitalProgressLine(
                 Component.translatable("overlay.jsmore.hunger"),
                 snapshot.hungerPercent(),
@@ -960,7 +969,7 @@ public final class DinoDoctorOverlayRenderer {
     public static void clearCache() {
         clearTargetCache();
         DinosaurDnaVisualResolver.clearCache();
-        ClientEggLayingProgressCache.clearCache();
+        ClientAnimalObservationCache.clearCache();
         ClientCaptureCageObservationCache.clearCache();
     }
 

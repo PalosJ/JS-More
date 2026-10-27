@@ -50,6 +50,9 @@ public final class DinosaurCaptureCageItemHandler implements IItemHandler {
         if (simulate) {
             return remainder;
         }
+        if (!DinosaurCaptureService.prepareSupplyInput(this.owner) || resolveOwner() == null) return stack.copy();
+        current = this.owner.getSupplies();
+        if (current.isFull(type)) return stack.copy();
         DinosaurCaptureSupplies updated = current.add(type, 1);
         return this.owner.setContents(this.owner.getCapturedDinosaur(), updated)
                 ? remainder

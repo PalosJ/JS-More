@@ -9,10 +9,10 @@ import com.palos.jsmore.server.registry.JSMoreItems;
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
 import java.util.List;
 import java.util.UUID;
-import jp.jurassicsaga.server.animal.JSAnimals;
-import jp.jurassicsaga.server.animal.animals.obj.JSAnimal;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.modules.obj.JSMetabolismModule;
+import jp.jurassicsaga.server.entity.animal.JSAnimals;
+import jp.jurassicsaga.server.entity.animal.animals.obj.JSAnimal;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.modules.obj.JSMetabolismModule;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -643,7 +643,7 @@ public final class DinosaurCaptureSupplyGameTests {
         JSAnimalBase restored = settled == null
                 ? null
                 : DinosaurCaptureService.createTemporaryAnimal(helper.getLevel(), settled).orElse(null);
-        int expectedHunger = Math.min(maxHunger, threshold - 1 + 8_500);
+        int expectedHunger = threshold - 1;
         if (settled == null
                 || restored == null
                 || settled.durability() != CapturedDinosaurData.MAX_DURABILITY - 1
@@ -651,11 +651,18 @@ public final class DinosaurCaptureSupplyGameTests {
                 || settled.vitals().capturedRelativeTicks() != 0
                 || settled.lastSettledGameTime() != now
                 || restored.getModules().getMetabolismModule().getHunger() != expectedHunger
-                || cage.getSupplies().carnivore() + cage.getSupplies().herbivore() != 0) {
+                || cage.getSupplies().carnivore() + cage.getSupplies().herbivore() != 1) {
             helper.fail("One-tick care pass skipped elapsed durability/vitals history before feeding");
             return;
         }
-        helper.succeed();
+        helper.runAfterDelay(20L, () -> {
+            DinosaurCaptureService.settlePlacedCage(cage);
+            var after = DinosaurCaptureService.createTemporaryAnimal(helper.getLevel(), cage.getCapturedDinosaur()).orElseThrow();
+            helper.assertTrue(after.getModules().getMetabolismModule().getHunger() == Math.min(maxHunger, threshold - 1 + 8_500),
+                    "The next chronological care pass did not feed");
+            helper.assertTrue(cage.getSupplies().carnivore() + cage.getSupplies().herbivore() == 0, "Food was not consumed exactly once");
+            helper.succeed();
+        });
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 120)
@@ -692,13 +699,19 @@ public final class DinosaurCaptureSupplyGameTests {
 
         CapturedDinosaurData settled = cage.getCapturedDinosaur();
         if (settled == null
-                || cage.getSupplies().anesthetic() != 0
+                || cage.getSupplies().anesthetic() != 1
                 || settled.relativeAnestheticNbt().getLong("ActiveRemainingTicks") != 1_199L
-                || settled.relativeAnestheticNbt().getList("PendingDoses", Tag.TAG_COMPOUND).size() != 1) {
+                || settled.relativeAnestheticNbt().getList("PendingDoses", Tag.TAG_COMPOUND).size() != 0) {
             helper.fail("Anesthetic boundary was evaluated before advancing the elapsed tick");
             return;
         }
-        helper.succeed();
+        helper.runAfterDelay(20L, () -> {
+            DinosaurCaptureService.settlePlacedCage(cage);
+            helper.assertTrue(cage.getSupplies().anesthetic() == 0, "Next care pass did not consume syringe");
+            helper.assertTrue(cage.getCapturedDinosaur().relativeAnestheticNbt().getList("PendingDoses", Tag.TAG_COMPOUND).size() == 1,
+                    "Next care pass did not queue one dose");
+            helper.succeed();
+        });
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 120)
@@ -756,7 +769,7 @@ public final class DinosaurCaptureSupplyGameTests {
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 120)
-    public static void offlineHistoryConsumesAtMostOneReservePerLoadedCarePass(GameTestHelper helper) {
+    public static void offlineHistoryFollowsCareCadenceAndDoesNotRepeatAtSameTime(GameTestHelper helper) {
         JSAnimalBase animal = createAnimalWithHunger(helper);
         DinosaurCaptureCageBlockEntity cage = placeController(helper, helper.absolutePos(new BlockPos(5, 2, 16)));
         if (animal == null || cage == null || helper.getLevel().getGameTime() <= 0L) {
@@ -802,7 +815,8 @@ public final class DinosaurCaptureSupplyGameTests {
         if (afterFirstData == null
                 || afterFirst.carnivore() + afterFirst.herbivore() != 1
                 || !afterFirst.equals(cage.getSupplies())
-                || afterFirstData.vitals().lastAutoCareGameTime().orElse(-1L) != now
+                || afterFirstData.vitals().lastAutoCareGameTime().orElse(-1L) > now
+                || afterFirstData.vitals().lastAutoCareGameTime().orElse(-1L) < now - 19L
                 || !afterFirstData.equals(cage.getCapturedDinosaur())) {
             helper.fail("Offline history consumed more than one reserve or repeated care in one gameTime");
             return;

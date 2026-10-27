@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.palos.jsmore.compat.aeronautics.CaptureBoxWorldContext;
+import com.palos.jsmore.network.CaptureCageObservationRequestPayload;
 import com.palos.jsmore.server.system.age.DinosaurAgeEstimate;
 import com.palos.jsmore.server.system.size.DinosaurLifecycleStage;
 import com.palos.jsmore.system.observation.CaptureCageObservationSnapshot;
@@ -45,19 +46,34 @@ class ClientCaptureCageObservationCacheTest {
     }
 
     @Test
-    void currentLastKnownGoodStaysVisibleBeyondFourHundredTicks() {
+    void lostRefreshRetriesAndOldSnapshotStopsBeingPresentedAsCurrent() {
         CaptureCageObservationSnapshot snapshot = snapshot();
         seed(POS, 0L, snapshot);
         List<BlockPos> requests = new ArrayList<>();
-
-        for (long tick : new long[]{100L, 200L, 300L, 401L}) {
-            assertEquals(
-                    Optional.of(snapshot),
-                    ClientCaptureCageObservationCache.getOrRequest(stamp(tick), POS, requests::add)
-            );
+        assertEquals(Optional.of(snapshot), ClientCaptureCageObservationCache.getOrRequest(stamp(100L), POS, requests::add));
+        for (long tick : new long[]{200L, 300L, 401L}) {
+            assertTrue(ClientCaptureCageObservationCache.getOrRequest(stamp(tick), POS, requests::add).isEmpty());
         }
+        assertEquals(List.of(POS, POS, POS, POS), requests);
+    }
 
-        assertEquals(List.of(POS), requests);
+    @Test
+    void lateReplyCannotConsumeRetriedRequestOrCrossSessionAndDimension() {
+        var identity = movingIdentity(null);
+        List<CaptureCageObservationRequestPayload> requests = new ArrayList<>();
+        ClientCaptureCageObservationCache.getOrRequestTracked(stamp(0L), POS, identity, true, requests::add);
+        ClientCaptureCageObservationCache.getOrRequestTracked(stamp(79L), POS, identity, true, requests::add);
+        assertEquals(1, requests.size());
+        ClientCaptureCageObservationCache.getOrRequestTracked(stamp(80L), POS, identity, true, requests::add);
+        assertEquals(2, requests.size());
+        assertFalse(ClientCaptureCageObservationCache.acceptsReply(stamp(81L), requests.getFirst()));
+        assertTrue(ClientCaptureCageObservationCache.acceptsReply(stamp(81L), requests.getLast()));
+        var wrongDimension = new CaptureCageObservationRequestPayload(POS,
+                ResourceLocation.withDefaultNamespace("the_nether"), requests.getLast().requestId());
+        assertFalse(ClientCaptureCageObservationCache.acceptsReply(stamp(81L), wrongDimension));
+        assertEquals(1, ClientCaptureCageObservationCache.wireRequestCount());
+        assertFalse(ClientCaptureCageObservationCache.acceptsReply(
+                new ClientOverlaySessionClock.Stamp(2L, DIMENSION, 0L), requests.getLast()));
     }
 
     @Test
@@ -138,13 +154,13 @@ class ClientCaptureCageObservationCacheTest {
     }
 
     @Test
-    void nonCurrentSnapshotIsUsableAtTwoHundredTicksButNotTwoHundredOne() {
+    void nonCurrentSnapshotIsUsableBrieflyAndEventuallyEvicted() {
         CaptureCageObservationSnapshot snapshot = snapshot();
         seed(POS, 0L, snapshot);
         ClientCaptureCageObservationCache.stopObserving(stamp(0L));
 
         assertEquals(Optional.of(snapshot), ClientCaptureCageObservationCache.getOrRequest(
-                stamp(200L), POS, ignored -> { }
+                stamp(100L), POS, ignored -> { }
         ));
 
         ClientCaptureCageObservationCache.clearCache();
@@ -264,7 +280,7 @@ class ClientCaptureCageObservationCacheTest {
     }
 
     @Test
-    void lostOldReplyKeepsTheReusedWirePlotClosedUntilTheClientSessionChanges() {
+    void lostOldReplyReopensThePlotWithANewNonceAfterTimeout() {
         CaptureBoxWorldContext.SpaceIdentity oldIdentity = movingIdentity(UUID.randomUUID());
         CaptureBoxWorldContext.SpaceIdentity newIdentity = movingIdentity(UUID.randomUUID());
         List<BlockPos> requests = new ArrayList<>();
@@ -279,14 +295,14 @@ class ClientCaptureCageObservationCacheTest {
                 stamp(Long.MAX_VALUE), POS, newIdentity, true, requests::add
         );
 
-        assertEquals(List.of(POS), requests);
-        assertEquals(1, ClientCaptureCageObservationCache.tombstoneCount());
+        assertEquals(List.of(POS, POS), requests);
+        assertEquals(0, ClientCaptureCageObservationCache.tombstoneCount());
 
         ClientOverlaySessionClock.Stamp nextSession = new ClientOverlaySessionClock.Stamp(2L, DIMENSION, 0L);
         ClientCaptureCageObservationCache.getOrRequest(
                 nextSession, POS, newIdentity, true, requests::add
         );
-        assertEquals(List.of(POS, POS), requests);
+        assertEquals(List.of(POS, POS, POS), requests);
         assertEquals(0, ClientCaptureCageObservationCache.tombstoneCount());
     }
 

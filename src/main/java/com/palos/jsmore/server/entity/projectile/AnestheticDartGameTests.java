@@ -4,9 +4,9 @@ import com.palos.jsmore.JSMore;
 import com.palos.jsmore.server.registry.JSMoreAttachments;
 import com.palos.jsmore.server.registry.JSMoreEntityTypes;
 import com.palos.jsmore.server.registry.JSMoreItems;
-import jp.jurassicsaga.server.animal.JSAnimals;
-import jp.jurassicsaga.server.animal.animals.obj.JSAnimal;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.JSAnimals;
+import jp.jurassicsaga.server.entity.animal.animals.obj.JSAnimal;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
@@ -30,6 +30,27 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @PrefixGameTestTemplate(false)
 public final class AnestheticDartGameTests {
     private AnestheticDartGameTests() {
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 100)
+    public static void weakAndLowHealthAnimalsSurviveRepeatedDartsWithoutHealing(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        for (String species : java.util.List.of("mosquito", "goat")) {
+            JSAnimalBase animal = (JSAnimalBase) JSAnimals.getAnimal("jurassicsaga:" + species).getEntityType().get().create(helper.getLevel());
+            if (animal == null) throw new IllegalStateException("Missing dart fixture " + species);
+            animal.setPos(helper.absolutePos(new BlockPos(5, 3, 5)).getCenter());
+            animal.setHealth(Math.min(0.25F, animal.getMaxHealth()));
+            helper.getLevel().addFreshEntity(animal);
+            for (int hit = 0; hit < 3; hit++) {
+                float health = animal.getHealth();
+                animal.invulnerableTime = 0;
+                AnestheticDartEntity dart = createDart(helper, player);
+                dart.onHitEntity(new EntityHitResult(animal, animal.getBoundingBox().getCenter()));
+                helper.assertTrue(animal.isAlive() && animal.getHealth() <= health, "Dart killed or healed " + species);
+                helper.assertTrue(animal.hasData(JSMoreAttachments.ANESTHETIC), "Low-health hit did not deliver anesthetic");
+            }
+        }
+        helper.succeed();
     }
 
     @GameTest(template = "profile_compatibility", timeoutTicks = 200)

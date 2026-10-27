@@ -23,14 +23,16 @@ On a new machine, resolve dependencies online first. Keep dependency verificatio
 
 | Profile | Jurassic Saga | Travelers |
 | --- | --- | --- |
-| `legacy` | 0.2.1 | 0.7.2 |
-| `current` (default) | 0.2.3 | 0.8.2.2 |
+| `current` (default, 1.1.0) | 0.3 | 1.0 |
 
-Only the legacy profile accepts `-PtravelersRuntimeVersion=0.7.1` for its additional server regression. Platform-specific Modrinth file IDs are pinned in the build because numerical version coordinates can resolve to another Minecraft version.
+Old-host regression uses the preserved public 1.0.0 artifact separately, never the
+1.1.0 source set. Platform-specific file IDs are pinned in Gradle and the generated
+Maven POM because numerical version coordinates can resolve to another Minecraft
+version. The release audit checks both required file IDs.
 
-`physicsProfile` selects Aeronautics/Simulated 1.3.0 + Sable 2.0.3 (`legacy`), or 1.3.2 + 2.0.5 (`current`), with Create 6.0.10. It defaults to the upstream profile. Keep archive and runtime structure checks for both exact sets; mixed and unknown sets must remain disabled.
+`physicsProfile` selects Aeronautics/Simulated 1.3.0 + Sable 2.0.3 (`legacy`), or 1.3.2 + 2.0.5 (`current`), with Create 6.0.10. It defaults to `current`. Keep archive and runtime structure checks for both exact sets; mixed and unknown sets must remain disabled.
 
-Each upstream runs these runtime profiles:
+The current baseline runs these runtime profiles:
 
 | `runtimeProfile` | Loaded environment |
 | --- | --- |
@@ -39,18 +41,17 @@ Each upstream runs these runtime profiles:
 | `aeronautics` | Adds the selected exact physics stack |
 | `pack-interop` | Also adds the approved Create coexistence mods |
 
-Run both physics choices for each upstream's two physics profiles. Also check both upstreams on NeoForge 21.1.250, retaining 21.1.232 as the build baseline. The CI matrix and build declarations are the exact version source of truth.
+Run both physics choices for the two physics runtime profiles. Also check the current baseline on NeoForge 21.1.250, retaining 21.1.232 as the build baseline. The CI matrix and build declarations are the exact version source of truth.
 
-JUnit uses a separate game directory for every dependency combination. Do not copy the current host's generated configuration into a legacy test: upstream configuration formats can differ even when JS More supports both binaries.
+JUnit uses a separate game directory for every dependency combination. Do not copy the current host's generated configuration into a legacy test: upstream configuration formats can differ when testing the old public artifact.
 
 ## Verification
 
 macOS/Linux example:
 
 ```sh
-sh ./gradlew test runGameTestServer assemble -PupstreamProfile=legacy -PruntimeProfile=minimal --warning-mode all --console=plain
+sh ./gradlew test runGameTestServer assemble -PupstreamProfile=current -PruntimeProfile=minimal --warning-mode all --console=plain
 sh ./gradlew test runGameTestServer assemble -PupstreamProfile=current -PruntimeProfile=pack-interop -PphysicsProfile=current --warning-mode all --console=plain
-sh ./gradlew runGameTestServer -PupstreamProfile=legacy -PruntimeProfile=minimal -PtravelersRuntimeVersion=0.7.1 --console=plain
 ```
 
 Windows example:
@@ -63,7 +64,19 @@ Use `--rerun-tasks` when a fresh execution is required; changing a profile or de
 
 For dedicated-server acceptance, run `runServer` for every approved environment, wait for `Done`, send `stop`, and require exit 0. `-PserverSmoke=true` selects an ephemeral port. `-PrunDirectory=<directory>` isolates development/test worlds and configs; use only test directories with the owner's existing EULA acceptance. Minimum-profile logs must show that optional implementations are absent.
 
-For configuration changes, cover fresh installation, both old biome values, repeated restart, manual opt-in after migration, and each SERVER switch independently. Test disabled breeding with existing pending eggs, then re-enable it. Keep anesthesia, data preservation and age migration independent of these switches.
+For configuration changes, cover defaults, retained biome/debug choices, removed
+old boolean keys, repeated restart and every new despawn mode. No config migration
+is expected. Verify capture history across success/failure/reload/recapture and that
+children do not inherit it. Test upstream breeding and one-time legacy pending eggs.
+Compare short-step and long-gap transport settlement, resource exhaustion, clock
+rollback, starvation boundaries, low health and growth-stage transitions. Test new
+supply deposits after elapsed history, occupied item expiry and normal empty boxes.
+
+Actual client acceptance covers hidden/disabled Jade, full goggles display, target
+and world changes, flying/aquatic anesthesia and waking animation. Include an
+isolated husbandry/transport workflow and at least one hour of sustained operation;
+record tick time, memory, network and supplies. List any unperformed acceptance
+separately; server GameTests do not establish client visual correctness.
 
 Measure hot paths before changing them. Record workload, accepted requests or transferred items, timing and data invariants. Helper microbenchmarks and short GameTests do not establish whole-server performance or long-duration pack stability.
 
@@ -78,7 +91,7 @@ The dry run must not publish anything. Audit the actual final JAR, including met
 
 Code, ordinary data and docs use MIT; only verified original visuals use the visual-assets license. Read LICENSE, THIRD_PARTY_NOTICES.md and ASSET_PROVENANCE.md before changing packaged assets.
 
-Public `1.0.0 Alpha` and `1.0.0 Release` are distinct records. The stable release retains `jsmore` identity and protocol `7`. Preserve existing age-migration markers; never restart a migration just because the release version changes. Later substantive releases increment from `1.0.1` unless explicitly approved otherwise.
+Public `1.0.0 Alpha` and `1.0.0 Release` are distinct records. 1.1.0 retains `jsmore` identity and uses protocol `8`, while public 1.0.0 uses `7`. Preserve existing age-migration markers; never restart a migration just because the release version changes. The user-approved compatibility release is 1.1.0; do not increment it again for fixes inside the same release.
 
 ## Review and external actions
 

@@ -13,20 +13,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - profile: legacy-minimal
-            arguments: -PupstreamProfile=legacy -PruntimeProfile=minimal -PphysicsProfile=legacy
-          - profile: legacy-default
-            arguments: -PupstreamProfile=legacy -PruntimeProfile=default -PphysicsProfile=legacy
-          - profile: legacy-aeronautics-legacy
-            arguments: -PupstreamProfile=legacy -PruntimeProfile=aeronautics -PphysicsProfile=legacy
-          - profile: legacy-aeronautics-current
-            arguments: -PupstreamProfile=legacy -PruntimeProfile=aeronautics -PphysicsProfile=current
-          - profile: legacy-pack-interop-legacy
-            arguments: -PupstreamProfile=legacy -PruntimeProfile=pack-interop -PphysicsProfile=legacy
-          - profile: legacy-pack-interop-current
-            arguments: -PupstreamProfile=legacy -PruntimeProfile=pack-interop -PphysicsProfile=current
-          - profile: legacy-minimal-neo-21.1.250
-            arguments: -PupstreamProfile=legacy -PruntimeProfile=minimal -Pneo_version=21.1.250
           - profile: current-minimal
             arguments: -PupstreamProfile=current -PruntimeProfile=minimal -PphysicsProfile=current
           - profile: current-default
@@ -72,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        travelers: ['0.7.1']
+        travelers: ['1.0']
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -92,7 +78,7 @@ jobs:
       - name: Start GameTest dedicated server with exact Travelers binary
         run: >-
           ./gradlew runGameTestServer
-          -PruntimeProfile=minimal -PupstreamProfile=legacy
+          -PruntimeProfile=minimal -PupstreamProfile=current
           -PtravelersRuntimeVersion=${{ matrix.travelers }}
           --rerun-tasks --warning-mode all --console=plain
 

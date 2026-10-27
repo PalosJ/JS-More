@@ -1,6 +1,7 @@
 package com.palos.jsmore.compat.jurassicsaga;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -223,7 +224,7 @@ class JurassicSagaBreedingCompatibilityGateTest {
                 .toList();
         assertEquals(1, despawnRedirects.size());
         MethodNode redirect = despawnRedirects.getFirst();
-        assertEquals(CHECK_DESPAWN_REMOVAL_DESCRIPTOR, redirect.desc);
+        assertEquals(CHECK_DESPAWN_REMOVAL_DESCRIPTOR.replace("server/animal/", "server/entity/animal/"), redirect.desc);
         AnnotationNode redirectAnnotation =
                 annotation(redirect, REDIRECT_DESCRIPTOR);
         assertEquals(2, annotationValue(redirectAnnotation, "require"));
@@ -249,9 +250,9 @@ class JurassicSagaBreedingCompatibilityGateTest {
                 projectRoot().resolve("src/main/resources/jsmore.mixins.json"),
                 StandardCharsets.UTF_8
         );
+        assertFalse(mixins.contains("\"JSAnimalBreedingMixin\""));
+        assertFalse(mixins.contains("\"JSEntityBreedingMixin\""));
         for (String name : List.of(
-                "JSAnimalBreedingMixin",
-                "JSEntityBreedingMixin",
                 "OstrichPeriodicEggBreedingMixin",
                 "AlligatorPeriodicEggBreedingMixin",
                 "ReedFrogPeriodicEggBreedingMixin",
@@ -441,7 +442,7 @@ class JurassicSagaBreedingCompatibilityGateTest {
     }
 
     private static Path projectRoot() {
-        Path current = Path.of("").toAbsolutePath().normalize();
+        Path current = Path.of(System.getProperty("jsmore.test.project-root", "")).toAbsolutePath().normalize();
         while (current != null && !Files.isRegularFile(current.resolve("gradle.properties"))) {
             current = current.getParent();
         }

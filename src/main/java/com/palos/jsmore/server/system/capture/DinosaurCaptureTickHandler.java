@@ -31,6 +31,7 @@ public final class DinosaurCaptureTickHandler {
     public static void onEntityTickPre(EntityTickEvent.Pre event) {
         if (event.getEntity() instanceof ItemEntity itemEntity
                 && itemEntity.level() instanceof ServerLevel level) {
+            OccupiedCaptureDropProtection.maintain(itemEntity);
             RecoveryCarrierService.rescueBeforeTick(itemEntity, level);
         }
     }

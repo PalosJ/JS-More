@@ -5,7 +5,7 @@ import collinvht.travelers.client.render.animation.entity.TravelersAnimationData
 import collinvht.travelers.client.render.animation.entity.obj.TravelersClientAnimator;
 import collinvht.travelers.server.animal.entity.SmartAnimalBase;
 import java.util.Map;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -19,7 +19,7 @@ public abstract class TravelersClientAnimatorMixin {
     @Final
     protected Map<String, TravelersAnimationData> boneOffsetCache;
 
-    @Inject(method = "update", at = @At("HEAD"), cancellable = true, require = 0)
+    @Inject(method = "update(Lcollinvht/travelers/server/animal/entity/SmartAnimalBase;F)V", at = @At("HEAD"), cancellable = true, require = 1)
     private void jsmore$skipSleepingProceduralUpdate(
             SmartAnimalBase animatable,
             float partialTick,
@@ -37,7 +37,7 @@ public abstract class TravelersClientAnimatorMixin {
         }
     }
 
-    @Inject(method = "clientTick", at = @At("HEAD"), cancellable = true, require = 0)
+    @Inject(method = "clientTick", at = @At("HEAD"), cancellable = true, require = 1)
     private void jsmore$skipSleepingClientTick(SmartAnimalBase animatable, CallbackInfo callbackInfo) {
         if (animatable instanceof JSAnimalBase animal
                 && DinosaurAnestheticSystem.shouldSkipClientProceduralAnimation(animal)) {

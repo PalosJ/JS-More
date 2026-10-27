@@ -10,15 +10,14 @@
     "EntityTypeSpawnEggMixin",
     "JSAnimalAnimationSystemsMixin",
     "JSAnimalBaseSystemsMixin",
-    "JSAnimalBreedingMixin",
     "JSAnimalDespawnMixin",
+    "JSGrowthStageCaptureMixin",
+    "JSReproductionModuleMixin",
+    "JurassicSagaFoodSearchMixin",
     "JSAquaticBaseSystemsMixin",
     "JSAvianBaseSystemsMixin",
-    "JurassicSagaFindFoodTaskMixin",
-    "JurassicSagaGatherCandidatesMixin",
     "JSTerrablenderMixin",
     "JSEntityDataHolderSystemsMixin",
-    "JSEntityBreedingMixin",
     "LivingEntityTravelMixin",
     "MultiNoiseBiomeSourceMixin",
     "OstrichPeriodicEggBreedingMixin",
@@ -26,19 +25,19 @@
     "TravelersAnimationDefinitionMixin",
     "TravelersAnimalAnimationModuleAccessor",
     "TravelersSmartAnimalBaseMixin",
+    "TravelersPathExecutorMixin",
     "aeronautics.SableSubLevelAssemblyHelperMixin",
     "aeronautics.SimAssemblyContraptionMixin"
   ],
   "client": [
     "client.AzEntityDispatchCommandPacketMixin",
     "client.CustomHeadLayerMixin",
-    "client.JurassicSagaJadePluginMixin",
     "client.LevelRendererDestroyProgressMixin",
     "client.TravelersClientAnimatorMixin",
     "client.TravelersAzureModelRendererMixin"
   ],
   "server": [
-    "server.TravelersHandler1211ServerMixin"
+
   ],
   "injectors": {
     "defaultRequire": 1

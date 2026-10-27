@@ -3,7 +3,7 @@ package com.palos.jsmore.server.entity.projectile;
 import com.palos.jsmore.server.registry.JSMoreEntityTypes;
 import com.palos.jsmore.server.registry.JSMoreItems;
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;

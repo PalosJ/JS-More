@@ -42,9 +42,16 @@ class CapturePresentationTest {
 
     @Test
     void onlyFiltersJadeAnimalDetailsWhileGogglesAreWorn() {
-        assertFalse(JadeAnimalTooltipPolicy.shouldFilter(true, false));
-        assertFalse(JadeAnimalTooltipPolicy.shouldFilter(false, true));
-        assertTrue(JadeAnimalTooltipPolicy.shouldFilter(true, true));
+        Object graphics = new Object(), world = new Object();
+        java.util.UUID target = java.util.UUID.randomUUID();
+        var visible = new JadeAnimalTooltipPolicy.Fields(true, true, false);
+        JadeAnimalTooltipPolicy.recordRendered(graphics, world, target, visible);
+        assertEquals(visible, JadeAnimalTooltipPolicy.visibleFields(graphics, world, target));
+        assertEquals(JadeAnimalTooltipPolicy.Fields.NONE, JadeAnimalTooltipPolicy.visibleFields(new Object(), world, target));
+        assertEquals(JadeAnimalTooltipPolicy.Fields.NONE, JadeAnimalTooltipPolicy.visibleFields(graphics, new Object(), target));
+        assertEquals(JadeAnimalTooltipPolicy.Fields.NONE, JadeAnimalTooltipPolicy.visibleFields(graphics, world, java.util.UUID.randomUUID()));
+        JadeAnimalTooltipPolicy.clearFrame();
+        assertEquals(JadeAnimalTooltipPolicy.Fields.NONE, JadeAnimalTooltipPolicy.visibleFields(graphics, world, target));
     }
 
     @Test

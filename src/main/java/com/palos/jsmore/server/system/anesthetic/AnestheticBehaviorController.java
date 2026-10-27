@@ -6,7 +6,7 @@ import collinvht.travelers.server.animal.entity.task.TravelerTaskController;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 
 final class AnestheticBehaviorController {
     private AnestheticBehaviorController() {
@@ -35,8 +35,9 @@ final class AnestheticBehaviorController {
                 continue;
             }
             try {
-                task.getGoals().forEach(controller::stopTask);
-                task.actuallyStop();
+                java.util.List.copyOf(task.getGoals()).forEach(controller::stopTask);
+                // Travelers 1.0 stopTask already calls onStop/cleanUp for occupied tasks.
+                if (task.isRunning()) task.actuallyStop();
             } catch (RuntimeException exception) {
                 task.stop();
                 JSMore.LOGGER.error(

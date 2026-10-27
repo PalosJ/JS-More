@@ -3,10 +3,10 @@ package com.palos.jsmore.server.system.anesthetic;
 import com.palos.jsmore.server.registry.JSMoreAttachments;
 import com.palos.jsmore.server.system.size.DinosaurSizeProfile;
 import com.palos.jsmore.server.system.size.DinosaurSizeSystem;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAquaticBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAvianBase;
-import jp.jurassicsaga.server.animal.entity.obj.info.AnimalDietType;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAquaticBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAvianBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.info.AnimalDietType;
 import net.minecraft.util.Mth;
 
 final class AnestheticStateService {
@@ -23,10 +23,14 @@ final class AnestheticStateService {
     }
 
     static void queueInjection(JSAnimalBase animal) {
+        queueCapturedInjection(animal, animal.level().getGameTime());
+        animal.syncData(JSMoreAttachments.ANESTHETIC);
+    }
+
+    static void queueCapturedInjection(JSAnimalBase animal, long gameTime) {
         AnestheticData data = animal.getData(JSMoreAttachments.ANESTHETIC);
         int reducedDelay = Math.max(0, resolveDelayTicks(animal) - data.pendingDoseCount() * 40);
-        data.queueDose(animal.level().getGameTime(), reducedDelay, resolveDurationTicks(animal));
-        animal.syncData(JSMoreAttachments.ANESTHETIC);
+        data.queueDose(gameTime, reducedDelay, resolveDurationTicks(animal));
     }
 
     static boolean update(JSAnimalBase animal) {

@@ -10,9 +10,9 @@ import collinvht.travelers.client.azure.common.render.AzRendererPipelineContext;
 import collinvht.travelers.client.render.animation.entity.obj.TravelersClientAnimator;
 import collinvht.travelers.client.render.animal.azure.TravelersAzureModelRenderer;
 import collinvht.travelers.server.animal.entity.SmartAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAquaticBase;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAvianBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAquaticBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAvianBase;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -47,13 +47,24 @@ public abstract class TravelersAzureModelRendererMixin {
                 && this.animalAnimator != null
                 && DinosaurAnestheticSystem.shouldSkipClientProceduralAnimation(animal)) {
             this.animalAnimator.remove(animal);
-            this.animalAnimator.beginFrame();
             DinosaurAnestheticSystem.logSleepAnimationTrace(
                     animal,
                     "client_renderer_cache_cleared",
                     "method=render"
             );
         }
+    }
+
+    @org.spongepowered.asm.mixin.injection.Redirect(
+            method = "renderRecursively",
+            at = @At(value = "INVOKE", target = "Lcollinvht/travelers/client/render/animation/entity/obj/TravelersClientAnimator;frameBoneState(Ljava/lang/String;)Lcollinvht/travelers/client/render/animation/entity/obj/TravelersBoneState;"),
+            require = 1, allow = 1)
+    private collinvht.travelers.client.render.animation.entity.obj.TravelersBoneState jsmore$entityScopedBoneState(
+            TravelersClientAnimator animator, String boneName,
+            AzRendererPipelineContext<UUID, SmartAnimalBase> context, AzBone bone, boolean isReRender) {
+        if (context.animatable() instanceof JSAnimalBase animal
+                && DinosaurAnestheticSystem.shouldSkipClientProceduralAnimation(animal)) return null;
+        return animator.frameBoneState(boneName);
     }
 
     @Inject(

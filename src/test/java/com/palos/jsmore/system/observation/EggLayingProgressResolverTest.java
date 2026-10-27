@@ -23,23 +23,23 @@ class EggLayingProgressResolverTest {
 
     @Test
     void mapsKnownJurassicSagaEggTimerUpperBounds() {
-        assertKnownUpperBounds("jp.jurassicsaga.server.animal.entity.extant.terrestial.v1.");
-        assertKnownUpperBounds("jp.jurassicsaga.server.animal.entity.misc.misc_extant.");
+        assertKnownUpperBounds("jp.jurassicsaga.server.entity.animal.entity.extant.terrestial.v1.");
+        assertKnownUpperBounds("jp.jurassicsaga.server.entity.animal.entity.misc.misc_extant.");
     }
 
     @Test
     void keepsKnownJurassicSagaEggEligibilityAcrossPathMigration() {
         assertFalse(EggLayingProgressResolver.requiresDropGameRule(
-                "jp.jurassicsaga.server.animal.entity.misc.misc_extant.BasiliskEntity"
+                "jp.jurassicsaga.server.entity.animal.entity.misc.misc_extant.BasiliskEntity"
         ));
         assertTrue(EggLayingProgressResolver.requiresDropGameRule(
-                "jp.jurassicsaga.server.animal.entity.misc.misc_extant.ReedFrogEntity"
+                "jp.jurassicsaga.server.entity.animal.entity.misc.misc_extant.ReedFrogEntity"
         ));
         assertTrue(EggLayingProgressResolver.requiresDropGameRule(
-                "jp.jurassicsaga.server.animal.entity.misc.misc_extant.AlligatorEntity"
+                "jp.jurassicsaga.server.entity.animal.entity.misc.misc_extant.AlligatorEntity"
         ));
         assertTrue(EggLayingProgressResolver.requiresDropGameRule(
-                "jp.jurassicsaga.server.animal.entity.misc.misc_extant.OstrichEntity"
+                "jp.jurassicsaga.server.entity.animal.entity.misc.misc_extant.OstrichEntity"
         ));
     }
 

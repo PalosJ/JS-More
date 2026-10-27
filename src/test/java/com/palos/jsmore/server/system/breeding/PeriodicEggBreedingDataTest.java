@@ -383,6 +383,7 @@ class PeriodicEggBreedingDataTest {
         PeriodicEggBreedingData data = new PeriodicEggBreedingData();
         data.deserializeNBT(null, tag);
         assertFalse(data.isPending(), label);
+        assertEquals(tag, data.serializeNBT(null), "Invalid raw data must remain recoverable");
         assertTrue(data.maternalGeneData().isEmpty(), label);
     }
 

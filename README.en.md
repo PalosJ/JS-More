@@ -2,9 +2,9 @@
 
 [简体中文](README.md) | **English**
 
-JS More is a Jurassic Saga addon for **Minecraft 1.21.1 NeoForge**. It adds a way to sedate and transport dinosaurs, check their condition, and raise animals through feeding and breeding. An Egg Collector helps gather food for your egg-eating dinosaurs.
+JS More is a Jurassic Saga addon for **Minecraft 1.21.1 NeoForge**. It adds a way to sedate and transport dinosaurs, check their condition, and care for captured animals. An Egg Collector helps gather food for your egg-eating dinosaurs.
 
-Source version: **1.0.0 Release**. Download from [Modrinth](https://modrinth.com/mod/jurassic-saga-more). The public `1.0.0 Alpha` and this stable release are separate entries; check Modrinth for what is currently available.
+Source version: **1.1.0**. Download from [Modrinth](https://modrinth.com/mod/jurassic-saga-more). The source version does not imply an online release; check Modrinth for available files.
 
 ## Installation
 
@@ -12,10 +12,11 @@ Both the client and server need Java 21, NeoForge, and the **NeoForge 1.21.1 fil
 
 | Combination | JS More | Jurassic Saga | Travelers Lib |
 | --- | --- | --- | --- |
-| Current supported pair | 1.0.0 | [0.2.3](https://modrinth.com/mod/jurassic-saga/version/EzDlTUHi) | [0.8.2.2](https://modrinth.com/mod/travelers-lib/version/Aadzy3jP) |
+| New baseline | 1.1.0 | [0.3](https://modrinth.com/mod/jurassic-saga/version/nti1NZVa) | [1.0](https://modrinth.com/mod/travelers-lib/version/I9ua8Njp) |
+| Previous release | 1.0.0 | [0.2.3](https://modrinth.com/mod/jurassic-saga/version/EzDlTUHi) | [0.8.2.2](https://modrinth.com/mod/travelers-lib/version/Aadzy3jP) |
 | Legacy support | 1.0.0 | [0.2.1](https://modrinth.com/mod/jurassic-saga/version/YdbXbcFo) | [0.7.2](https://modrinth.com/mod/travelers-lib/version/vKc8KD7H) |
 
-The minimum tested NeoForge version is `21.1.232`, with additional coverage for `21.1.250`. Travelers `0.7.1` is retained for legacy dedicated-server regression checks; do not pair it with Jurassic Saga `0.2.3`. Different platforms may share a mod version number, so check the Minecraft version and loader when downloading.
+The NeoForge build baseline is `21.1.232`, with an acceptance matrix that also includes `21.1.250`. Travelers `0.7.1` is retained for legacy dedicated-server regression checks; do not pair it with Jurassic Saga `0.2.3`. Different platforms may share a mod version number, so check the Minecraft version and loader when downloading.
 
 Curios, Jade, TerraBlender, and the Aeronautics components are optional. Core features work without them.
 
@@ -31,35 +32,40 @@ A capture box occupies a 2×4-block footprint, stands 2 blocks tall, and has 500
 
 ## Keeping and breeding animals
 
-By default, Jurassic Saga land and water creatures no longer despawn because players move away or leave them alone for a long time. They can still take damage, and Jurassic Saga's existing persistence rules remain in place.
+By default, natural-despawn protection applies only to animals successfully captured in a JS More box. Their history survives release, recapture and reload; failed captures do not mark the animal, and offspring do not inherit it. All modes preserve upstream persistence and damage rules.
 
-For animals that breed by mating, feed both parents a food they accept. They must be the same species, opposite sexes, adult, fertile, and off their breeding cooldown. Jurassic Saga still handles courtship, genetics, and birth.
+Breeding follows Jurassic Saga in full, including natural mate search, requirements, genetics and birth. JS More no longer adds a feeding gate or creates new maternal-only fertile eggs. Existing valid pending eggs from older saves are fulfilled once, clearing only after successful spawning. Invalid or temporarily unspawnable data is retained.
 
-Ostriches, alligators, reed frogs, and basilisks lay eggs on their own cycles. Feed an eligible adult female to make her next egg a hatchable one carrying her genes. Ostriches eat seeds, alligators eat fish, and reed frogs and basilisks eat Jurassic Saga mosquitoes. After a successful fertile lay, feed her again for the next cycle. Pending eggs are preserved through saving, chunk reloads, and capture-box transport.
-
-Servers can turn despawn protection and the breeding changes off independently. See the configuration options below.
+Despawn protection is not a population limit. Protected animals, naturally persistent upstream animals and ordinary breeding can still increase enclosure populations. Manage space, supplies and animal numbers accordingly.
 
 ## Egg collection and observation
 
 The Egg Collector gathers dropped egg items within 16 blocks after roughly 5–5.5 seconds. It collects chicken eggs and Jurassic Saga alligator, ostrich, frog, basilisk, fish, and spider eggs. It leaves hatching eggs in place and does not keep chunks loaded. Right-click to open its 18 storage slots, or connect a hopper. Eggs that do not fit stay on the ground.
 
-Dino Doctor Goggles show health, sex, hunger, thirst, mood, growth, age, anesthesia, and egg-laying progress. Look at a capture box to check its supplies and durability. The goggles work in the normal head slot, with support for the appropriate Curios slot when Curios is installed.
+Dino Doctor Goggles use rate-limited server snapshots to show health, sex, hunger, thirst, mood, growth, estimated age, anesthesia and egg-laying progress. By default they omit only matching information actually rendered by Jade in that frame; full independent display is configurable. Look at a capture box to check its supplies and durability. The goggles work in the normal head slot, with support for the appropriate Curios slot when Curios is installed.
 
 Before adulthood, displayed age follows growth progress. After adulthood, it increases by one day for each in-game day's worth of server runtime. Sleeping or using `/time` to skip daylight does not suddenly add years. Older adult dinosaurs that have not received the age correction are adjusted once; previously corrected animals are not reset again.
 
-## Configuration
+## Configuration and upgrading
 
-| File and option | Default | Effect |
+| File scope and option | Default | Effect |
 | --- | --- | --- |
-| `config/jsmore-common.toml` → `disable_jurassicsaga_biome_generation` | `false` | Optionally disables Jurassic Saga biome generation |
-| `jsmore-server.toml` → `prevent_jurassicsaga_animal_despawn` | `true` | Prevents land and water creatures from despawning due to distance or inactivity |
-| `jsmore-server.toml` → `enable_player_fed_breeding` | `true` | Enables feeding-based breeding and fertile eggs on periodic laying cycles |
+| COMMON `disable_jurassicsaga_biome_generation` | `false` | Optional biome-generation fallback; restart required, existing chunks unchanged |
+| COMMON `debug_logging` | `false` | Additional diagnostics |
+| SERVER `animal_despawn_protection` | `CAPTURED_ONLY` | `OFF`: upstream rules; `CAPTURED_ONLY`: captured animals; `ALL`: also land/water categories |
+| CLIENT `show_full_goggles_information` | `false` | Always show full goggles information when enabled |
 
-**Jurassic Saga biomes generate normally by default.** If they conflict with other biome mods in your pack, set the biome-disable option to `true`. This is a simple fallback for those conflicts. Restart the game or server to apply it; existing chunks will not be regenerated.
+Files are `jsmore-common.toml`, `jsmore-server.toml` and `jsmore-client.toml`. The server owns and synchronizes despawn policy. A world's `serverconfig/jsmore-server.toml` may override the global file; restart the world/server after changing this mode.
 
-When upgrading to this stable release, the biome-disable setting in an old-format config resets to `false` once. A backup is kept beside the original file with a `.pre-schema-1.bak` suffix, and `config_schema_version` is then set to `1`. If you choose `true` after that, your choice is preserved. Do not manually remove the format marker.
+Old despawn booleans are not converted. The feeding-based breeding switch and biome-reset migration are removed. Valid biome/debug choices remain; a missing new despawn setting uses `CAPTURED_ONLY`.
 
-SERVER configuration normally lives in `config/`; a world's `serverconfig/jsmore-server.toml` can override it. The server controls both gameplay options and synchronizes them to clients. Restart the world or server after changing them. Disabling breeding restores Jurassic Saga's rules while keeping pending egg data, which is checked before use when breeding is enabled again.
+Old occupied boxes prove prior capture. Animals already released by older versions cannot be reliably identified and are not guessed. Protect old enclosures with the new `ALL` mode, or retain old occupied boxes until releasing them after upgrading. Animals outside the old land/water categories need a successful recapture to gain the new history.
+
+Despawn protection does not cap breeding or the total animal population. Enclosures still need population management; `CAPTURED_ONLY` does not make every wild animal permanent.
+
+Unloaded boxes settle anesthesia, supplies, hunger/thirst and durability against elapsed server game time, without loading chunks or counting shutdown time. Automatic care retains up to four future pending injections. Occupied normal box drops cannot expire from item age, but still consume supplies and durability and retain environmental damage rules. Dart-hit damage is at most 1 HP and nonlethal for that hit; other damage can still kill.
+
+1.1.0 uses network protocol `8`: update both client and server. Use public 1.0.0 for the older dependency pairs. 1.1.0 cannot run on Jurassic Saga 0.2.x; future binaries still require actual interface and behavior checks.
 
 ## Optional integrations and feedback
 

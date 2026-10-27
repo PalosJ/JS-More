@@ -9,7 +9,7 @@ import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
@@ -49,7 +49,7 @@ public final class DinosaurObservationSystem {
         NEXT_CLEANUP_TICK.set(0L);
     }
 
-    private static DinosaurObservationSnapshot captureFresh(JSAnimalBase animal) {
+    public static DinosaurObservationSnapshot captureFresh(JSAnimalBase animal) {
         DinosaurAgeEstimate ageEstimate = DinosaurAgeSystem.estimate(animal);
         Object metabolismModule = resolveMetabolismModule(animal);
         Object geneticModule = resolveGeneticModule(animal);
@@ -108,9 +108,7 @@ public final class DinosaurObservationSystem {
             return thirst;
         }
         thirst = ReflectionAccessCache.invokePercentage(metabolismModule, "waterPercentage");
-        return thirst.isPresent()
-                ? thirst
-                : ReflectionAccessCache.invokePercentage(metabolismModule, "staminaPercentage");
+        return thirst;
     }
 
     private static OptionalDouble resolveMoodPercentage(Object metabolismModule) {

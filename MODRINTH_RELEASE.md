@@ -1,6 +1,6 @@
-# JS More 1.0.0 正式版发布材料
+# JS More 1.1.0 正式版发布材料
 
-用于人工发布。本文件与介绍文案不执行任何线上修改；完成最终验收后再使用下面的发布字段。
+用于人工发布。本地实现与下列验证已完成；本文件与介绍文案不执行任何线上修改。尚未覆盖的实机场景单独列在验收记录中。
 
 ## 发布字段
 
@@ -8,12 +8,12 @@
 | --- | --- |
 | 项目 | Jurassic Saga More / `jurassic-saga-more` |
 | 项目 ID | `4o4yBaUe` |
-| 版本名称 | JS More 1.0.0 |
-| 版本号 | `1.0.0` |
+| 版本名称 | JS More 1.1.0 |
+| 版本号 | `1.1.0` |
 | 发布类型 | Release |
 | Minecraft / 加载器 | 1.21.1 / NeoForge |
 | 客户端 / 服务端 | 均需要安装 |
-| 文件 | `jsmore-1.0.0.jar`，以最终制品哈希核对 |
+| 文件 | `jsmore-1.1.0.jar`，以最终制品哈希核对 |
 | 问题反馈 | https://github.com/PalosJ/JS-More/issues |
 | 源码 | https://github.com/PalosJ/JS-More |
 | 许可证展示 | 自定义多许可证范围；代码、普通数据与文档为 MIT，已验证原创视觉资产另有项目授权范围 |
@@ -27,47 +27,41 @@
 
 | 依赖 | 项目 ID | NeoForge 1.21.1 文件 ID | 类型 |
 | --- | --- | --- | --- |
-| Jurassic Saga 0.2.3 | `i4bpeN7J` | `EzDlTUHi` | required |
-| Travelers Lib 0.8.2.2 | `3qvUCqn7` | `Aadzy3jP` | required |
+| Jurassic Saga 0.3 | `i4bpeN7J` | `nti1NZVa` | required |
+| Travelers Lib 1.0 | `3qvUCqn7` | `I9ua8Njp` | required |
 
-旧版支持组合为 Jurassic Saga `YdbXbcFo`（0.2.1）和 Travelers `vKc8KD7H`（0.7.2）；它用于手动维持旧整合包，不与当前主模组混搭。Curios、Jade、TerraBlender 和航空学实现不是必需依赖。
+公开 1.0.0 保留旧版组合：Jurassic Saga `EzDlTUHi`（0.2.3）/ Travelers `Aadzy3jP`（0.8.2.2），以及 `YdbXbcFo`（0.2.1）/ `vKc8KD7H`（0.7.2）。它用于维持旧整合包，不与当前主模组混搭。Curios、Jade、TerraBlender 和航空学实现不是必需依赖。生成的 Maven POM 同样锁定上表的平台文件 ID。
 
 **不要复用 Alpha 的 `Va3G53TV` 依赖：它是 Forge 1.20.1 文件。** 即使版本号相同，Minecraft 和加载器也必须匹配。创建草稿或发布记录后，使用干净的 1.21.1 NeoForge 实例检查自动安装实际取得的两个依赖文件。
 
 ## 中文更新说明
 
-这是 JS More 的 **1.0.0 正式版**，以下变化相对于已经发布的 1.0.0 Alpha。
+1.1.0 适配 Jurassic Saga 0.3 / Travelers 1.0，完整恢复主模组繁殖。防自然清理改为关闭、仅保护已捕获个体（默认）、全部三档；旧开关不迁移，群系与调试选项保留。
 
-- 新增集蛋器：收取半径 16 格内、落地约五秒的基础蛋，提供 18 格库存并支持漏斗，装不下的蛋留在地上。
-- 加入玩家喂食繁殖。普通动物需要双方符合条件并分别喂食；鸵鸟、鳄鱼、芦苇蛙和蛇怪的成年雌性可在喂食后，于下次产蛋周期产下带母系基因的实体蛋。
-- 默认防止主模组陆生、水生动物因距离或闲置自然消失。繁殖与防自然消失都有独立服务器开关，默认开启；关闭繁殖时会保留已有待产数据。
-- 修正成年后的年龄显示，睡觉和时间指令不再造成异常增长。旧成年个体只校正一次，已迁移个体不会重复重置。
-- 默认保留主模组群系生成。与其他群系模组冲突时，可按需开启配置中的禁用选项，作为简单直接的备用方案。升级时旧设置重置并备份一次，之后保留玩家选择。修改后重启，已有区块不变。
-- 支持 Jurassic Saga 0.2.3 / Travelers 0.8.2.2，同时保留旧版组合；补充新版觅食排序修复与自定义动物分类兼容。
-- 支持 Aeronautics 1.3.2 / Sable 2.0.5，保留原组合；补充 Jade 15.10.6 验证，并减少满载集蛋器、大量运输箱和频繁查看信息时的额外开销。
-- 修复已验证新版组合中的 Jade 重复选项注册，并补齐捕获箱信息选项的中英文名称。
+修复捕获期间成长和补给时间结算、饥渴伤害区间、普通占用箱掉落物计时清理及弱小动物被麻醉镖击杀的问题。眼镜改用服务器快照，只对 Jade 实际显示的信息去重，并可选择完整独立显示。保留最多四针待生效自动补给、普通蛋收集、物理搬运和强制就近释放的风险。
 
-麻醉弩、捕获和运输原本已在 Alpha 中提供，本次继续保留。运输失败仍会强制就近释放；危险地形可能造成恐龙受伤或死亡，破损箱不能修复后复用。安装前请核对所下载依赖均为 NeoForge 1.21.1。
+实机追加修复箱体观察请求丢弃后界面冻结，以及 Travelers 1.0 寻路线程阻止独服正常退出的问题；未改变寻路算法。
+
+旧合法待产蛋只兑现一次，无法解析的数据继续保全；旧箱可证明捕获历史，升级前已经释放的动物无法追溯。需要保护旧围栏时选择新 ALL 模式，或成功重捕一次。协议更新为 8，客户端和服务器一起升级。旧依赖请继续使用 1.0.0，未来上游版本仍需实际检查。
 
 ## English release notes
 
-This is the **1.0.0 stable release** of JS More. Changes below are relative to the published 1.0.0 Alpha.
+1.1.0 targets Jurassic Saga 0.3 / Travelers 1.0 and restores upstream breeding in full. Despawn protection is now OFF, CAPTURED_ONLY (default), or ALL. Old booleans are not migrated; valid biome/debug choices remain.
 
-- Added the Egg Collector: gathers base egg items within 16 blocks after about five seconds, with 18 slots and hopper support. Eggs that do not fit stay on the ground.
-- Added player-fed breeding. Ordinary eligible parents must both be fed. Eligible female ostriches, alligators, reed frogs, and basilisks can produce one maternal-gene entity egg on their next laying cycle after feeding.
-- Added default protection from distance- and inactivity-based despawning for the host's land and water creatures. Breeding and despawn protection have independent server switches, both enabled by default. Disabling breeding keeps pending egg data.
-- Corrected adult age display so sleep and daylight commands no longer cause large jumps. Legacy adult animals are corrected once; previously migrated animals are not reset again.
-- Jurassic Saga biome generation now stays enabled by default. An optional disable setting offers a simple fallback for biome conflicts. Old settings are backed up and reset once during the upgrade, then future choices are preserved. Restart after editing; existing chunks are unaffected.
-- Supports Jurassic Saga 0.2.3 / Travelers 0.8.2.2 alongside the legacy pair, including the newer food-sort fix and custom animal spawn categories.
-- Adds Aeronautics 1.3.2 / Sable 2.0.5 support alongside the older set and Jade 15.10.6 coverage. Full collectors, large numbers of transport boxes, and frequent information checks now do less unnecessary work.
-- Fixes duplicate Jade option registration in the verified newer combination and adds the capture-box option's English and Chinese labels.
+Fixes captured growth and chronological supply settlement, starvation duration, occupied normal item-box expiry and lethal dart hits on weak animals. Goggles use server snapshots and omit only matching information actually visible in Jade, with an optional full display. Retains four future pending automatic injections, ordinary egg collection, physics transport and the risks of forced-nearby release.
 
-The anesthetic crossbow, capture, and transport tools already existed in Alpha and are retained. Transport failure still forces a nearby release; hazardous terrain can injure or kill the dinosaur, and broken boxes cannot be repaired and reused. Check that every dependency download targets NeoForge 1.21.1.
+Also fixes frozen box observations after a dropped request and Travelers 1.0 path workers preventing a saved server from exiting, without changing pathfinding.
+
+Valid legacy pending eggs complete once; unreadable data is retained. Old occupied boxes prove capture history; animals released before upgrading do not. Select the new ALL mode or recapture old enclosure animals if needed. Protocol 8 requires both sides to update. Keep public 1.0.0 for older dependency pairs; future upstream versions remain subject to verification.
 
 ## 制品与验收记录
 
-- 最终 JAR SHA-256：`9afc630bf2797dff2bb540c0cd1d3a37dcf190688fce30a1be22b5cc8c2f173f`
-- 最终 JAR SHA-512：`1c5448b0ec0fb42327194a99445f77325faca1579b062f9148ba2c78c8616b1a1f8e6c7196dccbdeef22b38d91f79d560c7224b579440303dee17f6f2e91fb35`
-- 保留原 Alpha `jrAX7Rcv` 及其制品，不替换旧文件。
-- 发布前核对：新旧依赖矩阵、独服正常启动退出、配置迁移及服务器同步、实际整合包视觉和长期圈养繁殖、许可证与来源、GitHub CI、自动安装依赖。
-- 需要人工发布后的自动安装验证才能确认 Modrinth 实际解析结果；本地依赖和哈希核对不能替代这一项。
+- 本地制品与以下验收记录已就绪。GitHub 源码同步不代表已创建 GitHub / Modrinth Release，在线制品发布和自动安装验收仍需另行完成。
+- 最终 JAR：`jsmore-1.1.0.jar`；SHA-256：`d9efb350fe9e3f26d5a5d6222de6b779061b990a8337896389fb2ebbbafaa763`。
+- 2026-10-27，Java 21 / 当前 Wrapper：七组新基线矩阵通过，包括最小、普通、两组航空学、两组共存环境和 NeoForge 21.1.250 最小环境，其余使用 21.1.232。每组发现 484 项 JUnit 测试，失败/错误为 0；非共存环境各有 1 项按环境条件跳过，共存环境无跳过。每组 162 项 GameTest 通过；构建、POM 和制品审计通过。
+- 同一最终 JAR 在七组真实独服中完成启动、生成动物并触发寻路、保存及正常退出；公开 1.0.0 的两个旧组合另行启动退出回归通过。旧布尔值 true/false、COMMON 值保留及新 ALL/OFF 两次重启，共六次配置实机运行通过。
+- 最终候选 JFR 连续记录 65 分 44 秒，服务器正常退出。平均 tick 2.76 ms，99 分位 27.47 ms；有五次短时落后警告，不能描述为无卡顿。首次约 27 分钟无客户端并与其他验证并行，后续客户端实际完成运输与显示验收。小型隔离世界的结果不代表大型整合包容量。
+- 实机确认捕获箱掉落物保存重载、容器储存与区块卸载结算、重新放置和释放；原动物 UUID、基因数据、年龄身份和捕获历史保留，最终只有一个动物实体且没有遗留动物载体。确认 Jade 显示/隐藏、完整眼镜模式、箱体信息持续刷新、水生浮水及苏醒游动、飞行动物麻醉落地。低血量重复中镖在同轮前候选实机确认，最终候选仍有对应 GameTest。
+- 尚未逐物种进行完整繁殖周期的客户端观察，也未完成人工操纵大型航空学载具、多人长时间压力或其他操作系统的视觉验收；这些不能由本轮服务器回归代替。飞行动物醒后飞行状态已由服务器确认，未单独录下恢复飞行动画。
+- 保留既有 Alpha、1.0.0 Release 及其制品，不替换旧文件。
+- 人工发布后仍需验证 Modrinth 自动安装取得正确平台的依赖；本地校验不替代这一项。

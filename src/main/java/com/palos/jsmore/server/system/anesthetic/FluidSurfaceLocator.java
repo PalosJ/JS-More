@@ -1,6 +1,6 @@
 package com.palos.jsmore.server.system.anesthetic;
 
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;

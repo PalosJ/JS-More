@@ -293,6 +293,24 @@ class CapturedDinosaurDataTest {
         assertTrue(CapturedDinosaurData.decodeNBT(oversized).isEmpty());
     }
 
+    @Test
+    void unsafeUpstreamGeneCountsEnumsAndNonfiniteScalePreserveTheRawCarrier() {
+        for (String field : new String[] {"js.genetic_data.size", "js.genetics.type", "js.genetics.activetime", "js.genetic_data.size_dimorphism"}) {
+            CompoundTag stored = validStoredDataTag();
+            CompoundTag genes = new CompoundTag();
+            if (field.endsWith("size_dimorphism")) genes.putFloat(field, Float.NaN);
+            else genes.putInt(field, Integer.MAX_VALUE);
+            stored.getCompound("EntityNbt").put("js.genetics.data", genes);
+            CompoundTag raw = stored.copy();
+            org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(1),
+                    () -> assertTrue(CapturedDinosaurData.decodeNBT(stored).isEmpty()));
+            assertEquals(raw, stored, "Rejected data must remain available for recovery");
+        }
+        CompoundTag sparseLegacy = validStoredDataTag();
+        sparseLegacy.getCompound("EntityNbt").put("js.genetics.data", new CompoundTag());
+        assertTrue(CapturedDinosaurData.decodeNBT(sparseLegacy).isPresent());
+    }
+
     private static CompoundTag storedDataTag(CompoundTag entityNbt) {
         CompoundTag stored = new CompoundTag();
         stored.putString("EntityType", "minecraft:pig");

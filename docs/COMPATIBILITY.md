@@ -6,8 +6,8 @@
 | --- | --- | --- |
 | Minecraft: Java Edition | Required | `1.21.1` |
 | NeoForge | Required | `21.1.232` or newer compatible 1.21.1 build |
-| Jurassic Saga | Required host mod | `0.2.1` or newer; no artificial upper bound |
-| Travelers Lib | Required through the host-mod stack | `0.7.1` or newer; no artificial upper bound |
+| Jurassic Saga | Required host mod | `0.3` or newer structurally compatible binary |
+| Travelers Lib | Required through the host-mod stack | `1.0` or newer structurally compatible binary |
 | Sable Companion | Embedded compatibility facade | Approved nested version only |
 | Curios | Optional | Missing mod disables Curios-slot detection only |
 | Jade | Optional client integration | Missing mod disables Jade integration only |
@@ -21,11 +21,10 @@ dedicated server.
 
 ## Version-range policy
 
-The tested host pairs are Jurassic Saga 0.2.1 / Travelers 0.7.2 and Jurassic
-Saga 0.2.3 / Travelers 0.8.2.2. Travelers 0.7.1 is an additional legacy server
-regression, not a valid prerequisite for the newer host. Builds pin the
-platform-specific Modrinth file IDs because a shared numerical version can
-resolve to a different Minecraft release.
+The 1.1.0 baseline is Jurassic Saga 0.3 (`nti1NZVa`) / Travelers 1.0
+(`I9ua8Njp`), specifically their NeoForge 1.21.1 files. Public 1.0.0 retains
+0.2.3 / 0.8.2.2 and 0.2.1 / 0.7.2 support; its extra Travelers 0.7.1 regression
+belongs to that old artifact. Do not run 1.1.0 against the old package layout.
 
 Jurassic Saga and Travelers use lower-bounded dependency ranges so a version
 number change alone does not reject startup. This does not promise behavioral
@@ -39,22 +38,21 @@ test the actual binary and identify a functional incompatibility.
 
 ## Travelers Lib
 
-The server compatibility transformer recognizes only provable structures:
+Travelers 1.0 already guards renderer initialization on the client. The old
+0.7.1 server-init transformer is retired from the release artifact. Historical
+binary analyzers remain test fixtures, not runtime patches. Internal `azure`
+packages belong to Travelers' animation implementation and do not require an
+external AzureLib mod.
 
-- the known 0.7.1 unsafe renderer-install sequence is patched narrowly;
-- a renderer install proven to be inside a client-only branch is a safe
-  no-op;
-- a version in which the renderer bridge is absent but common initialization
-  remains intact is a safe no-op; and
-- partial, duplicated, incorrectly guarded, stack-invalid, or otherwise
-  ambiguous structures fail fast with a diagnostic.
+A separate 1.0 navigation defect leaves two non-daemon core workers alive after a
+server saves and stops. This was reproduced without JS More. A class-fingerprint
+gate allows a small initializer patch that marks newly created path workers as
+daemon threads. The queue, limits, rejection policy and pathfinding remain
+unchanged; unknown future class bytes are left unpatched with a diagnostic.
 
-Both the old `onLoad(CoreServices)` and current `onLoad()` signatures are
-recognized. Only the old unsafe initialization is eligible for mutation;
-the no-argument entry must prove its client guard. Official 0.7.1, 0.7.2 and
-0.8.2.2 binaries are separate regression inputs. Internal
-packages whose names contain `azure` belong to Travelers' bundled animation
-implementation; they do not imply an external AzureLib mod dependency.
+The new animator has no `beginFrame()` method. The renderer guards each animal's
+bone-state lookup separately, while its actual two-argument update entry remains
+verified. Sleeping one animal must not reuse or clear another animal's frame.
 
 ## Jurassic Saga animal compatibility
 
@@ -67,35 +65,29 @@ Age registration ignores null species, non-finite values, zero, and negative
 values. An existing override takes priority, then a known built-in adult age,
 then a generic size fallback for an unknown species.
 
-The despawn policy covers vanilla land/water creature categories and the
-host's `jurassicsaga:js_land` / `jurassicsaga:js_water` categories. It preserves
-upstream persistence and ambient behavior. Upstream 0.2.3 also removes old
-concrete `JSAnimals` fields; test fixtures use the stable registry query.
+The SERVER policy is OFF / CAPTURED_ONLY (default) / ALL. ALL covers vanilla
+land/water creature categories, `jurassicsaga:js_land` / `js_water`, and captured
+animals outside those categories. Every mode preserves upstream native persistence.
+Only successful captures establish history; old occupied boxes are proof, but
+previously released animals cannot be inferred. This is not a population cap.
+
+All upstream breeding behavior is restored. Legacy gestation and module cooldown
+fields in `js.metabolism` load into `js.reproduction`, with valid new data taking
+priority. The animal-base mate-search cooldown is a separate field. Malformed
+records retain recoverable raw data. Historical maternal eggs clear only after a
+successful spawn; no new such records are created by ordinary feeding.
 
 ## Jurassic Saga food-task compatibility
 
-Jurassic Saga 0.2.1 and 0.2.3 create a food comparator whose result can
-change while the same candidate pair is being sorted because it samples random
-jitter during each comparison. This can violate Java TimSort's comparator
-contract and abort dense food searches.
+Jurassic Saga 0.3 moves food gathering into `JSFoodSearch.gather`, but still
+resamples random jitter inside its sort comparator. JS More fingerprints the
+actual audited class before redirecting that single sort. Each candidate gets
+one score per invocation. Search radius, forage profile, candidate limit and
+pathfinding stay upstream-owned. Unknown class bytes are diagnosed and left
+unpatched, rather than applying an unverified redirect.
 
-JS More gates a common Mixin with a narrow bytecode fingerprint. For the known
-unsafe shape (`PATCH`), the redirect pre-samples one bounded jitter value per
-candidate and sorts by the resulting stable score for that invocation. If the
-old sorting path is proven completely absent (`SAFE_NO_OP`), no patch is
-applied. Any other structural drift is diagnosed and left unpatched rather
-than allowing an unverified redirect to block startup. The game can still
-start, but the affected upstream food-search behavior must be treated as
-unverified until that exact binary is tested.
-
-The legacy redirect targets `findTargets(float, Vec3)` / `ArrayList.sort`.
-The current redirect targets private `gatherCandidates(Level, float)` /
-`List.sort`, with exact checks for its caller, lambda, locals and jitter
-helper arithmetic. Only one matching Mixin is applied. The newer competitive
-path requests and candidate limit remain upstream-owned.
-
-Remove this workaround only after the upstream implementation no longer uses
-the unsafe comparator and an official replacement binary has been verified.
+The old 0.2.x food-task patches are not shipped in 1.1.0. Their binary analyzers
+remain separate test fixtures for historical regression evidence.
 
 ## Optional client integrations
 
@@ -106,33 +98,30 @@ the unsafe comparator and an official replacement binary has been verified.
 - **Resource reload:** model/animation capability caches are invalidated on
   reload and session changes.
 
-Jurassic Saga 0.2.3 explicitly adds two Jade config keys that Jade 15.10.6
-already creates from its entity providers. This makes the host plugin's
-registration session throw before installing its ray-trace callback. A
-client-only redirect removes just those two duplicate additions. It requires
-exact class hashes for the host plugin, both providers, Jade's session and
-registration implementation, and the provider defaults. Missing or changed
-classes disable this workaround; the ordinary JS More integration remains
-independent. The capture-box Jade option has both English and Chinese labels.
+Jurassic Saga 0.3 already removes its duplicate Jade option registration, so the
+old corrective Mixin is retired. JS More never removes upstream tooltip rows.
+Goggles suppress matching health, sex or genes only when the current Jade render
+confirms those fields for the same animal. Unknown formatting keeps goggles data;
+CLIENT `show_full_goggles_information=true` keeps everything. Hidden/disabled Jade
+must not leave both displays empty. Capture-box requests also carry unique
+request IDs and dimensions; timed-out requests retry, late replies cannot consume
+a newer request, and old snapshots expire instead of remaining visibly frozen.
 
 ## World generation
 
 Jurassic Saga biome generation remains enabled by default. The COMMON
 `disable_jurassicsaga_biome_generation` setting is a restart-scoped fallback
 for conflicts with other biome generators, not a universal compatibility fix.
-Legacy configurations are backed up before NeoForge corrects their contents;
-the loading event resets the flag once and writes schema 1. Later opt-in is
-preserved. Existing chunks are not regenerated. TerraBlender is
-optional: class absence disables the TerraBlender-specific hook, while a
-present but structurally incompatible class produces a targeted diagnostic.
-Disabling biome generation does not remove Jurassic Saga animals, fossils,
-items, or structures outside that specific generation path.
+Valid existing biome/debug values are retained; the old one-time reset and schema
+key are no longer used. Existing chunks are not regenerated. TerraBlender is
+optional: absence disables its hook and structural drift produces a diagnostic.
+Disabling biome generation does not remove unrelated animals, fossils, items or
+structures.
 
-The independent SERVER options for despawn protection and player-fed breeding
-default to true and use NeoForge world-restart caching and client sync.
-Disabling breeding restores upstream behavior without clearing pending egg
-data. Re-enabling validates the retained data before use. Anesthesia has its
-own Mixins and is independent of both switches.
+The SERVER despawn enum uses NeoForge restart caching and synchronization. Old
+booleans are not converted; a missing enum defaults to CAPTURED_ONLY. The former
+feeding-breeding setting is removed. Anesthesia and data preservation do not depend
+on despawn mode.
 
 ## Moving-structure compatibility
 
@@ -155,10 +144,11 @@ The exact binary matrix belongs in CI/build configuration and may evolve more
 often than this document. A green compatibility profile is evidence for its
 tested binaries, not a blanket claim for every fork or future version.
 
-## JS More 1.0.0 identity boundary
+## Identity and upgrade boundary
 
-The public Alpha established the `jsmore` identity. The stable 1.0.0 release
-keeps its registries, capture format and network protocol 7. It does not repeat
+The public Alpha established the `jsmore` identity. 1.1.0 retains the registries
+and capture carrier identity, and advances network protocol to 8. Both endpoints
+must upgrade together. Public 1.0.0 remains protocol 7. It does not repeat
 the earlier internal identity migration or reset already-migrated adult ages.
 Older internal namespaces remain unsupported; that is separate from updating
 the public Alpha to the stable release.

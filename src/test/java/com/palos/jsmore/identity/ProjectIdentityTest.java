@@ -138,12 +138,12 @@ final class ProjectIdentityTest {
     }
 
     private static Path projectRoot() {
-        Path current = Path.of("").toAbsolutePath().normalize();
+        Path current = Path.of(System.getProperty("jsmore.test.project-root", "")).toAbsolutePath().normalize();
         while (current != null && !Files.isRegularFile(current.resolve("gradle.properties"))) {
             current = current.getParent();
         }
         if (current == null) {
-            throw new IllegalStateException("Could not locate the Gradle project root from " + Path.of("").toAbsolutePath());
+            throw new IllegalStateException("Could not locate the Gradle project root from " + Path.of(System.getProperty("jsmore.test.project-root", "")).toAbsolutePath());
         }
         return current;
     }

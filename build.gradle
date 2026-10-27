@@ -56,24 +56,19 @@ def effectiveRuntimeProfile = withAeronauticsPackInterop
         ? "pack-interop"
         : (withAeronautics ? "aeronautics" : (withMinimalRuntime ? "minimal" : "default"))
 def aeronauticsExpectedStatus = withAeronautics ? "READY" : "ABSENT"
-// These are tested pairs: the current host requires Travelers 0.8.2 or newer.
+// JS More 1.1.0 uses the 0.3 / 1.0 platform pair. Public 1.0.0 owns legacy runtime support.
 def upstreamProfile = providers.gradleProperty("upstreamProfile").getOrElse("current")
-def physicsProfile = providers.gradleProperty("physicsProfile").getOrElse(upstreamProfile)
-if (!(upstreamProfile in ["legacy", "current"]) || !(physicsProfile in ["legacy", "current"])) {
-    throw new GradleException("upstreamProfile and physicsProfile must be legacy or current")
+def physicsProfile = providers.gradleProperty("physicsProfile").getOrElse("current")
+if (upstreamProfile != "current" || !(physicsProfile in ["legacy", "current"])) {
+    throw new GradleException("JS More 1.1.0 requires upstreamProfile=current; use public 1.0.0 for legacy hosts. physicsProfile must be legacy or current")
 }
-def travelersRuntimeVersion = providers.gradleProperty("travelersRuntimeVersion")
-        .getOrElse(upstreamProfile == "legacy" ? "0.7.2" : "0.8.2.2")
-if (!(travelersRuntimeVersion in (upstreamProfile == "legacy" ? ["0.7.1", "0.7.2"] : ["0.8.2.2"]))) {
-    throw new GradleException("Travelers ${travelersRuntimeVersion} is not an approved ${upstreamProfile} pair")
+def travelersRuntimeVersion = providers.gradleProperty("travelersRuntimeVersion").getOrElse("1.0")
+if (travelersRuntimeVersion != "1.0" || travelerslib_version.toString() != "1.0") {
+    throw new GradleException("The approved Jurassic Saga 0.3 pair requires Travelers 1.0")
 }
-def travelersArtifacts = ["0.7.1": "DR1GkOCV", "0.7.2": "vKc8KD7H", "0.8.2.2": "Aadzy3jP"]
-def travelersRuntimeArtifact = travelersArtifacts[travelersRuntimeVersion]
-def travelersCompileArtifact = travelersArtifacts[travelerslib_version.toString()]
-if (travelersCompileArtifact == null) {
-    throw new GradleException("Unsupported Travelers compile baseline ${travelerslib_version}")
-}
-def jurassicRuntimeVersion = upstreamProfile == "legacy" ? "YdbXbcFo" : "EzDlTUHi"
+def travelersRuntimeArtifact = "I9ua8Njp"
+def travelersCompileArtifact = "I9ua8Njp"
+def jurassicRuntimeVersion = "nti1NZVa"
 def aeronauticsBinaryVersion = physicsProfile == "legacy" ? "w7zlLnea" : "44pLdPGg"
 def sableBinaryVersion = physicsProfile == "legacy" ? "1L6XJqnY" : "U678xqle"
 
@@ -581,14 +576,14 @@ abstract class VerifyTravelersRuntimeClasspath extends DefaultTask {
 }
 
 dependencies {
-    compileOnly "maven.modrinth:travelers-lib:${travelersCompileArtifact}"
+    compileOnly("maven.modrinth:travelers-lib:${travelersCompileArtifact}") { transitive = false }
     localRuntime("maven.modrinth:travelers-lib:${travelersRuntimeArtifact}") {
         version { strictly travelersRuntimeArtifact }
     }
 
-    compileOnly "maven.modrinth:jurassic-saga:YdbXbcFo"
-    testCompileOnly "maven.modrinth:jurassic-saga:YdbXbcFo"
-    testCompileOnly "maven.modrinth:travelers-lib:${travelersCompileArtifact}"
+    compileOnly("maven.modrinth:jurassic-saga:nti1NZVa") { transitive = false }
+    testCompileOnly("maven.modrinth:jurassic-saga:nti1NZVa") { transitive = false }
+    testCompileOnly("maven.modrinth:travelers-lib:${travelersCompileArtifact}") { transitive = false }
     localRuntime("maven.modrinth:jurassic-saga:${jurassicRuntimeVersion}") {
         version { strictly jurassicRuntimeVersion }
         transitive = false
@@ -766,6 +761,7 @@ tasks.withType(Test).configureEach {
         java.nio.file.Files.createDirectories(workingDir.toPath())
     }
     useJUnitPlatform()
+    systemProperty 'jsmore.test.project-root', rootDir.absolutePath
     jvmArgumentProviders.add(aeronauticsBinaryArguments)
     jvmArgumentProviders.add(compatibilityBinaryArguments)
     systemProperty 'jsmore.test.aeronautics.expected-status', aeronauticsExpectedStatus
@@ -862,8 +858,10 @@ sourceSets.main.resources.srcDir generateModMetadata
 // To avoid having to run "generateModMetadata" manually, make it run on every project reload
 neoForge.ideSyncTask generateModMetadata
 
-def pomJurassicSagaVersion = project.property("jurassicsaga_version").toString()
-def pomTravelersVersion = project.property("travelerslib_version").toString()
+// Modrinth version numbers can be shared by different Minecraft/loader files.
+// Maven consumers must resolve the same audited platform files as this build.
+def pomJurassicSagaVersion = jurassicRuntimeVersion
+def pomTravelersVersion = travelersRuntimeArtifact
 
 // Example configuration to allow publishing using the maven-publish plugin
 publishing {
@@ -1019,8 +1017,8 @@ tasks.register("auditReleaseArtifact") {
                     "displayName=\"${releaseModName}\"",
                     'logoFile="jsmore.png"',
                     "license=\"${releaseModLicense}\"",
-                    'versionRange="[0.2.1,)"',
-                    'versionRange="[0.7.1,)"'
+                    'versionRange="[0.3,)"',
+                    'versionRange="[1.0,)"'
             ].each { expected ->
                 if (!metadata.contains(expected)) {
                     throw new GradleException("Generated metadata is missing ${expected}")
@@ -1077,7 +1075,9 @@ tasks.register("auditReleaseArtifact") {
                 "<name>MIT</name>",
                 "<name>LicenseRef-JSMore-Visual-Assets</name>",
                 "<artifactId>jurassic-saga</artifactId>",
-                "<artifactId>travelers-lib</artifactId>"
+                "<version>${pomJurassicSagaVersion}</version>",
+                "<artifactId>travelers-lib</artifactId>",
+                "<version>${pomTravelersVersion}</version>"
         ].each { expected ->
             if (!pomText.contains(expected)) {
                 throw new GradleException("Generated Maven POM is missing ${expected}")

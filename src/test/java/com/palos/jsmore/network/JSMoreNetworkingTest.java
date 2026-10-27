@@ -12,16 +12,16 @@ import org.junit.jupiter.api.Test;
 
 final class JSMoreNetworkingTest {
     @Test
-    void protocolSevenRegistersExactlyTheCurrentPayloadIdentities() {
-        assertEquals("7", JSMoreNetworking.NETWORK_VERSION);
+    void protocolEightRegistersExactlyTheCurrentPayloadIdentities() {
+        assertEquals("8", JSMoreNetworking.NETWORK_VERSION);
 
         Set<ResourceLocation> actual = Stream.<CustomPacketPayload.Type<?>>of(
                         FireAnestheticCrossbowPayload.TYPE,
-                        EggLayingProgressRequestPayload.TYPE,
+                        AnimalObservationRequestPayload.TYPE,
                         CaptureCageObservationRequestPayload.TYPE,
                         SurfaceEffectPayload.TYPE,
                         SleepAnimationGuardPayload.TYPE,
-                        EggLayingProgressPayload.TYPE,
+                        AnimalObservationPayload.TYPE,
                         CaptureCageObservationPayload.TYPE
                 )
                 .map(CustomPacketPayload.Type::id)
@@ -29,11 +29,11 @@ final class JSMoreNetworkingTest {
 
         assertEquals(Set.of(
                 JSMore.id("fire_anesthetic_crossbow"),
-                JSMore.id("egg_laying_progress_request"),
+                JSMore.id("animal_observation_request"),
                 JSMore.id("capture_cage_observation_request"),
                 JSMore.id("surface_effect"),
                 JSMore.id("sleep_animation_guard"),
-                JSMore.id("egg_laying_progress"),
+                JSMore.id("animal_observation"),
                 JSMore.id("capture_cage_observation")
         ), actual);
     }

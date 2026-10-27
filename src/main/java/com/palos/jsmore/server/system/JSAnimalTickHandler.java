@@ -2,7 +2,7 @@ package com.palos.jsmore.server.system;
 
 import com.palos.jsmore.server.system.age.DinosaurAgeSystem;
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 

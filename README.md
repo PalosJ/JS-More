@@ -2,9 +2,9 @@
 
 **简体中文** | [English](README.en.md)
 
-JS More 是 **Minecraft 1.21.1 NeoForge** 的 Jurassic Saga 附属模组，为恐龙饲养补上麻醉、运输、观察、可控繁殖和自动集蛋。
+JS More 是 **Minecraft 1.21.1 NeoForge** 的 Jurassic Saga 附属模组，为恐龙饲养补上麻醉、运输、观察和普通蛋自动收集。
 
-源码版本：**1.0.0 正式版**。下载请认准 [Modrinth](https://modrinth.com/mod/jurassic-saga-more)。公开的 `1.0.0 Alpha` 与本次正式版分开记录，实际发布状态以该页面为准。
+源码版本：**1.1.0**。下载请认准 [Modrinth](https://modrinth.com/mod/jurassic-saga-more)。本地源码版本不代表已在线发布，实际发布状态以该页面为准。
 
 ## 安装
 
@@ -12,10 +12,11 @@ JS More 是 **Minecraft 1.21.1 NeoForge** 的 Jurassic Saga 附属模组，为�
 
 | 组合 | JS More | Jurassic Saga | Travelers Lib |
 | --- | --- | --- | --- |
-| 当前版本 | 1.0.0 | [0.2.3](https://modrinth.com/mod/jurassic-saga/version/EzDlTUHi) | [0.8.2.2](https://modrinth.com/mod/travelers-lib/version/Aadzy3jP) |
+| 新版基线 | 1.1.0 | [0.3](https://modrinth.com/mod/jurassic-saga/version/nti1NZVa) | [1.0](https://modrinth.com/mod/travelers-lib/version/I9ua8Njp) |
+| 旧版正式制品 | 1.0.0 | [0.2.3](https://modrinth.com/mod/jurassic-saga/version/EzDlTUHi) | [0.8.2.2](https://modrinth.com/mod/travelers-lib/version/Aadzy3jP) |
 | 旧版兼容 | 1.0.0 | [0.2.1](https://modrinth.com/mod/jurassic-saga/version/YdbXbcFo) | [0.7.2](https://modrinth.com/mod/travelers-lib/version/vKc8KD7H) |
 
-NeoForge 最低验证基线为 `21.1.232`，另覆盖 `21.1.250`。Travelers `0.7.1` 保留旧版独服回归，不要与 Jurassic Saga `0.2.3` 混用。不同平台可能共用版本号，下载时还要核对 Minecraft 和加载器。
+NeoForge 构建基线为 `21.1.232`，验收矩阵另包含 `21.1.250`。Travelers `0.7.1` 保留旧版独服回归，不要与 Jurassic Saga `0.2.3` 混用。不同平台可能共用版本号，下载时还要核对 Minecraft 和加载器。
 
 Curios、Jade、TerraBlender 与航空学组件均为可选项，没有它们也能使用核心功能。
 
@@ -31,35 +32,40 @@ Curios、Jade、TerraBlender 与航空学组件均为可选项，没有它们也
 
 ## 圈养与繁殖
 
-默认情况下，主模组陆生、水生动物不会因为玩家走远或长时间没有互动而自然消失。它们仍然会受到伤害；本功能保留主模组已有的持久化规则。
+默认仅保护**成功被恐龙捕获箱捕获过**的动物，释放、重捕和重载后仍保留捕获历史。失败的捕获不标记原动物，后代不会继承此标记。所有模式都保留主模组自己的持久化规则，也不会免除伤害。
 
-普通繁殖需要同种、异性、成年、可育且冷却结束的双方，分别被玩家喂食各自接受的食物。求偶、遗传与出生过程沿用 Jurassic Saga。
+繁殖完整沿用 Jurassic Saga：恢复上游自然求偶、繁殖条件、遗传与出生，不再增加玩家喂食门槛或新的单母系受精蛋。旧存档已有的合法待产蛋在成功生成后兑现一次；无法解析或生成失败的数据继续保留。
 
-鸵鸟、鳄鱼、芦苇蛙和蛇怪按自己的周期产蛋。喂食符合条件的成年雌性后，下一次产蛋会变为带有母系基因的实体蛋。鸵鸟吃种子，鳄鱼吃鱼，芦苇蛙和蛇怪吃主模组的蚊子。成功产下后，需要再次喂食才能让下个周期继续产受精蛋。待产状态可随存档、区块重载和捕获箱运输保留。
-
-两项规则都能由服务器单独关闭，详见配置。
+防自然清理不是数量上限。被保护的动物、上游原生持久动物及正常繁殖仍可能增加围栏数量，需要持续管理食物、空间和数量。
 
 ## 集蛋器与观察
 
 集蛋器会收取半径 16 格内、落地约 5–5.5 秒的基础蛋，包括鸡蛋及主模组的鳄鱼、鸵鸟、青蛙、蛇怪、鱼和蜘蛛蛋。它不收取正在孵化的实体蛋，也不主动加载区块。右键打开 18 格库存，可接漏斗；库存不足时，装不下的蛋会留在地上。
 
-恐龙博士眼镜可查看生命、性别、饱食、口渴、心情、成长、年龄、麻醉和产蛋进度，观察捕获箱时还会显示补给与耐久。可佩戴在原版头部栏，安装 Curios 后支持相应槽位。
+恐龙博士眼镜通过限频的服务器目标快照查看生命、性别、饱食、口渴、心情、成长、估算年龄、麻醉和产蛋进度，观察捕获箱时还会显示补给与耐久。可佩戴在原版头部栏，安装 Curios 后支持相应槽位。默认只省略 Jade 同一帧确实显示的同类信息；可启用完整独立显示。
 
 成年前，显示年龄随成长进度变化；成年后每经过一个游戏日的服务器运行时间增加一天。睡觉或 `/time` 跳过白天不会让年龄突然增加。尚未迁移的旧成年恐龙只校正一次，已迁移个体不会再次重置。
 
-## 配置
+## 配置与升级
 
 | 文件与配置项 | 默认值 | 用途 |
 | --- | --- | --- |
-| `config/jsmore-common.toml` → `disable_jurassicsaga_biome_generation` | `false` | 按需关闭主模组群系生成 |
-| `jsmore-server.toml` → `prevent_jurassicsaga_animal_despawn` | `true` | 防止陆生、水生动物因距离或闲置自然消失 |
-| `jsmore-server.toml` → `enable_player_fed_breeding` | `true` | 玩家喂食繁殖与周期受精蛋规则 |
+| COMMON `disable_jurassicsaga_biome_generation` | `false` | 按需关闭主模组群系生成，重启生效，已有区块不变 |
+| COMMON `debug_logging` | `false` | 调试日志 |
+| SERVER `animal_despawn_protection` | `CAPTURED_ONLY` | `OFF` 遵循上游；`CAPTURED_ONLY` 仅保护已捕获个体；`ALL` 另保护陆生、水生类别 |
+| CLIENT `show_full_goggles_information` | `false` | 开启后眼镜独立显示全部信息 |
 
-**默认保留 Jurassic Saga 的群系生成。** 如果它与整合包中的其他群系模组发生冲突，可以把群系禁用选项改成 `true`。这是一个简单直接的备用解决办法，需要重启游戏或服务器；已有区块不会因此重新生成。
+配置文件分别为 `jsmore-common.toml`、`jsmore-server.toml`、`jsmore-client.toml`。SERVER 设置由服务器决定并同步，世界的 `serverconfig/jsmore-server.toml` 可覆盖全局设置；修改防清理模式后重启世界或服务器。
 
-升级正式版时，旧格式的群系禁用设置会重置为 `false` 一次。原配置备份在同目录的 `.pre-schema-1.bak` 文件中，格式标记 `config_schema_version` 随后变为 `1`。此后自行开启的 `true` 会保留，请勿手动删除格式标记。
+升级不转换旧防清理布尔值，删除旧玩家喂食繁殖开关与群系重置流程。仍有效的群系、调试选项保留；缺少新的防清理项时使用 `CAPTURED_ONLY`。
 
-SERVER 配置通常位于 `config/`，世界的 `serverconfig/jsmore-server.toml` 可以覆盖它。两个玩法开关由服务器决定并同步到客户端，修改后重启世界或服务器。关闭繁殖开关会恢复主模组规则，已有待产数据保留，重新开启后校验使用。
+旧捕获箱中的动物可据此补记捕获历史。旧版**已经释放**的动物没有可靠历史，不猜测补标。要保护旧围栏，可先选新 `ALL` 模式，或保留旧捕获箱至升级后释放；旧范围之外的个体应成功重捕一次。
+
+防自然清理不限制繁殖或动物总数，仍需管理围栏内的数量；`CAPTURED_ONLY` 不会让所有野生动物都永久保留。
+
+未加载期间，捕获箱按服务器经过的游戏时间结算药效、补给、饥渴与耐久，不主动加载区块，也不计停服时间。自动补针保留最多四针待生效规则。装有动物的普通捕获箱掉落物不会被物品寿命计时清理，但仍消耗补给和耐久，环境伤害规则不变。麻醉镖单次命中最多造成 1 点伤害且不直接杀死目标；其他伤害仍可能致死。
+
+1.1.0 使用网络协议 `8`，客户端和服务端须一起升级。1.0.0 继续用于旧依赖组合；新版不能装在 Jurassic Saga 0.2.x 上。未来主模组版本仍须检查实际接口与行为。
 
 ## 可选兼容与反馈
 

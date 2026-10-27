@@ -8,12 +8,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import jp.jurassicsaga.server.animal.JSAnimals;
-import jp.jurassicsaga.server.animal.animals.obj.JSAnimal;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
-import jp.jurassicsaga.server.animal.entity.obj.diet.Diet;
-import jp.jurassicsaga.server.animal.entity.obj.modules.obj.JSMetabolismModule;
-import jp.jurassicsaga.server.animal.entity.obj.tasks.metabolism.JSFindFoodTask;
+import jp.jurassicsaga.server.entity.animal.JSAnimals;
+import jp.jurassicsaga.server.entity.animal.animals.obj.JSAnimal;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.diet.Diet;
+import jp.jurassicsaga.server.entity.animal.entity.obj.modules.obj.JSMetabolismModule;
+import jp.jurassicsaga.server.entity.animal.entity.obj.tasks.metabolism.JSFindFoodTask;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -86,16 +86,7 @@ public final class JurassicSagaFoodSortGameTests {
             }
 
             try {
-                if (com.palos.jsmore.compat.jurassicsaga.JurassicSagaFoodSortCompatibilityGate
-                        .probeRuntimeOnce().variant() == com.palos.jsmore.compat.jurassicsaga
-                        .JurassicSagaFoodSortCompatibilityGate.Variant.CURRENT) {
-                    JSFindFoodTask.class.getMethod("findTargets", float.class).invoke(fixture.task, 96.0F);
-                } else {
-                    fixture.task.findTargets(
-                            96.0F,
-                            (fixture.rounds & 1) == 0 ? null : fixture.subject.animal().position()
-                    );
-                }
+                JSFindFoodTask.class.getMethod("findTargets", float.class).invoke(fixture.task, 96.0F);
             } catch (ReflectiveOperationException | IllegalArgumentException exception) {
                 cleanup(fixture.subject.animal(), fixture.candidates);
                 subjects.forEach(subject -> subject.animal().discard());
@@ -112,7 +103,7 @@ public final class JurassicSagaFoodSortGameTests {
     }
 
     private static boolean isFoodSortMixinApplied() {
-        for (Method method : JSFindFoodTask.class.getDeclaredMethods()) {
+        for (Method method : jp.jurassicsaga.server.entity.animal.entity.obj.tasks.metabolism.food.JSFoodSearch.class.getDeclaredMethods()) {
             if (method.getName().contains("jsmore$sortFoodCandidatesWithStableScores")) {
                 return true;
             }

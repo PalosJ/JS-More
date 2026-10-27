@@ -298,7 +298,7 @@ class JurassicSagaFoodSortCompatibilityGateTest {
                 root.resolve("src/main/resources/jsmore.mixins.json"),
                 StandardCharsets.UTF_8
         );
-        String entry = "\"JurassicSagaFindFoodTaskMixin\"";
+        String entry = "\"JurassicSagaFoodSearchMixin\"";
 
         assertEquals(mixins.indexOf(entry), mixins.lastIndexOf(entry));
         assertTrue(mixins.contains(entry));
@@ -470,7 +470,7 @@ class JurassicSagaFoodSortCompatibilityGateTest {
     }
 
     private static Path projectRoot() {
-        Path current = Path.of("").toAbsolutePath().normalize();
+        Path current = Path.of(System.getProperty("jsmore.test.project-root", "")).toAbsolutePath().normalize();
         while (current != null && !Files.isRegularFile(current.resolve("gradle.properties"))) {
             current = current.getParent();
         }

@@ -1,7 +1,7 @@
 package com.palos.jsmore.mixin;
 
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;

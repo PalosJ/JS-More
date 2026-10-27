@@ -4,7 +4,7 @@ import com.palos.jsmore.JSMore;
 import com.palos.jsmore.compat.aeronautics.AeronauticsCompatibilityBootstrap;
 import com.palos.jsmore.compat.aeronautics.CaptureBoxRelocationState;
 import com.palos.jsmore.config.JSMoreConfig;
-import com.palos.jsmore.config.JSMoreConfigMigration;
+import com.palos.jsmore.config.JSMoreClientConfig;
 import com.palos.jsmore.config.JSMoreServerConfig;
 import com.palos.jsmore.network.JSMoreNetworking;
 import com.palos.jsmore.network.ServerRequestRateLimiters;
@@ -45,11 +45,9 @@ public final class JSMoreNeo {
         JSMoreRecipeSerializers.register(modEventBus);
         JSMoreCreativeTabs.register(modEventBus);
         modEventBus.addListener(JSMoreNetworking::register);
-        JSMoreConfigMigration.backupLegacyFile(net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get()
-                .resolve(JSMoreConfigMigration.COMMON_FILE));
-        modEventBus.addListener(JSMoreConfigMigration::onLoading);
-        modContainer.registerConfig(ModConfig.Type.COMMON, JSMoreConfig.SPEC, JSMoreConfigMigration.COMMON_FILE);
+        modContainer.registerConfig(ModConfig.Type.COMMON, JSMoreConfig.SPEC);
         modContainer.registerConfig(ModConfig.Type.SERVER, JSMoreServerConfig.SPEC);
+        modContainer.registerConfig(ModConfig.Type.CLIENT, JSMoreClientConfig.SPEC);
         NeoForge.EVENT_BUS.addListener(JSAnimalTickHandler::onEntityTickPost);
         NeoForge.EVENT_BUS.addListener(JSAnimalTickHandler::onPlayerStartTracking);
         NeoForge.EVENT_BUS.addListener(DinosaurCaptureAnvilHandler::onAnvilUpdate);

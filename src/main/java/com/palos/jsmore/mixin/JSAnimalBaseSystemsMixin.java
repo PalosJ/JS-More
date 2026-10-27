@@ -1,7 +1,7 @@
 package com.palos.jsmore.mixin;
 
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
 import org.spongepowered.asm.mixin.injection.At;
@@ -24,7 +24,7 @@ public abstract class JSAnimalBaseSystemsMixin {
             method = "customServerAiStep",
             at = @At(
                     value = "INVOKE",
-                    target = "Ljp/jurassicsaga/server/animal/entity/obj/bases/JSEntityDataHolder;customServerAiStep()V",
+                    target = "Ljp/jurassicsaga/server/entity/animal/entity/obj/bases/JSEntityDataHolder;customServerAiStep()V",
                     shift = At.Shift.BEFORE
             ),
             require = 0

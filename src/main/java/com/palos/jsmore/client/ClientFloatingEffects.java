@@ -3,7 +3,7 @@ package com.palos.jsmore.client;
 import com.palos.jsmore.client.render.FloatingModelGeometryResolver;
 import com.palos.jsmore.server.system.anesthetic.AnestheticVisualState;
 import com.palos.jsmore.server.system.anesthetic.DinosaurAnestheticSystem;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 import java.util.UUID;

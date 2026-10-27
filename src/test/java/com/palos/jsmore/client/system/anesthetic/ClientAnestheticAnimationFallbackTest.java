@@ -186,7 +186,7 @@ class ClientAnestheticAnimationFallbackTest {
     private static Class<?> jurassicSagaAnchor() {
         try {
             return Class.forName(
-                    "jp.jurassicsaga.server.animal.animations.obj.JSAnimations",
+                    "jp.jurassicsaga.server.entity.animal.animations.obj.JSAnimations",
                     false,
                     Thread.currentThread().getContextClassLoader()
             );

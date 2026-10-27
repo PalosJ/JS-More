@@ -5,7 +5,7 @@ import collinvht.travelers.server.animal.TravelersAnimal;
 import collinvht.travelers.server.animal.entity.SmartAnimalBase;
 import collinvht.travelers.server.animal.entity.other.TravelersAnimalAnimationModule;
 import collinvht.travelers.server.animal.obj.TravelersMoveAnalysis;
-import jp.jurassicsaga.server.animal.entity.obj.bases.JSAnimalBase;
+import jp.jurassicsaga.server.entity.animal.entity.obj.bases.JSAnimalBase;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
