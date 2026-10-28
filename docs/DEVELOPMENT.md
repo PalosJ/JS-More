@@ -68,6 +68,8 @@ For configuration changes, cover defaults, retained biome/debug choices, removed
 old boolean keys, repeated restart and every new despawn mode. No config migration
 is expected. Verify capture history across success/failure/reload/recapture and that
 children do not inherit it. Test upstream breeding and one-time legacy pending eggs.
+Compare saved raw growth before another upstream entity load can normalize it,
+including the adult-stage threshold when it precedes maximum growth.
 Compare short-step and long-gap transport settlement, resource exhaustion, clock
 rollback, starvation boundaries, low health and growth-stage transitions. Test new
 supply deposits after elapsed history, occupied item expiry and normal empty boxes.
@@ -77,6 +79,13 @@ and world changes, flying/aquatic anesthesia and waking animation. Include an
 isolated husbandry/transport workflow and at least one hour of sustained operation;
 record tick time, memory, network and supplies. List any unperformed acceptance
 separately; server GameTests do not establish client visual correctness.
+
+JFR heap-object counting can request full heap inspections at chunk boundaries.
+For pause attribution, record the JFR settings and GC causes, separate actual
+stop-the-world pause time from collection duration, and avoid concurrent builds
+or debugger suspensions during the measurement interval. Audio-pool failures
+need the retained sound IDs and failed decode futures, not only a vanilla-sound
+smoke test.
 
 Measure hot paths before changing them. Record workload, accepted requests or transferred items, timing and data invariants. Helper microbenchmarks and short GameTests do not establish whole-server performance or long-duration pack stability.
 

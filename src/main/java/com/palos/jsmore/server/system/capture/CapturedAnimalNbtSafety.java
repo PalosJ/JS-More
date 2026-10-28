@@ -2,6 +2,7 @@ package com.palos.jsmore.server.system.capture;
 
 import jp.jurassicsaga.server.generic.gene.obj.GeneType;
 import jp.jurassicsaga.server.generic.obj.ActiveTime;
+import jp.jurassicsaga.server.entity.animal.entity.obj.info.AnimalGrowthStage;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -13,6 +14,7 @@ final class CapturedAnimalNbtSafety {
     private CapturedAnimalNbtSafety() { }
 
     static boolean canRestore(CompoundTag entity) {
+        if (!validGrowth(entity)) return false;
         if (!entity.contains("js.genetics.data")) return true;
         if (!entity.contains("js.genetics.data", Tag.TAG_COMPOUND)) return false;
         CompoundTag genes = entity.getCompound("js.genetics.data");
@@ -37,6 +39,23 @@ final class CapturedAnimalNbtSafety {
             for (int i = 0; i < unstable.size(); i++) if (unstable.getString(i).length() > 256) return false;
         }
         return true;
+    }
+
+    private static boolean validGrowth(CompoundTag entity) {
+        if (!entity.contains("js.growthstage")) return true;
+        if (!entity.contains("js.growthstage", Tag.TAG_COMPOUND)) return false;
+        CompoundTag growth = entity.getCompound("js.growthstage");
+        if (!optionalInt(growth, "js.growthstage.stage")) return false;
+        if (growth.contains("js.growthstage.stage")) {
+            int stage = growth.getInt("js.growthstage.stage");
+            boolean valid = false;
+            for (AnimalGrowthStage value : AnimalGrowthStage.values()) valid |= value.getId() == stage;
+            if (!valid) return false;
+        }
+        return !growth.contains("js.growthstage.progress")
+                || growth.contains("js.growthstage.progress", Tag.TAG_FLOAT)
+                && Float.isFinite(growth.getFloat("js.growthstage.progress"))
+                && growth.getFloat("js.growthstage.progress") >= 0.0F;
     }
 
     private static boolean validOrdinal(CompoundTag tag, String key, int count) {

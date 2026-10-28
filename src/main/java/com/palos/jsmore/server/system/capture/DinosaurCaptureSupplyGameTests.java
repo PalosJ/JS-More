@@ -327,6 +327,9 @@ public final class DinosaurCaptureSupplyGameTests {
     @GameTest(template = "profile_compatibility", timeoutTicks = 100)
     public static void captureAutoAnestheticAllowsFourFuturePendingButNeverQueuesFifth(GameTestHelper helper) {
         JSAnimalBase animal = createAnimalWithHunger(helper);
+        // A constructor-only animal has zero growth. Its short injection delay can
+        // legitimately activate the fourth dose immediately instead of leaving it pending.
+        if (animal != null) animal.getModules().getGrowthStageModule().setMax();
         CapturedDinosaurData captured = animal == null ? null : CapturedDinosaurData.capture(animal).orElse(null);
         DinosaurCaptureCageBlockEntity threeCage = placeController(
                 helper, helper.absolutePos(new BlockPos(14, 2, 14))
@@ -372,7 +375,11 @@ public final class DinosaurCaptureSupplyGameTests {
                 || threeCage.getSupplies().anesthetic() != 1
                 || fourSettled.relativeAnestheticNbt().getList("PendingDoses", Tag.TAG_COMPOUND).size() != 4
                 || fourCage.getSupplies().anesthetic() != 2) {
-            helper.fail("Capture-box auto anesthetic did not enforce the four-pending limit");
+            helper.fail("Capture-box auto anesthetic did not enforce the four-pending limit: three="
+                    + (threeSettled == null ? "missing" : threeSettled.relativeAnestheticNbt())
+                    + ", reserves=" + threeCage.getSupplies().anesthetic()
+                    + "; four=" + (fourSettled == null ? "missing" : fourSettled.relativeAnestheticNbt())
+                    + ", reserves=" + fourCage.getSupplies().anesthetic());
             return;
         }
         helper.succeed();

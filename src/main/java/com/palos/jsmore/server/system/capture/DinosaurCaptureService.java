@@ -822,6 +822,16 @@ public final class DinosaurCaptureService {
                     || !Float.isFinite(animal.getHealth()) || !Float.isFinite(animal.getMaxHealth())
                     || animal.getMaxHealth() <= 0.0F
                     || !Float.isFinite(animal.getModules().getGrowthStageModule().getGrowthProgress())) return Optional.empty();
+            var growth = animal.getModules().getGrowthStageModule();
+            CompoundTag savedGrowth = data.entityNbt().getCompound("js.growthstage");
+            if (savedGrowth.contains("js.growthstage.progress", Tag.TAG_FLOAT)) {
+                float progress = savedGrowth.getFloat("js.growthstage.progress");
+                if (progress > growth.getMaxGrowth()) return Optional.empty();
+                // Upstream normalizes ADULT to maximum on load, although its live growth can
+                // enter that stage earlier. Temporary capture loads must preserve the timeline.
+                growth.setGrowthProgress(progress);
+                growth.requestGrowthCollisionUpdate();
+            }
             animal.setUUID(data.originalUuid());
             DinosaurCaptureHistory.markRestoredAnimal(animal);
             AnestheticData drug = animal.getData(JSMoreAttachments.ANESTHETIC);

@@ -141,10 +141,14 @@ public final class DinoDoctorOverlayRenderer {
         if (target.animal() != null) {
             ClientCaptureCageObservationCache.stopObserving(minecraft.level);
             renderAnimalOverlay(guiGraphics, minecraft, target.animal());
+            // This runs in RenderGuiEvent.Post, outside the GUI layer stack. Submit the
+            // panel here even when Jade deduplication removed all flushing gene icons.
+            guiGraphics.flush();
             return;
         }
         ClientAnimalObservationCache.stopObserving();
         renderCaptureBoxOverlay(guiGraphics, minecraft, target.cageTarget());
+        guiGraphics.flush();
     }
 
     private static void renderAnimalOverlay(GuiGraphics guiGraphics, Minecraft minecraft, JSAnimalBase animal) {
@@ -299,7 +303,7 @@ public final class DinoDoctorOverlayRenderer {
         return createObservationLines(snapshot, com.palos.jsmore.compat.jade.JadeAnimalTooltipPolicy.Fields.NONE);
     }
 
-    private static List<OverlayLine> createObservationLines(DinosaurObservationSnapshot snapshot,
+    static List<OverlayLine> createObservationLines(DinosaurObservationSnapshot snapshot,
             com.palos.jsmore.compat.jade.JadeAnimalTooltipPolicy.Fields visible) {
         List<OverlayLine> lines = new ArrayList<>();
         lines.add(OverlayLine.title(snapshot.displayName(), 0xDDEEFF));

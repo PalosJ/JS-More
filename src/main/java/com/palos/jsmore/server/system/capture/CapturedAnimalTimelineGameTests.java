@@ -21,6 +21,61 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 public final class CapturedAnimalTimelineGameTests {
     private CapturedAnimalTimelineGameTests() { }
 
+    @GameTest(template = "profile_compatibility", timeoutTicks = 100)
+    public static void invalidCapturedGrowthCannotBeNormalizedIntoAReleasableAnimal(GameTestHelper helper) {
+        JSAnimalBase animal = animal(helper);
+        CapturedDinosaurData seed = CapturedDinosaurData.capture(animal).orElseThrow();
+        for (float invalid : new float[] {Float.NaN, Float.POSITIVE_INFINITY, -1F,
+                animal.getModules().getGrowthStageModule().getMaxGrowth() + 1F}) {
+            CompoundTag stored = seed.serializeNBT();
+            stored.getCompound("EntityNbt").getCompound("js.growthstage").putFloat("js.growthstage.progress", invalid);
+            CompoundTag original = stored.copy();
+            var decoded = CapturedDinosaurData.deserializeNBT(stored);
+            helper.assertTrue(decoded.isEmpty()
+                            || DinosaurCaptureService.createTemporaryAnimal(helper.getLevel(), decoded.orElseThrow()).isEmpty(),
+                    "Invalid saved growth was normalized into a releasable animal");
+            helper.assertTrue(stored.equals(original), "Rejected growth data was modified");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "profile_compatibility", timeoutTicks = 100)
+    public static void crossingAdultStageDoesNotDependOnCaptureSettlementFrequency(GameTestHelper helper) {
+        var clock = helper.getLevel().getServer().getWorldData().overworldData();
+        long originalTime = clock.getGameTime();
+        try {
+            long start = 100_000L;
+            clock.setGameTime(start);
+            JSAnimalBase animal = animal(helper);
+            var growth = animal.getModules().getGrowthStageModule();
+            float threshold = animal.getAnimal().getAnimalAttributes().getGeneticProperties().getBabyData().getMaxGrowth();
+            helper.assertTrue(threshold > 100F && threshold + 200F < growth.getMaxGrowth(),
+                    "Fixture needs a separate adult-stage boundary before maximum growth");
+            growth.setGrowthStage(AnimalGrowthStage.BABY);
+            growth.setGrowthProgress(threshold - 100F);
+            CapturedDinosaurData seed = CapturedDinosaurData.capture(animal).orElseThrow();
+            clock.setGameTime(start + 101L);
+            ItemStack first = DinosaurCaptureService.cageStackForDrop(helper.getLevel(), seed, DinosaurCaptureSupplies.EMPTY);
+            CapturedDinosaurData crossed = DinosaurCaptureItemData.get(first).orElseThrow();
+            helper.assertTrue(crossed.entityNbt().getCompound("js.growthstage").getInt("js.growthstage.stage")
+                    == AnimalGrowthStage.ADULT.getId(), "Fixture did not cross the adult-stage boundary");
+            clock.setGameTime(start + 200L);
+            ItemStack repeated = DinosaurCaptureService.cageStackForDrop(helper.getLevel(), crossed, DinosaurCaptureSupplies.EMPTY);
+            ItemStack once = DinosaurCaptureService.cageStackForDrop(helper.getLevel(), seed, DinosaurCaptureSupplies.EMPTY);
+            CapturedDinosaurData repeatedData = DinosaurCaptureItemData.get(repeated).orElseThrow();
+            CapturedDinosaurData onceData = DinosaurCaptureItemData.get(once).orElseThrow();
+            // Compare authoritative saved progress before another upstream load can normalize both.
+            float expected = onceData.entityNbt().getCompound("js.growthstage").getFloat("js.growthstage.progress");
+            float actual = repeatedData.entityNbt().getCompound("js.growthstage").getFloat("js.growthstage.progress");
+            helper.assertTrue(expected < growth.getMaxGrowth(), "One settlement should not finish all growth");
+            helper.assertTrue(actual == expected, "Repeated settlement prematurely completed adult growth");
+            JSAnimalBase restored = DinosaurCaptureService.createTemporaryAnimal(helper.getLevel(), onceData).orElseThrow();
+            helper.assertTrue(restored.getModules().getGrowthStageModule().getGrowthProgress() == expected,
+                    "Observation or release prematurely completed adult growth");
+        } finally { clock.setGameTime(originalTime); }
+        helper.succeed();
+    }
+
     @GameTest(template = "profile_compatibility", timeoutTicks = 200)
     public static void longSettlementMatchesRepeatedSettlementsThroughSuppliesAndGrowth(GameTestHelper helper) {
         var clock = helper.getLevel().getServer().getWorldData().overworldData();

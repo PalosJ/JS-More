@@ -160,11 +160,37 @@ the public Alpha to the stable release.
 
 ## Support expectations
 
-Local 1.1.0 acceptance found intermittent sound-pool exhaustion in longer
-client sessions. Short paired tests, with and without JS More, each played
-300 spaced vanilla sounds without reproducing it. The original trigger and
-responsible layer remain unresolved; this is a possible missing-audio issue,
-not a fixed defect or evidence that one particular mod caused it.
+The NeoForge 1.21.1 Jurassic Saga 0.3 archive (`nti1NZVa`, verified against the
+[official file metadata](https://api.modrinth.com/v2/version/nti1NZVa)) contains
+corrupt ostrich audio. Its `ostrich_js_idle02.ogg`, `ostrich_js_idle03.ogg` and
+`ostrich_js_idle04.ogg` fail Vorbis decoding with `Corrupt or missing data in
+bitstream`; Ogg page checks also detect invalid checksums/truncated data.
+`ostrich_js_aggressive03.ogg` has a truncated page as well.
+
+In the original failing session, all 247 retained static channels belonged to
+`jurassicsaga:ostrich_idle`. A separate client without JS More reproduced pool
+exhaustion using that same sound. Minecraft 1.21.1 allocates channels before the
+asynchronous buffer load; a failed buffer future leaves the never-started channel
+unreleased by the normal stopped-channel sweep. This is an upstream asset and
+vanilla error-handling interaction, not an addon sound emitter. JS More does not
+replace upstream audio or claim to fix this missing-sound failure.
+
+Jurassic Saga 0.3's Jade fence-cable ray callback also combines a player's world
+eye position with a hit position inside a Sable sub-level. Looking at a moving
+structure can therefore request an enormous AABB; Sable rejects it and repeatedly
+logs a stack trace. This occurred with both approved physics sets. A separate
+current-set client/server without JS More reproduced it on ordinary stone and
+gold blocks, before any rotation. At a fixed view, hiding Jade stopped new errors
+and showing it resumed them. Temporarily disabling Jade's display while working
+on moving structures is a verified workaround; JS More goggles continue to work.
+This upstream interaction remains unresolved in 1.1.0. Repeated error logging can
+add client work and disk I/O, but is not evidence that it explains every stutter.
+
+Short stutters need separate evidence. The original profiling session included
+heap-inspection pauses from JFR object counts, chunk work, joins and saves. A
+cleaner paired recording with heap-object counting disabled did not reproduce the
+seconds-long stalls, but does not attribute every earlier warning or establish
+large-pack capacity. Do not interpret total GC collection duration as pause time.
 
 When reporting a compatibility problem, include the exact Minecraft,
 NeoForge, Jurassic Saga, Travelers, and optional-integration versions, plus the

@@ -63,6 +63,8 @@ late replies cannot consume the replacement request. Old HUD snapshots have a
 hard freshness limit rather than remaining visible forever.
 Jade's after-render callback records only fields actually rendered for that entity
 and frame. The goggles render afterwards and keep unknown/unconfirmed information.
+Their drawing is explicitly flushed before leaving the post-GUI event, including
+when no gene icons remain to trigger an item-render flush.
 
 ### Optional compatibility
 

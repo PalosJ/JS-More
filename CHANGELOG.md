@@ -10,6 +10,8 @@ This log compares public releases. Internal candidate versions are not separate 
 - Does not migrate old boolean configuration. Removes the feeding switch and biome-reset migration; preserves valid common biome/debug settings.
 - Settles unloaded transport by bounded chronological events, including existing reserves, pending doses, hunger/thirst and durability. New supplies are added after settling prior history. Starvation only charges time actually spent without food/water and cannot raise low health.
 - Applies upstream offline growth before rewriting captured snapshots and uses the grown hitbox for release. Preserves UUIDs, genes and existing age-migration markers.
+- Preserves partial adult growth across temporary capture loads, avoiding instant completion when the adult-stage threshold precedes maximum growth. Invalid saved growth remains recoverable instead of being normalized into a released animal.
+- Flushes goggles HUD drawing at its render-event boundary so deduplicating all gene icons does not hide the remaining panel.
 - Protects occupied ordinary capture-box drops from item-age expiry, without environmental invulnerability. Retains four future pending automatic doses and forced-nearby release consequences.
 - Limits dart-hit damage to a nonlethal maximum of 1 HP; validates alive/non-spectator firing on the server.
 - Fixes a Travelers 1.0 shutdown leak: its audited path executor creates daemon workers, preserving the upstream queue and pathfinding behavior while allowing a saved server to exit.

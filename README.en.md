@@ -44,6 +44,8 @@ The Egg Collector gathers dropped egg items within 16 blocks after roughly 5–5
 
 Dino Doctor Goggles use rate-limited server snapshots to show health, sex, hunger, thirst, mood, growth, estimated age, anesthesia and egg-laying progress. By default they omit only matching information actually rendered by Jade in that frame; full independent display is configurable. Look at a capture box to check its supplies and durability. The goggles work in the normal head slot, with support for the appropriate Curios slot when Curios is installed.
 
+Capture settlement and release preserve unfinished adult growth; repeatedly observing or loading a box does not instantly complete it. Jade deduplication retains the age, hunger, thirst and mood panel.
+
 Before adulthood, displayed age follows growth progress. After adulthood, it increases by one day for each in-game day's worth of server runtime. Sleeping or using `/time` to skip daylight does not suddenly add years. Older adult dinosaurs that have not received the age correction are adjusted once; previously corrected animals are not reset again.
 
 ## Configuration and upgrading
@@ -72,6 +74,10 @@ Unloaded boxes settle anesthesia, supplies, hunger/thirst and durability against
 - Curios `9.5.1`: goggles equipment slot. Jade `15.10.6`: information display. TerraBlender `4.1.0.8`: biome integration.
 - Moving capture boxes with physics supports Create `6.0.10` with either Aeronautics `1.3.0` / Sable `2.0.3`, or Aeronautics `1.3.2` / Sable `2.0.5`. Install the matching versions together. Unknown or incomplete combinations disable the transport integration.
 - Unlisted newer versions have not been verified as compatible. Report problems through [GitHub Issues](https://github.com/PalosJ/JS-More/issues), including your mod versions, steps to reproduce, and relevant logs.
+
+Some ostrich sounds in Jurassic Saga 0.3 contain damaged audio data and can exhaust the sound-channel pool without JS More installed. See the [compatibility notes](docs/COMPATIBILITY.md#support-expectations) for the cause and verification scope.
+
+The host mod's Jade fence detection can also repeatedly log oversized-query errors on moving structures, reproducible without JS More. Temporarily hiding Jade while transporting boxes avoids that trigger; goggles remain available. These upstream issues are not patched by 1.1.0.
 
 ## Development
 

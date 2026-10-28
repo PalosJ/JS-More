@@ -28,6 +28,23 @@ import org.junit.jupiter.api.Test;
 
 class DinoDoctorOverlayRendererTest {
     @Test
+    void jadeDeduplicationRetainsAgeVitalsAndAnesthesiaWithoutGeneIcons() {
+        DinosaurObservationSnapshot original = snapshotWithEggProgressAndGenes();
+        DinosaurObservationSnapshot hiddenGenes = original.withoutGenes();
+        List<DinoDoctorOverlayRenderer.OverlayLine> lines = DinoDoctorOverlayRenderer.createObservationLines(
+                hiddenGenes, new com.palos.jsmore.compat.jade.JadeAnimalTooltipPolicy.Fields(true, true, true));
+        List<String> labels = lines.stream().skip(1)
+                .map(line -> ((TranslatableContents) line.mainSegments().getFirst().text().getContents()).getKey())
+                .toList();
+        assertEquals(List.of("overlay.jsmore.age.label", "overlay.jsmore.hunger", "overlay.jsmore.thirst",
+                "overlay.jsmore.mood", "overlay.jsmore.anesthetic.remaining", "overlay.jsmore.anesthetic.pending"), labels);
+        assertTrue(hiddenGenes.genes().isEmpty());
+        assertFalse(original.genes().isEmpty());
+        assertEquals(original.ageEstimate(), hiddenGenes.ageEstimate());
+        assertEquals(original.eggLayingProgress(), hiddenGenes.eggLayingProgress());
+    }
+
+    @Test
     void enforcesTheEightBlockObservationRangeAgainstEntityBounds() {
         Vec3 observer = Vec3.ZERO;
 
