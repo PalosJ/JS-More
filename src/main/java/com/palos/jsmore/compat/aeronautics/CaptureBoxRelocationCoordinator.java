@@ -626,10 +626,14 @@ public final class CaptureBoxRelocationCoordinator {
                 );
                 if (!projected.success()
                         || !CaptureBoxAuthority.equivalentIgnoringPosition(this.targetExpected, projected.value())) {
+                    JSMore.LOGGER.debug("Capture-box target projection failed at {}: {}",
+                            this.targetIdentity.controller(), projected.code());
                     return false;
                 }
             }
             if (!targetMatchesExpected()) {
+                JSMore.LOGGER.debug("Capture-box projected target verification failed at {}",
+                        this.targetIdentity.controller());
                 return false;
             }
             if (!neutralizeSource()) {
@@ -730,8 +734,13 @@ public final class CaptureBoxRelocationCoordinator {
         private boolean targetMatchesSourceOriginal() {
             CaptureBoxAuthority.Result<CaptureBoxAuthority.Snapshot> current =
                     CaptureBoxAuthority.snapshot(this.targetLevel, this.targetIdentity.controller());
-            return current.success()
+            boolean matches = current.success()
                     && CaptureBoxAuthority.equivalentIgnoringPosition(this.sourceOriginal, current.value());
+            if (!matches) {
+                JSMore.LOGGER.debug("Capture-box copied target verification failed at {}: {} (kind={})",
+                        this.targetIdentity.controller(), current.code(), this.sourceOriginal.kind());
+            }
+            return matches;
         }
 
         private boolean targetMatchesExpected() {
@@ -1010,6 +1019,8 @@ public final class CaptureBoxRelocationCoordinator {
                     this.sourceIdentity.controller()
             );
             if (!neutralized.success()) {
+                JSMore.LOGGER.debug("Capture-box source neutralization failed at {}: {} (kind={})",
+                        this.sourceIdentity.controller(), neutralized.code(), this.sourceOriginal.kind());
                 return false;
             }
             if (!sourceMatchesOriginal()) {

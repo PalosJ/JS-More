@@ -109,3 +109,5 @@ Follow the outer project workflow. Subagents are used when the current request o
 Before any authorized GitHub write, recheck remote HEAD, the approved file list, existing dirty changes, versions, licenses, provenance and secrets. Stage approved inner-repository changes individually. Never force-push or include outer governance, planning or build outputs.
 
 A GitHub push does not authorize Modrinth edits, artifact uploads, GitHub releases or issue replies. Release materials are in MODRINTH_DESCRIPTION.md and MODRINTH_RELEASE.md. Actual visual, movement and long-term husbandry acceptance must be recorded separately from automated verification.
+
+When assembly retains the source box, DEBUG diagnostics distinguish copied-target verification, target metadata projection and source neutralization failures using positions, kinds and result codes, without logging animal NBT. Preserve the initial failure evidence when investigating platform differences; a successful rerun does not replace root-cause analysis.
