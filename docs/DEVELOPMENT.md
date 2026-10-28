@@ -111,3 +111,5 @@ Before any authorized GitHub write, recheck remote HEAD, the approved file list,
 A GitHub push does not authorize Modrinth edits, artifact uploads, GitHub releases or issue replies. Release materials are in MODRINTH_DESCRIPTION.md and MODRINTH_RELEASE.md. Actual visual, movement and long-term husbandry acceptance must be recorded separately from automated verification.
 
 When assembly retains the source box, DEBUG diagnostics distinguish copied-target verification, target metadata projection and source neutralization failures using positions, kinds and result codes, without logging animal NBT. Preserve the initial failure evidence when investigating platform differences; a successful rerun does not replace root-cause analysis.
+
+The exact physical GameTest harness removes sublevels synchronously. After removal it pumps one normal server chunk task so the visible chunk map and cache reflect the freed plot before same-tick reuse. Broken-box round trips cover sixteen source positions to exercise different copy-anchor orders; gameplay relocation still verifies the copied target before clearing the source.

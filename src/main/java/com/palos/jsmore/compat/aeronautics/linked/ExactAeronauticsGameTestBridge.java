@@ -290,8 +290,20 @@ public final class ExactAeronauticsGameTestBridge {
     }
 
     private static void verifyRoundTrip(GameTestHelper helper, String scenario) throws Exception {
+        if ("broken".equals(scenario)) {
+            // Vary the source hash/anchor order and chunk alignment while reusing no prior box.
+            for (int index = 0; index < 16; index++) {
+                BlockPos controller = helper.absolutePos(new BlockPos(6 + index % 4, 2, 6 + index / 4));
+                verifyRoundTripAt(helper, scenario, controller);
+                BrokenDinosaurCaptureBoxBlock.removeWholeBoxWithoutDrops(helper.getLevel(), controller, Direction.NORTH);
+            }
+            return;
+        }
+        verifyRoundTripAt(helper, scenario, helper.absolutePos(new BlockPos(6, 2, 6)));
+    }
+
+    private static void verifyRoundTripAt(GameTestHelper helper, String scenario, BlockPos controller) throws Exception {
         String seedScenario = "occupied-target".equals(scenario) ? "valid" : scenario;
-        BlockPos controller = helper.absolutePos(new BlockPos(6, 2, 6));
         CaptureBoxStructure.Kind kind = "broken".equals(seedScenario)
                 ? CaptureBoxStructure.Kind.BROKEN
                 : CaptureBoxStructure.Kind.COMPLETE;
@@ -323,7 +335,7 @@ public final class ExactAeronauticsGameTestBridge {
             }
             localController = controller.offset(result.offset());
             if (CaptureBoxAccess.resolve(helper.getLevel(), controller).isPresent()) {
-                throw new AssertionError("assembly left the source capture-box authority in the parent level");
+                throw new AssertionError("assembly left the source capture-box authority in the parent level at " + controller);
             }
             CaptureBoxAccess.Resolved moved = CaptureBoxAccess.resolve(result.subLevel().getLevel(), localController)
                     .orElseThrow(() -> new AssertionError("assembled sublevel lacks a canonical capture box"));
@@ -919,6 +931,10 @@ public final class ExactAeronauticsGameTestBridge {
         SubLevelContainer container = SubLevelContainer.getContainer(helper.getLevel());
         if (container != null) {
             container.processSubLevelRemovals();
+            // Sable removes the old plot from the updating chunk map. The normal server task pump
+            // publishes that map and clears the vanilla chunk cache; do that before another test
+            // reuses this plot in the same tick, or LevelAccelerator can copy into its old chunks.
+            helper.getLevel().getChunkSource().pollTask();
         }
     }
 
